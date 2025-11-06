@@ -1,0 +1,98 @@
+package com.sarlatea.crm.controller;
+
+import com.sarlatea.crm.dto.PaymentReportDTO;
+import com.sarlatea.crm.dto.UpcomingAssignmentsReportDTO;
+import com.sarlatea.crm.service.ReportService;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+
+/**
+ * REST controller for Reports
+ */
+@RestController
+@RequestMapping("/api/reports")
+@RequiredArgsConstructor
+@Slf4j
+public class ReportController {
+
+    private final ReportService reportService;
+
+    @GetMapping("/upcoming-assignments")
+    public ResponseEntity<UpcomingAssignmentsReportDTO> getUpcomingAssignmentsReport(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        
+        log.info("GET request for upcoming assignments report from {} to {}", startDate, endDate);
+        UpcomingAssignmentsReportDTO report = reportService.generateUpcomingAssignmentsReport(startDate, endDate);
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/upcoming-assignments/next-week")
+    public ResponseEntity<UpcomingAssignmentsReportDTO> getNextWeekAssignments() {
+        LocalDate today = LocalDate.now();
+        LocalDate nextWeek = today.plusWeeks(1);
+        
+        log.info("GET request for next week assignments report");
+        UpcomingAssignmentsReportDTO report = reportService.generateUpcomingAssignmentsReport(today, nextWeek);
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/upcoming-assignments/next-month")
+    public ResponseEntity<UpcomingAssignmentsReportDTO> getNextMonthAssignments() {
+        LocalDate today = LocalDate.now();
+        LocalDate nextMonth = today.plusMonths(1);
+        
+        log.info("GET request for next month assignments report");
+        UpcomingAssignmentsReportDTO report = reportService.generateUpcomingAssignmentsReport(today, nextMonth);
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/payments")
+    public ResponseEntity<PaymentReportDTO> getPaymentReport(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        
+        log.info("GET request for payment report from {} to {}", startDate, endDate);
+        PaymentReportDTO report = reportService.generatePaymentReport(startDate, endDate);
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/payments/current-month")
+    public ResponseEntity<PaymentReportDTO> getCurrentMonthPaymentReport() {
+        LocalDate today = LocalDate.now();
+        LocalDate startOfMonth = today.withDayOfMonth(1);
+        LocalDate endOfMonth = today.withDayOfMonth(today.lengthOfMonth());
+        
+        log.info("GET request for current month payment report");
+        PaymentReportDTO report = reportService.generatePaymentReport(startOfMonth, endOfMonth);
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/payments/last-month")
+    public ResponseEntity<PaymentReportDTO> getLastMonthPaymentReport() {
+        LocalDate today = LocalDate.now();
+        LocalDate startOfLastMonth = today.minusMonths(1).withDayOfMonth(1);
+        LocalDate endOfLastMonth = today.minusMonths(1).withDayOfMonth(
+                today.minusMonths(1).lengthOfMonth());
+        
+        log.info("GET request for last month payment report");
+        PaymentReportDTO report = reportService.generatePaymentReport(startOfLastMonth, endOfLastMonth);
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/payments/last-week")
+    public ResponseEntity<PaymentReportDTO> getLastWeekPaymentReport() {
+        LocalDate today = LocalDate.now();
+        LocalDate lastWeekStart = today.minusWeeks(1);
+        
+        log.info("GET request for last week payment report");
+        PaymentReportDTO report = reportService.generatePaymentReport(lastWeekStart, today);
+        return ResponseEntity.ok(report);
+    }
+}
+
