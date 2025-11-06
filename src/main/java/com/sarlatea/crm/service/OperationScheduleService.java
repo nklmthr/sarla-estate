@@ -111,6 +111,11 @@ public class OperationScheduleService {
         operationScheduleRepository.save(schedule);
         
         log.info("Generated {} work assignments for schedule: {}", assignments.size(), scheduleId);
+        
+        // Reload schedule with updated assignments count
+        schedule = operationScheduleRepository.findById(scheduleId)
+                .orElseThrow(() -> new ResourceNotFoundException("OperationSchedule not found with id: " + scheduleId));
+        
         return convertToDTO(schedule);
     }
 

@@ -74,9 +74,15 @@ const ScheduleList: React.FC = () => {
       setGenerating(scheduleId);
       const result = await scheduleApi.generateAssignments(scheduleId);
       console.log('Generate assignments result:', result);
+      
       // Reload schedules to get updated status and assignment count
       await loadSchedules();
-      const count = result?.totalAssignmentsCount || 0;
+      
+      // Safely extract count from result
+      const count = typeof result === 'object' && result !== null 
+        ? (result.totalAssignmentsCount || 0) 
+        : 0;
+      
       if (count > 0) {
         alert(`✅ Success! Generated ${count} work assignment${count !== 1 ? 's' : ''}\n\nClick the 👁️ icon to view assignments.`);
       } else {
