@@ -6,9 +6,6 @@ export const assignmentApi = {
   
   getAssignmentById: (id: string) => apiClient.get<WorkAssignment>(`/work-assignments/${id}`),
   
-  getAssignmentsBySchedule: (scheduleId: string) => 
-    apiClient.get<WorkAssignment[]>(`/work-assignments/by-schedule/${scheduleId}`),
-  
   getAssignmentsByEmployee: (employeeId: string) => 
     apiClient.get<WorkAssignment[]>(`/work-assignments/by-employee/${employeeId}`),
   

@@ -74,54 +74,51 @@ public class EmployeeService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public byte[] getEmployeePhoto(String id) {
+        log.debug("Fetching photo for employee with id: {}", id);
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+        return employee.getIdCardPhoto();
+    }
+
+    @Transactional
+    public void updateEmployeePhoto(String id, byte[] photo) {
+        log.debug("Updating photo for employee with id: {}", id);
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+        employee.setIdCardPhoto(photo);
+        employeeRepository.save(employee);
+    }
+
     private EmployeeDTO convertToDTO(Employee employee) {
         EmployeeDTO dto = new EmployeeDTO();
         dto.setId(employee.getId());
         dto.setName(employee.getName());
-        dto.setEmail(employee.getEmail());
         dto.setPhone(employee.getPhone());
-        dto.setAddress(employee.getAddress());
-        dto.setCity(employee.getCity());
-        dto.setState(employee.getState());
-        dto.setCountry(employee.getCountry());
-        dto.setPostalCode(employee.getPostalCode());
-        dto.setDepartment(employee.getDepartment());
-        dto.setEmployeeType(employee.getEmployeeType());
-        dto.setStatus(employee.getStatus());
-        dto.setNotes(employee.getNotes());
+        dto.setPfAccountId(employee.getPfAccountId());
+        dto.setIdCardType(employee.getIdCardType());
+        dto.setIdCardValue(employee.getIdCardValue());
+        // Note: idCardPhoto (byte[]) not included in DTO for typical list/get operations
         return dto;
     }
 
     private Employee convertToEntity(EmployeeDTO dto) {
         Employee employee = new Employee();
         employee.setName(dto.getName());
-        employee.setEmail(dto.getEmail());
         employee.setPhone(dto.getPhone());
-        employee.setAddress(dto.getAddress());
-        employee.setCity(dto.getCity());
-        employee.setState(dto.getState());
-        employee.setCountry(dto.getCountry());
-        employee.setPostalCode(dto.getPostalCode());
-        employee.setDepartment(dto.getDepartment());
-        employee.setEmployeeType(dto.getEmployeeType());
-        employee.setStatus(dto.getStatus() != null ? dto.getStatus() : Employee.EmployeeStatus.ACTIVE);
-        employee.setNotes(dto.getNotes());
+        employee.setPfAccountId(dto.getPfAccountId());
+        employee.setIdCardType(dto.getIdCardType());
+        employee.setIdCardValue(dto.getIdCardValue());
         return employee;
     }
 
     private void updateEmployeeFields(Employee employee, EmployeeDTO dto) {
         employee.setName(dto.getName());
-        employee.setEmail(dto.getEmail());
         employee.setPhone(dto.getPhone());
-        employee.setAddress(dto.getAddress());
-        employee.setCity(dto.getCity());
-        employee.setState(dto.getState());
-        employee.setCountry(dto.getCountry());
-        employee.setPostalCode(dto.getPostalCode());
-        employee.setDepartment(dto.getDepartment());
-        employee.setEmployeeType(dto.getEmployeeType());
-        employee.setStatus(dto.getStatus());
-        employee.setNotes(dto.getNotes());
+        employee.setPfAccountId(dto.getPfAccountId());
+        employee.setIdCardType(dto.getIdCardType());
+        employee.setIdCardValue(dto.getIdCardValue());
     }
 }
 

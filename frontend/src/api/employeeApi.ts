@@ -6,6 +6,9 @@ export const employeeApi = {
   
   getEmployeeById: (id: string) => apiClient.get<Employee>(`/employees/${id}`),
   
+  getEmployeePhoto: (id: string) => 
+    apiClient.get(`/employees/${id}/photo`, { responseType: 'blob' }),
+  
   createEmployee: (employee: Employee) => apiClient.post<Employee>('/employees', employee),
   
   updateEmployee: (id: string, employee: Employee) => apiClient.put<Employee>(`/employees/${id}`, employee),

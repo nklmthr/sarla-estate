@@ -22,11 +22,8 @@ public class EmployeeSalaryDTO {
     private String currency;
     private LocalDate startDate;
     private LocalDate endDate;
-    private EmployeeSalary.SalaryType salaryType;
-    private EmployeeSalary.PaymentFrequency paymentFrequency;
     private String reasonForChange;
     private Boolean isActive;
-    private String approvedBy;
     private String notes;
 }
 

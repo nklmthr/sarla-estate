@@ -43,7 +43,6 @@ const menuItems: MenuItem[] = [
   { text: 'Dashboard', icon: <DashboardIcon />, path: '/' },
   { text: 'Employees', icon: <PeopleIcon />, path: '/employees' },
   { text: 'Work Activities', icon: <WorkIcon />, path: '/work-activities' },
-  { text: 'Schedules', icon: <ScheduleIcon />, path: '/schedules' },
   { text: 'Assignments', icon: <AssignmentIcon />, path: '/assignments' },
   { text: 'Salary Management', icon: <MoneyIcon />, path: '/salary' },
   { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },

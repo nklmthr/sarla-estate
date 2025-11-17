@@ -37,13 +37,6 @@ public class WorkAssignmentController {
         return ResponseEntity.ok(assignment);
     }
 
-    @GetMapping("/by-schedule/{scheduleId}")
-    public ResponseEntity<List<WorkAssignmentDTO>> getAssignmentsBySchedule(@PathVariable String scheduleId) {
-        log.info("GET request to fetch assignments for schedule: {}", scheduleId);
-        List<WorkAssignmentDTO> assignments = workAssignmentService.getAssignmentsBySchedule(scheduleId);
-        return ResponseEntity.ok(assignments);
-    }
-
     @GetMapping("/by-employee/{employeeId}")
     public ResponseEntity<List<WorkAssignmentDTO>> getAssignmentsByEmployee(@PathVariable String employeeId) {
         log.info("GET request to fetch assignments for employee: {}", employeeId);

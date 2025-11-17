@@ -37,41 +37,14 @@ public class EmployeeSalary extends BaseEntity {
     @Column(name = "end_date")
     private LocalDate endDate;
 
-    @Column(name = "salary_type")
-    @Enumerated(EnumType.STRING)
-    private SalaryType salaryType;
-
-    @Column(name = "payment_frequency")
-    @Enumerated(EnumType.STRING)
-    private PaymentFrequency paymentFrequency;
-
     @Column(name = "reason_for_change", length = 500)
     private String reasonForChange;
 
     @Column(name = "is_active")
     private Boolean isActive;
 
-    @Column(name = "approved_by")
-    private String approvedBy;
-
     @Column(name = "notes", length = 1000)
     private String notes;
-
-    public enum SalaryType {
-        BASE_SALARY,
-        HOURLY_WAGE,
-        DAILY_WAGE,
-        CONTRACT,
-        PIECE_RATE
-    }
-
-    public enum PaymentFrequency {
-        MONTHLY,
-        BIWEEKLY,
-        WEEKLY,
-        DAILY,
-        HOURLY
-    }
 
     /**
      * Check if this salary record is currently active (no end date)

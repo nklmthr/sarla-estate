@@ -140,8 +140,6 @@ public class ReportService {
         summary.setEmployeeName(employee.getName());
         summary.setBaseSalary(salary.getAmount());
         summary.setCurrency(salary.getCurrency());
-        summary.setSalaryType(salary.getSalaryType());
-        summary.setPaymentFrequency(salary.getPaymentFrequency());
         summary.setTotalAssignments(assignments.size());
 
         // Calculate statistics
@@ -177,8 +175,8 @@ public class ReportService {
         summary.setAssignments(details);
 
         summary.setPaymentNotes(String.format(
-                "Based on %s salary of %s %s. Average completion: %d%%",
-                salary.getPaymentFrequency(), salary.getAmount(), salary.getCurrency(), avgCompletion
+                "Based on base salary of %s %s. Average completion: %d%%",
+                salary.getAmount(), salary.getCurrency(), avgCompletion
         ));
 
         return summary;
@@ -189,18 +187,13 @@ public class ReportService {
         
         BigDecimal baseSalary = salary.getAmount();
         
-        return switch (salary.getPaymentFrequency()) {
-            case MONTHLY -> calculateMonthlyPayment(baseSalary, assignments, periodStart, periodEnd);
-            case WEEKLY -> calculateWeeklyPayment(baseSalary, assignments, periodStart, periodEnd);
-            case DAILY -> calculateDailyPayment(baseSalary, assignments);
-            case HOURLY -> calculateHourlyPayment(baseSalary, assignments);
-            default -> calculateProportionalPayment(baseSalary, assignments);
-        };
+        // Simplified: calculate based on completion percentage and proportional to days worked
+        return calculateProportionalPayment(baseSalary, assignments, periodStart, periodEnd);
     }
 
-    private BigDecimal calculateMonthlyPayment(BigDecimal monthlySalary, List<WorkAssignment> assignments,
-                                                LocalDate periodStart, LocalDate periodEnd) {
-        // For monthly salary, calculate based on completion percentage
+    private BigDecimal calculateProportionalPayment(BigDecimal baseSalary, List<WorkAssignment> assignments,
+                                                     LocalDate periodStart, LocalDate periodEnd) {
+        // Calculate average completion rate
         double avgCompletionRate = assignments.stream()
                 .mapToDouble(a -> (a.getCompletionPercentage() != null ? a.getCompletionPercentage() : 0) / 100.0)
                 .average()
@@ -213,60 +206,9 @@ public class ReportService {
         BigDecimal periodFraction = BigDecimal.valueOf(daysInPeriod)
                 .divide(BigDecimal.valueOf(daysInMonth), 4, RoundingMode.HALF_UP);
 
-        return monthlySalary
+        return baseSalary
                 .multiply(periodFraction)
                 .multiply(BigDecimal.valueOf(avgCompletionRate))
-                .setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal calculateWeeklyPayment(BigDecimal weeklySalary, List<WorkAssignment> assignments,
-                                               LocalDate periodStart, LocalDate periodEnd) {
-        long daysInPeriod = java.time.temporal.ChronoUnit.DAYS.between(periodStart, periodEnd) + 1;
-        long weeks = daysInPeriod / 7;
-        
-        double avgCompletionRate = assignments.stream()
-                .mapToDouble(a -> (a.getCompletionPercentage() != null ? a.getCompletionPercentage() : 0) / 100.0)
-                .average()
-                .orElse(0.0);
-
-        return weeklySalary
-                .multiply(BigDecimal.valueOf(weeks))
-                .multiply(BigDecimal.valueOf(avgCompletionRate))
-                .setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal calculateDailyPayment(BigDecimal dailyRate, List<WorkAssignment> assignments) {
-        // Sum of (daily rate * completion percentage) for each day worked
-        return assignments.stream()
-                .map(a -> {
-                    double completionRate = (a.getCompletionPercentage() != null ? a.getCompletionPercentage() : 0) / 100.0;
-                    return dailyRate.multiply(BigDecimal.valueOf(completionRate));
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal calculateHourlyPayment(BigDecimal hourlyRate, List<WorkAssignment> assignments) {
-        // Sum of (actual hours * hourly rate * completion percentage)
-        return assignments.stream()
-                .map(a -> {
-                    double hours = a.getActualDurationHours() != null ? a.getActualDurationHours() : 
-                                  (a.getEstimatedDurationHours() != null ? a.getEstimatedDurationHours() : 0.0);
-                    double completionRate = (a.getCompletionPercentage() != null ? a.getCompletionPercentage() : 0) / 100.0;
-                    return hourlyRate.multiply(BigDecimal.valueOf(hours * completionRate));
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal calculateProportionalPayment(BigDecimal baseSalary, List<WorkAssignment> assignments) {
-        // Fallback: proportional to completion
-        double avgCompletionRate = assignments.stream()
-                .mapToDouble(a -> (a.getCompletionPercentage() != null ? a.getCompletionPercentage() : 0) / 100.0)
-                .average()
-                .orElse(0.0);
-
-        return baseSalary.multiply(BigDecimal.valueOf(avgCompletionRate))
                 .setScale(2, RoundingMode.HALF_UP);
     }
 

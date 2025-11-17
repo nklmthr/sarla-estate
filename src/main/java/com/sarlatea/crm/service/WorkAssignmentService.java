@@ -43,14 +43,6 @@ public class WorkAssignmentService {
     }
 
     @Transactional(readOnly = true)
-    public List<WorkAssignmentDTO> getAssignmentsBySchedule(String scheduleId) {
-        log.debug("Fetching work assignments for schedule: {}", scheduleId);
-        return workAssignmentRepository.findByOperationScheduleId(scheduleId).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
     public List<WorkAssignmentDTO> getAssignmentsByEmployee(String employeeId) {
         log.debug("Fetching work assignments for employee: {}", employeeId);
         return workAssignmentRepository.findByAssignedEmployeeId(employeeId).stream()
@@ -171,7 +163,6 @@ public class WorkAssignmentService {
     private WorkAssignmentDTO convertToDTO(WorkAssignment assignment) {
         WorkAssignmentDTO dto = new WorkAssignmentDTO();
         dto.setId(assignment.getId());
-        dto.setOperationScheduleId(assignment.getOperationSchedule() != null ? assignment.getOperationSchedule().getId() : null);
         dto.setWorkActivityId(assignment.getWorkActivity() != null ? assignment.getWorkActivity().getId() : null);
         dto.setAssignedEmployeeId(assignment.getAssignedEmployee() != null ? assignment.getAssignedEmployee().getId() : null);
         dto.setAssignedEmployeeName(assignment.getAssignedEmployee() != null ? assignment.getAssignedEmployee().getName() : null);

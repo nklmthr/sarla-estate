@@ -71,10 +71,7 @@ public class EmployeeSalaryService {
         salary.setCurrency(salaryDTO.getCurrency());
         salary.setStartDate(salaryDTO.getStartDate() != null ? salaryDTO.getStartDate() : LocalDate.now());
         salary.setEndDate(null); // No end date for initial/current salary
-        salary.setSalaryType(salaryDTO.getSalaryType());
-        salary.setPaymentFrequency(salaryDTO.getPaymentFrequency());
         salary.setReasonForChange(salaryDTO.getReasonForChange());
-        salary.setApprovedBy(salaryDTO.getApprovedBy());
         salary.setNotes(salaryDTO.getNotes());
         salary.setIsActive(true);
 
@@ -115,13 +112,7 @@ public class EmployeeSalaryService {
             (currentSalary != null ? currentSalary.getCurrency() : "INR"));
         newSalary.setStartDate(effectiveDate);
         newSalary.setEndDate(null); // No end date - this is now the current salary
-        newSalary.setSalaryType(newSalaryDTO.getSalaryType() != null ? newSalaryDTO.getSalaryType() : 
-            (currentSalary != null ? currentSalary.getSalaryType() : null));
-        newSalary.setPaymentFrequency(newSalaryDTO.getPaymentFrequency() != null ? 
-            newSalaryDTO.getPaymentFrequency() : 
-            (currentSalary != null ? currentSalary.getPaymentFrequency() : null));
         newSalary.setReasonForChange(newSalaryDTO.getReasonForChange());
-        newSalary.setApprovedBy(newSalaryDTO.getApprovedBy());
         newSalary.setNotes(newSalaryDTO.getNotes());
         newSalary.setIsActive(true);
 
@@ -165,11 +156,8 @@ public class EmployeeSalaryService {
         dto.setCurrency(salary.getCurrency());
         dto.setStartDate(salary.getStartDate());
         dto.setEndDate(salary.getEndDate());
-        dto.setSalaryType(salary.getSalaryType());
-        dto.setPaymentFrequency(salary.getPaymentFrequency());
         dto.setReasonForChange(salary.getReasonForChange());
         dto.setIsActive(salary.getIsActive());
-        dto.setApprovedBy(salary.getApprovedBy());
         dto.setNotes(salary.getNotes());
         return dto;
     }

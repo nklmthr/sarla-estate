@@ -10,7 +10,7 @@ import java.time.LocalDate;
 
 /**
  * WorkAssignment entity representing a specific work task assignment
- * Generated from WorkActivity and OperationSchedule, can be assigned to employees
+ * Generated from WorkActivity and can be assigned to employees
  */
 @Entity
 @Table(name = "work_assignments")
@@ -19,10 +19,6 @@ import java.time.LocalDate;
 @AllArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class WorkAssignment extends BaseEntity {
-
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "operation_schedule_id", nullable = false)
-    private OperationSchedule operationSchedule;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "work_activity_id", nullable = false)

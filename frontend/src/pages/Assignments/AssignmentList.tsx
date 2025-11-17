@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -42,7 +42,6 @@ import { WorkAssignment, Employee } from '../../types';
 import { format } from 'date-fns';
 
 const AssignmentList: React.FC = () => {
-  const { scheduleId } = useParams<{ scheduleId: string }>();
   const navigate = useNavigate();
   
   const [assignments, setAssignments] = useState<WorkAssignment[]>([]);
@@ -66,7 +65,7 @@ const AssignmentList: React.FC = () => {
 
   useEffect(() => {
     loadData();
-  }, [scheduleId]);
+  }, []);
 
   useEffect(() => {
     filterAssignments();
@@ -76,9 +75,7 @@ const AssignmentList: React.FC = () => {
     try {
       setLoading(true);
       const [assignmentsData, employeesData] = await Promise.all([
-        scheduleId 
-          ? assignmentApi.getAssignmentsBySchedule(scheduleId)
-          : assignmentApi.getAllAssignments(),
+        assignmentApi.getAllAssignments(),
         employeeApi.getAllEmployees(),
       ]);
       
@@ -241,13 +238,8 @@ const AssignmentList: React.FC = () => {
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Typography variant="h4">
-          {scheduleId ? 'Schedule Assignments' : 'All Assignments'}
+          All Assignments
         </Typography>
-        {scheduleId && (
-          <Button variant="outlined" onClick={() => navigate('/schedules')}>
-            Back to Schedules
-          </Button>
-        )}
       </Box>
 
       <Card>

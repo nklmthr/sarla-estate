@@ -8,8 +8,6 @@ import EmployeeList from './pages/Employees/EmployeeList';
 import EmployeeForm from './pages/Employees/EmployeeForm';
 import WorkActivityList from './pages/WorkActivities/WorkActivityList';
 import WorkActivityForm from './pages/WorkActivities/WorkActivityForm';
-import ScheduleList from './pages/Schedules/ScheduleList';
-import ScheduleForm from './pages/Schedules/ScheduleForm';
 import AssignmentList from './pages/Assignments/AssignmentList';
 import SalaryManagement from './pages/Salary/SalaryManagement';
 import Reports from './pages/Reports/Reports';
@@ -292,14 +290,8 @@ function App() {
             <Route path="/work-activities/new" element={<WorkActivityForm />} />
             <Route path="/work-activities/:id/edit" element={<WorkActivityForm />} />
             
-            {/* Schedule Routes */}
-            <Route path="/schedules" element={<ScheduleList />} />
-            <Route path="/schedules/new" element={<ScheduleForm />} />
-            <Route path="/schedules/:id/edit" element={<ScheduleForm />} />
-            
             {/* Assignment Routes */}
             <Route path="/assignments" element={<AssignmentList />} />
-            <Route path="/schedules/:scheduleId/assignments" element={<AssignmentList />} />
             
             {/* Salary Routes */}
             <Route path="/salary" element={<SalaryManagement />} />

@@ -3,17 +3,11 @@
 export interface Employee {
   id?: string;
   name: string;
-  email: string;
   phone?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  country?: string;
-  postalCode?: string;
-  department?: string;
-  employeeType?: 'FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'TEMPORARY';
-  status?: 'ACTIVE' | 'INACTIVE' | 'ON_LEAVE' | 'TERMINATED';
-  notes?: string;
+  pfAccountId?: string;
+  idCardType?: 'AADHAAR' | 'PAN' | 'PASSPORT' | 'DRIVING_LICENSE';
+  idCardValue?: string;
+  // idCardPhoto is byte[] on backend, handled separately via file upload
 }
 
 export interface WorkActivity {
@@ -32,25 +26,8 @@ export interface WorkActivity {
   notes?: string;
 }
 
-export interface OperationSchedule {
-  id?: string;
-  periodName?: string;
-  startDate: string;
-  endDate: string;
-  description?: string;
-  periodType?: 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY' | 'CUSTOM';
-  status?: 'DRAFT' | 'GENERATED' | 'PUBLISHED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-  filterFrequency?: string | null;
-  filterWorkShift?: string | null;
-  filterSeason?: string | null;
-  filterActivityStatus?: string | null;
-  includeAllSchedulable?: boolean;
-  totalAssignmentsCount?: number;
-}
-
 export interface WorkAssignment {
   id?: string;
-  operationScheduleId?: string;
   workActivityId?: string;
   assignedEmployeeId?: string;
   assignedEmployeeName?: string;

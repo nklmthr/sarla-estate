@@ -16,7 +16,6 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class WorkAssignmentDTO {
     private String id;
-    private String operationScheduleId;
     private String workActivityId;
     private String assignedEmployeeId;
     private String assignedEmployeeName;

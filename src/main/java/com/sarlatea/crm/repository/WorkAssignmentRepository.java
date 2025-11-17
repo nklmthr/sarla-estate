@@ -16,8 +16,6 @@ import java.util.List;
 @Repository
 public interface WorkAssignmentRepository extends JpaRepository<WorkAssignment, String> {
 
-    List<WorkAssignment> findByOperationScheduleId(String operationScheduleId);
-
     List<WorkAssignment> findByAssignedEmployeeId(String employeeId);
 
     List<WorkAssignment> findByAssignmentStatus(WorkAssignment.AssignmentStatus status);
@@ -40,11 +38,6 @@ public interface WorkAssignmentRepository extends JpaRepository<WorkAssignment, 
     @Query("SELECT wa FROM WorkAssignment wa WHERE wa.assignmentStatus = 'UNASSIGNED' " +
            "AND wa.assignmentDate >= :startDate")
     List<WorkAssignment> findUnassignedFromDate(@Param("startDate") LocalDate startDate);
-
-    @Query("SELECT wa FROM WorkAssignment wa WHERE wa.operationSchedule.id = :scheduleId " +
-           "AND wa.assignmentStatus = :status")
-    List<WorkAssignment> findByScheduleAndStatus(@Param("scheduleId") String scheduleId,
-                                                   @Param("status") WorkAssignment.AssignmentStatus status);
     
     // Count assignments for a specific work activity
     long countByWorkActivity(WorkActivity workActivity);

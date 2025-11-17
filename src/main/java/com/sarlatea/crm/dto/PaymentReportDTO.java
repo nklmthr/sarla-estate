@@ -32,8 +32,6 @@ public class PaymentReportDTO {
         private String employeeName;
         private BigDecimal baseSalary;
         private String currency;
-        private EmployeeSalary.SalaryType salaryType;
-        private EmployeeSalary.PaymentFrequency paymentFrequency;
         private Integer totalAssignments;
         private Integer completedAssignments;
         private Double totalEstimatedHours;
