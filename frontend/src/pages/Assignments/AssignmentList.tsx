@@ -36,6 +36,7 @@ import {
   Close as CloseIcon,
   Assessment as AssessmentIcon,
   Delete as DeleteIcon,
+  CheckCircle as CheckCircleIcon,
 } from '@mui/icons-material';
 import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
@@ -255,6 +256,31 @@ const AssignmentList: React.FC = () => {
       const message = error?.response?.data?.message || 
                      error?.message || 
                      'Failed to update completion percentage. Please try again.';
+      setErrorMessage(message);
+      setErrorOpen(true);
+    }
+  };
+
+  const handleMarkComplete = async () => {
+    if (!selectedAssignment?.id) return;
+
+    try {
+      const updatedAssignment = await assignmentApi.updateCompletionPercentage(
+        selectedAssignment.id,
+        { completionPercentage: 100 }
+      );
+
+      // Update the assignment in state
+      setAssignments(assignments.map(a => 
+        a.id === updatedAssignment.id ? updatedAssignment : a
+      ));
+
+      handleCloseCompletionDialog();
+    } catch (error: any) {
+      console.error('Error marking assignment as complete:', error);
+      const message = error?.response?.data?.message || 
+                     error?.message || 
+                     'Failed to mark assignment as complete. Please try again.';
       setErrorMessage(message);
       setErrorOpen(true);
     }
@@ -608,6 +634,15 @@ const AssignmentList: React.FC = () => {
         <DialogActions>
           <Button onClick={handleCloseCompletionDialog} color="inherit">
             Cancel
+          </Button>
+          <Box sx={{ flex: 1 }} />
+          <Button 
+            onClick={handleMarkComplete} 
+            variant="contained" 
+            color="success"
+            startIcon={<CheckCircleIcon />}
+          >
+            Mark Complete (100%)
           </Button>
           <Button 
             onClick={handleSaveCompletion} 
