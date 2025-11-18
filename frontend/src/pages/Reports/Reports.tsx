@@ -31,10 +31,15 @@ import {
   Assessment as ReportIcon,
   Assignment as AssignmentIcon,
   AttachMoney as MoneyIcon,
+  PictureAsPdf as PdfIcon,
+  TableChart as ExcelIcon,
 } from '@mui/icons-material';
 import { reportApi } from '../../api/reportApi';
 import { UpcomingAssignmentsReport, PaymentReport, WorkAssignment } from '../../types';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 const Reports: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments'>('assignments');
@@ -164,6 +169,135 @@ const Reports: React.FC = () => {
 
   const getNotEvaluatedCount = () => {
     return assignmentsReport?.assignments.filter(a => a.status === 'ASSIGNED').length || 0;
+  };
+
+  // Export Payment Report as PDF
+  const exportPaymentReportAsPDF = () => {
+    if (!paymentReport) return;
+
+    const doc = new jsPDF();
+    
+    // Title
+    doc.setFontSize(18);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Payment Report', 14, 20);
+    
+    // Report Details
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Period: ${format(new Date(paymentReport.periodStartDate), 'MMM dd, yyyy')} to ${format(new Date(paymentReport.periodEndDate), 'MMM dd, yyyy')}`, 14, 30);
+    doc.text(`Generated: ${format(new Date(paymentReport.reportGeneratedDate), 'MMM dd, yyyy')}`, 14, 36);
+    doc.text(`Total Employees: ${paymentReport.totalEmployees}`, 14, 42);
+    doc.text(`Total Payment: ₹${paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}`, 14, 48);
+    
+    // Employee Payment Table
+    const tableData = paymentReport.employeePayments.map((payment) => [
+      payment.employeeName + ((payment.voluntaryPfPercentage ?? 0) > 0 ? ` (+${payment.voluntaryPfPercentage}% VPF)` : ''),
+      `${payment.currency} ${payment.baseSalary ? payment.baseSalary.toLocaleString() : '0'}`,
+      `₹${payment.employeePfContribution ? payment.employeePfContribution.toLocaleString() : '0'}`,
+      `₹${payment.employerPfContribution ? payment.employerPfContribution.toLocaleString() : '0'}`,
+      payment.totalAssignments || 0,
+      `${payment.averageCompletionPercentage ? payment.averageCompletionPercentage.toFixed(0) : '0'}%`,
+      `₹${payment.calculatedPayment ? payment.calculatedPayment.toLocaleString() : '0'}`,
+      `₹${payment.netPayment ? payment.netPayment.toLocaleString() : '0'}`,
+    ]);
+
+    autoTable(doc, {
+      startY: 55,
+      head: [['Employee', 'Base Salary', 'Employee PF', 'Employer PF', 'Assignments', 'Avg %', 'Gross', 'Net Payment']],
+      body: tableData,
+      foot: [['Total', '', 
+        `-₹${paymentReport.totalEmployeePfContribution ? paymentReport.totalEmployeePfContribution.toLocaleString() : '0'}`,
+        `+₹${paymentReport.totalEmployerPfContribution ? paymentReport.totalEmployerPfContribution.toLocaleString() : '0'}`,
+        '', '', '', 
+        `₹${paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}`]],
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [76, 175, 80], fontStyle: 'bold' },
+      footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
+      columnStyles: {
+        0: { cellWidth: 35 },
+        1: { cellWidth: 22 },
+        2: { cellWidth: 20, halign: 'right' },
+        3: { cellWidth: 20, halign: 'right' },
+        4: { cellWidth: 18, halign: 'center' },
+        5: { cellWidth: 15, halign: 'center' },
+        6: { cellWidth: 22, halign: 'right' },
+        7: { cellWidth: 25, halign: 'right', fontStyle: 'bold' },
+      },
+    });
+    
+    // Save PDF
+    const filename = `Payment_Report_${format(new Date(paymentReport.periodStartDate), 'yyyy-MM-dd')}_to_${format(new Date(paymentReport.periodEndDate), 'yyyy-MM-dd')}.pdf`;
+    doc.save(filename);
+  };
+
+  // Export Payment Report as Excel
+  const exportPaymentReportAsExcel = () => {
+    if (!paymentReport) return;
+
+    // Prepare data
+    const data = paymentReport.employeePayments.map((payment) => ({
+      'Employee': payment.employeeName,
+      'Voluntary PF %': (payment.voluntaryPfPercentage ?? 0) > 0 ? `${payment.voluntaryPfPercentage}%` : '-',
+      'Base Salary': payment.baseSalary || 0,
+      'Employee PF': payment.employeePfContribution || 0,
+      'Employer PF': payment.employerPfContribution || 0,
+      'Total Assignments': payment.totalAssignments || 0,
+      'Avg Completion %': payment.averageCompletionPercentage ? payment.averageCompletionPercentage.toFixed(2) : '0',
+      'Gross Payment': payment.calculatedPayment || 0,
+      'Net Payment': payment.netPayment || 0,
+    }));
+
+    // Add totals row
+    data.push({
+      'Employee': 'TOTAL',
+      'Voluntary PF %': '-',
+      'Base Salary': 0,
+      'Employee PF': paymentReport.totalEmployeePfContribution || 0,
+      'Employer PF': paymentReport.totalEmployerPfContribution || 0,
+      'Total Assignments': 0,
+      'Avg Completion %': '-',
+      'Gross Payment': 0,
+      'Net Payment': paymentReport.totalPaymentAmount || 0,
+    });
+
+    // Create worksheet
+    const ws = XLSX.utils.json_to_sheet(data);
+    
+    // Set column widths
+    ws['!cols'] = [
+      { wch: 25 }, // Employee
+      { wch: 15 }, // Voluntary PF %
+      { wch: 15 }, // Base Salary
+      { wch: 15 }, // Employee PF
+      { wch: 15 }, // Employer PF
+      { wch: 18 }, // Total Assignments
+      { wch: 18 }, // Avg Completion %
+      { wch: 15 }, // Gross Payment
+      { wch: 15 }, // Net Payment
+    ];
+
+    // Create workbook
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Payment Report');
+
+    // Add report metadata sheet
+    const metaData = [
+      ['Payment Report'],
+      [''],
+      ['Period Start:', format(new Date(paymentReport.periodStartDate), 'MMM dd, yyyy')],
+      ['Period End:', format(new Date(paymentReport.periodEndDate), 'MMM dd, yyyy')],
+      ['Generated:', format(new Date(paymentReport.reportGeneratedDate), 'MMM dd, yyyy')],
+      ['Total Employees:', paymentReport.totalEmployees],
+      ['Total Payment:', paymentReport.totalPaymentAmount || 0],
+      ['Currency:', paymentReport.currency],
+    ];
+    const metaWs = XLSX.utils.aoa_to_sheet(metaData);
+    XLSX.utils.book_append_sheet(wb, metaWs, 'Report Info');
+
+    // Save file
+    const filename = `Payment_Report_${format(new Date(paymentReport.periodStartDate), 'yyyy-MM-dd')}_to_${format(new Date(paymentReport.periodEndDate), 'yyyy-MM-dd')}.xlsx`;
+    XLSX.writeFile(wb, filename);
   };
 
   return (
@@ -598,6 +732,28 @@ const Reports: React.FC = () => {
                     </Card>
                   </Grid>
 
+                  {/* Export Buttons */}
+                  <Grid item xs={12}>
+                    <Box display="flex" gap={2} justifyContent="flex-end" sx={{ mt: 2 }}>
+                      <Button
+                        variant="contained"
+                        color="error"
+                        startIcon={<PdfIcon />}
+                        onClick={exportPaymentReportAsPDF}
+                      >
+                        Download PDF
+                      </Button>
+                      <Button
+                        variant="contained"
+                        color="success"
+                        startIcon={<ExcelIcon />}
+                        onClick={exportPaymentReportAsExcel}
+                      >
+                        Download Excel
+                      </Button>
+                    </Box>
+                  </Grid>
+
                   {/* Employee Payments Table */}
                   <Grid item xs={12}>
                     <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 3 }}>
@@ -636,8 +792,8 @@ const Reports: React.FC = () => {
                                     <TableCell>
                                       <strong>{payment.employeeName}</strong>
                                       {(payment.voluntaryPfPercentage ?? 0) > 0 && (
-                                        <Typography variant="caption" display="block" color="textSecondary">
-                                          +{payment.voluntaryPfPercentage}% VPF
+                                        <Typography variant="caption" display="block" color="primary" fontWeight="medium">
+                                          +{payment.voluntaryPfPercentage}% VPF (Total: {12 + (payment.voluntaryPfPercentage || 0)}% EPF)
                                         </Typography>
                                       )}
                                     </TableCell>
@@ -645,12 +801,12 @@ const Reports: React.FC = () => {
                                       {payment.currency} {payment.baseSalary ? payment.baseSalary.toLocaleString() : '0'}
                                     </TableCell>
                                     <TableCell>
-                                      <Typography variant="body2" color="error">
+                                      <Typography variant="body2" fontWeight="bold" sx={{ color: '#d32f2f' }}>
                                         -₹{payment.employeePfContribution ? payment.employeePfContribution.toLocaleString() : '0'}
                                       </Typography>
                                     </TableCell>
                                     <TableCell>
-                                      <Typography variant="body2" color="success.main">
+                                      <Typography variant="body2" fontWeight="bold" sx={{ color: '#2e7d32' }}>
                                         +₹{payment.employerPfContribution ? payment.employerPfContribution.toLocaleString() : '0'}
                                       </Typography>
                                     </TableCell>
@@ -682,13 +838,24 @@ const Reports: React.FC = () => {
                                 ))
                               )}
                               {paymentReport.employeePayments.length > 0 && (
-                                <TableRow>
-                                  <TableCell colSpan={7} align="right">
-                                    <strong>Total:</strong>
+                                <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+                                  <TableCell colSpan={2}>
+                                    <Typography variant="h6" fontWeight="bold">Total:</Typography>
                                   </TableCell>
                                   <TableCell align="right">
-                                    <Typography variant="h6" color="primary">
-                                      <strong>₹{paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}</strong>
+                                    <Typography variant="body1" fontWeight="bold" color="error">
+                                      -₹{paymentReport.totalEmployeePfContribution ? paymentReport.totalEmployeePfContribution.toLocaleString() : '0'}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell align="right">
+                                    <Typography variant="body1" fontWeight="bold" color="success.main">
+                                      +₹{paymentReport.totalEmployerPfContribution ? paymentReport.totalEmployerPfContribution.toLocaleString() : '0'}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell colSpan={3}></TableCell>
+                                  <TableCell align="right">
+                                    <Typography variant="h6" color="primary" fontWeight="bold">
+                                      ₹{paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}
                                     </Typography>
                                   </TableCell>
                                 </TableRow>
@@ -711,4 +878,5 @@ const Reports: React.FC = () => {
 };
 
 export default Reports;
+
 

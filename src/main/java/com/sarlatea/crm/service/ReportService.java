@@ -80,15 +80,20 @@ public class ReportService {
 
         // Get all non-deleted completed assignments in the period
         // Only completed (evaluated) assignments are considered for payment
+        // Assignments are already sorted by employee name from the database
         List<WorkAssignment> assignments = workAssignmentRepository
                 .findByAssignmentDateBetweenAndDeletedFalse(startDate, endDate).stream()
                 .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.COMPLETED)
                 .collect(Collectors.toList());
 
-        // Group assignments by employee
+        // Group assignments by employee - using LinkedHashMap to preserve alphabetical order from database
         Map<String, List<WorkAssignment>> assignmentsByEmployee = assignments.stream()
                 .filter(a -> a.getAssignedEmployee() != null)
-                .collect(Collectors.groupingBy(a -> a.getAssignedEmployee().getId()));
+                .collect(Collectors.groupingBy(
+                    a -> a.getAssignedEmployee().getId(),
+                    java.util.LinkedHashMap::new,
+                    Collectors.toList()
+                ));
 
         PaymentReportDTO report = new PaymentReportDTO();
         report.setReportGeneratedDate(LocalDate.now());
@@ -99,6 +104,8 @@ public class ReportService {
 
         List<PaymentReportDTO.EmployeePaymentSummary> employeePayments = new ArrayList<>();
         BigDecimal totalPayment = BigDecimal.ZERO;
+        BigDecimal totalEmployeePf = BigDecimal.ZERO;
+        BigDecimal totalEmployerPf = BigDecimal.ZERO;
 
         for (Map.Entry<String, List<WorkAssignment>> entry : assignmentsByEmployee.entrySet()) {
             String employeeId = entry.getKey();
@@ -108,11 +115,16 @@ public class ReportService {
                     calculateEmployeePayment(employeeId, employeeAssignments, startDate, endDate);
             
             employeePayments.add(summary);
-            totalPayment = totalPayment.add(summary.getCalculatedPayment());
+            totalPayment = totalPayment.add(summary.getNetPayment());
+            totalEmployeePf = totalEmployeePf.add(summary.getEmployeePfContribution());
+            totalEmployerPf = totalEmployerPf.add(summary.getEmployerPfContribution());
         }
 
+        // No need to sort - already sorted from database query and preserved by LinkedHashMap
         report.setEmployeePayments(employeePayments);
         report.setTotalPaymentAmount(totalPayment);
+        report.setTotalEmployeePfContribution(totalEmployeePf);
+        report.setTotalEmployerPfContribution(totalEmployerPf);
 
         log.info("Payment report generated for {} employees with total payment: {} {}", 
                 assignmentsByEmployee.size(), totalPayment, report.getCurrency());
@@ -176,22 +188,43 @@ public class ReportService {
         BigDecimal calculatedPayment = calculatePaymentAmount(salary, assignments, periodStart, periodEnd);
         summary.setCalculatedPayment(calculatedPayment);
 
-        // Calculate PF (Provident Fund) fields
-        BigDecimal employeePfPercentage = salaryConfiguration.getEmployeePfPercentage();
-        BigDecimal employerPfPercentage = salaryConfiguration.getEmployerPfPercentage();
+        // Calculate PF (Provident Fund) fields proportional to calculated payment
+        BigDecimal employeePfPercentage = salaryConfiguration.getEmployeePfPercentage(); // 12%
+        BigDecimal employerPfPercentage = salaryConfiguration.getEmployerPfPercentage(); // 12%
+        BigDecimal voluntaryPfPercentage = salary.getVoluntaryPfPercentage() != null ? 
+            salary.getVoluntaryPfPercentage() : BigDecimal.ZERO;
         
-        summary.setVoluntaryPfPercentage(salary.getVoluntaryPfPercentage());
-        summary.setEmployeePfContribution(salary.calculateEmployeePfContribution(employeePfPercentage));
-        summary.setEmployerPfContribution(salary.calculateEmployerPfContribution(employerPfPercentage));
-        summary.setTakeHomeSalary(salary.calculateTakeHomeSalary(employeePfPercentage));
-        summary.setTotalCostToEmployer(salary.calculateTotalSalaryCost(employerPfPercentage));
+        // Calculate three separate PF contributions based on calculated payment
+        // 1. Employee PF: 12% mandatory (deducted from payment)
+        BigDecimal employeePfContribution = calculatedPayment
+                .multiply(employeePfPercentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
         
-        // Net payment = calculated payment - employee PF contribution
-        BigDecimal netPayment = calculatedPayment.subtract(
-            calculatedPayment.multiply(salary.calculateEmployeePfContribution(employeePfPercentage))
-                .divide(salary.getAmount(), 2, RoundingMode.HALF_UP)
-        );
+        // 2. Voluntary PF: X% additional (also deducted from payment)
+        BigDecimal voluntaryPfContribution = calculatedPayment
+                .multiply(voluntaryPfPercentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        
+        // 3. Employer PF: 12% (paid by employer, NOT deducted from employee payment)
+        BigDecimal employerPfContribution = calculatedPayment
+                .multiply(employerPfPercentage)
+                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        
+        summary.setVoluntaryPfPercentage(voluntaryPfPercentage);
+        summary.setEmployeePfContribution(employeePfContribution);
+        summary.setVoluntaryPfContribution(voluntaryPfContribution);
+        summary.setEmployerPfContribution(employerPfContribution);
+        summary.setBaseSalary(salary.getAmount());
+        
+        // Net payment = calculated payment - employee PF (12%) - voluntary PF (X%)
+        BigDecimal netPayment = calculatedPayment
+                .subtract(employeePfContribution)
+                .subtract(voluntaryPfContribution);
         summary.setNetPayment(netPayment);
+        
+        // Total cost to employer = calculated payment + employer PF
+        BigDecimal totalCostToEmployer = calculatedPayment.add(employerPfContribution);
+        summary.setTotalCostToEmployer(totalCostToEmployer);
 
         // Add assignment details
         List<PaymentReportDTO.AssignmentDetail> details = assignments.stream()
@@ -219,23 +252,22 @@ public class ReportService {
 
     private BigDecimal calculateProportionalPayment(BigDecimal baseSalary, List<WorkAssignment> assignments,
                                                      LocalDate periodStart, LocalDate periodEnd) {
-        // Calculate average completion rate
-        double avgCompletionRate = assignments.stream()
-                .mapToDouble(a -> (a.getCompletionPercentage() != null ? a.getCompletionPercentage() : 0) / 100.0)
-                .average()
-                .orElse(0.0);
-
-        // Calculate days in period vs days in month
-        long daysInPeriod = java.time.temporal.ChronoUnit.DAYS.between(periodStart, periodEnd) + 1;
-        long daysInMonth = periodEnd.lengthOfMonth();
+        // Calculate daily rate (assuming 30 days per month as standard)
+        BigDecimal dailyRate = baseSalary.divide(BigDecimal.valueOf(30), 4, RoundingMode.HALF_UP);
         
-        BigDecimal periodFraction = BigDecimal.valueOf(daysInPeriod)
-                .divide(BigDecimal.valueOf(daysInMonth), 4, RoundingMode.HALF_UP);
+        // Calculate payment based on actual assignments and their completion percentage
+        BigDecimal totalPayment = BigDecimal.ZERO;
+        
+        for (WorkAssignment assignment : assignments) {
+            double completionRate = (assignment.getCompletionPercentage() != null 
+                    ? assignment.getCompletionPercentage() : 0) / 100.0;
+            
+            // Each assignment = 1 day of work × completion rate
+            BigDecimal assignmentPayment = dailyRate.multiply(BigDecimal.valueOf(completionRate));
+            totalPayment = totalPayment.add(assignmentPayment);
+        }
 
-        return baseSalary
-                .multiply(periodFraction)
-                .multiply(BigDecimal.valueOf(avgCompletionRate))
-                .setScale(2, RoundingMode.HALF_UP);
+        return totalPayment.setScale(2, RoundingMode.HALF_UP);
     }
 
     private PaymentReportDTO.AssignmentDetail createAssignmentDetail(WorkAssignment assignment, EmployeeSalary salary) {

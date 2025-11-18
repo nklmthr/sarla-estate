@@ -100,6 +100,8 @@ export interface PaymentReport {
   periodEndDate: string;
   totalEmployees: number;
   totalPaymentAmount: number;
+  totalEmployeePfContribution: number;
+  totalEmployerPfContribution: number;
   currency: string;
   employeePayments: EmployeePaymentSummary[];
 }
@@ -123,6 +125,7 @@ export interface EmployeePaymentSummary {
   // PF (Provident Fund) fields
   voluntaryPfPercentage?: number;
   employeePfContribution?: number;
+  voluntaryPfContribution?: number;
   employerPfContribution?: number;
   takeHomeSalary?: number;
   totalCostToEmployer?: number;

@@ -25,7 +25,13 @@ public interface WorkAssignmentRepository extends JpaRepository<WorkAssignment, 
 
     List<WorkAssignment> findByAssignmentDateAndDeletedFalse(LocalDate date);
 
-    List<WorkAssignment> findByAssignmentDateBetweenAndDeletedFalse(LocalDate startDate, LocalDate endDate);
+    @Query("SELECT wa FROM WorkAssignment wa " +
+           "LEFT JOIN wa.assignedEmployee e " +
+           "WHERE wa.assignmentDate BETWEEN :startDate AND :endDate " +
+           "AND wa.deleted = false " +
+           "ORDER BY e.name ASC")
+    List<WorkAssignment> findByAssignmentDateBetweenAndDeletedFalse(@Param("startDate") LocalDate startDate, 
+                                                                      @Param("endDate") LocalDate endDate);
 
     @Query("SELECT wa FROM WorkAssignment wa WHERE wa.assignedEmployee.id = :employeeId " +
            "AND wa.assignmentDate BETWEEN :startDate AND :endDate " +

@@ -20,6 +20,8 @@ public class PaymentReportDTO {
     private LocalDate periodEndDate;
     private Integer totalEmployees;
     private BigDecimal totalPaymentAmount;
+    private BigDecimal totalEmployeePfContribution;
+    private BigDecimal totalEmployerPfContribution;
     private String currency;
     private List<EmployeePaymentSummary> employeePayments;
 
@@ -41,12 +43,13 @@ public class PaymentReportDTO {
         private List<AssignmentDetail> assignments;
         
         // PF (Provident Fund) fields
-        private BigDecimal voluntaryPfPercentage; // Voluntary PF beyond mandatory 12%
-        private BigDecimal employeePfContribution; // Total employee PF deduction
-        private BigDecimal employerPfContribution; // Employer's PF contribution
+        private BigDecimal voluntaryPfPercentage; // Voluntary PF percentage (e.g., 5%)
+        private BigDecimal employeePfContribution; // Mandatory 12% employee PF deduction
+        private BigDecimal voluntaryPfContribution; // Additional voluntary PF deduction (X%)
+        private BigDecimal employerPfContribution; // Employer's 12% PF contribution
         private BigDecimal takeHomeSalary; // Gross salary after PF deduction
-        private BigDecimal totalCostToEmployer; // Base + Employer PF
-        private BigDecimal netPayment; // Actual payment after PF deductions (calculatedPayment - employeePfContribution)
+        private BigDecimal totalCostToEmployer; // Calculated Payment + Employer PF
+        private BigDecimal netPayment; // Actual payment after all PF deductions (calculatedPayment - employeePfContribution - voluntaryPfContribution)
     }
 
     @Data
