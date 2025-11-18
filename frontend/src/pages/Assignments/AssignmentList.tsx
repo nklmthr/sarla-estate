@@ -24,6 +24,7 @@ import {
   DialogActions,
   Slider,
   TextField,
+  Tooltip,
 } from '@mui/material';
 import {
   ChevronLeft as PrevIcon,
@@ -31,7 +32,7 @@ import {
   Add as AddIcon,
   Save as SaveIcon,
   Close as CloseIcon,
-  Percent as PercentIcon,
+  Assessment as AssessmentIcon,
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { assignmentApi } from '../../api/assignmentApi';
@@ -177,7 +178,6 @@ const AssignmentList: React.FC = () => {
         activityName: activity.name,
         activityDescription: activity.description,
         assignmentStatus: 'ASSIGNED',
-        priority: 'MEDIUM',
         completionPercentage: 0,
       };
 
@@ -374,22 +374,26 @@ const AssignmentList: React.FC = () => {
                 {assignment.activityName}
               </Typography>
               <Box display="flex" gap={0.5}>
-                <IconButton
-                  size="small"
-                  onClick={() => handleOpenCompletionDialog(assignment)}
-                  color="primary"
-                  sx={{ mt: -0.5 }}
-                >
-                  <PercentIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                  size="small"
-                  onClick={() => handleOpenDeleteDialog(assignment)}
-                  color="error"
-                  sx={{ mt: -0.5, mr: -0.5 }}
-                >
-                  <DeleteIcon fontSize="small" />
-                </IconButton>
+                <Tooltip title="Evaluate work against criteria" arrow>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenCompletionDialog(assignment)}
+                    color="primary"
+                    sx={{ mt: -0.5 }}
+                  >
+                    <AssessmentIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+                <Tooltip title="Delete assignment" arrow>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleOpenDeleteDialog(assignment)}
+                    color="error"
+                    sx={{ mt: -0.5, mr: -0.5 }}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
               </Box>
             </Box>
             {activity?.activeCriteria && (
@@ -412,7 +416,7 @@ const AssignmentList: React.FC = () => {
             </Box>
             {assignment.completionPercentage !== undefined && (
               <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-                {assignment.completionPercentage}% complete
+                Evaluated: {assignment.completionPercentage}%
               </Typography>
             )}
           </Paper>
@@ -420,9 +424,9 @@ const AssignmentList: React.FC = () => {
       );
     }
 
-    // Empty cell
+    // Empty cell - reduced width to fit more on screen
     return (
-      <TableCell key={key} sx={{ minWidth: 180, p: 1 }}>
+      <TableCell key={key} sx={{ minWidth: 100, maxWidth: 100, p: 1 }}>
         <Button
           variant="outlined"
           size="small"
@@ -470,7 +474,7 @@ const AssignmentList: React.FC = () => {
                   Employee
                 </TableCell>
                 {weekDays.map((day) => (
-                  <TableCell key={day.toISOString()} align="center" sx={{ fontWeight: 'bold', minWidth: 180 }}>
+                  <TableCell key={day.toISOString()} align="center" sx={{ fontWeight: 'bold' }}>
                     <Box>
                       <Typography variant="body2">{format(day, 'EEE')}</Typography>
                       <Typography variant="caption" color="text.secondary">
@@ -512,7 +516,7 @@ const AssignmentList: React.FC = () => {
         />
       </Card>
 
-      {/* Completion Percentage Dialog */}
+      {/* Work Evaluation Dialog */}
       <Dialog 
         open={completionDialogOpen} 
         onClose={handleCloseCompletionDialog}
@@ -520,7 +524,7 @@ const AssignmentList: React.FC = () => {
         fullWidth
       >
         <DialogTitle>
-          Update Completion Percentage
+          Evaluate Work Against Criteria
           {selectedAssignment && (
             <Typography variant="body2" color="text.secondary">
               {selectedAssignment.activityName}
@@ -529,13 +533,16 @@ const AssignmentList: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
-            <Typography gutterBottom>
-              Completion: {completionPercentage}%
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              Rate how much of the completion criteria has been achieved
+            </Typography>
+            <Typography gutterBottom fontWeight="medium">
+              Achievement Level: {completionPercentage}%
             </Typography>
             <Slider
               value={completionPercentage}
               onChange={handleCompletionSliderChange}
-              aria-labelledby="completion-slider"
+              aria-labelledby="evaluation-slider"
               valueLabelDisplay="auto"
               step={5}
               marks
@@ -546,7 +553,7 @@ const AssignmentList: React.FC = () => {
             <TextField
               inputRef={completionInputRef}
               fullWidth
-              label="Completion Percentage"
+              label="Achievement Percentage"
               type="number"
               value={completionPercentage}
               onChange={handleCompletionInputChange}
@@ -554,7 +561,7 @@ const AssignmentList: React.FC = () => {
                 endAdornment: '%',
                 inputProps: { min: 0, max: 100, step: 1 }
               }}
-              helperText="Enter a value between 0 and 100"
+              helperText="Evaluate work completed against the defined criteria (0-100%)"
               autoFocus
             />
           </Box>
@@ -599,7 +606,7 @@ const AssignmentList: React.FC = () => {
               </Typography>
               {assignmentToDelete.completionPercentage !== undefined && (
                 <Typography variant="caption" display="block">
-                  Progress: {assignmentToDelete.completionPercentage}%
+                  Evaluated: {assignmentToDelete.completionPercentage}%
                 </Typography>
               )}
             </Box>

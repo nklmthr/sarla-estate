@@ -16,30 +16,31 @@ import java.util.List;
 @Repository
 public interface WorkAssignmentRepository extends JpaRepository<WorkAssignment, String> {
 
-    List<WorkAssignment> findByAssignedEmployeeId(String employeeId);
+    // Find only non-deleted assignments
+    List<WorkAssignment> findByDeletedFalse();
 
-    List<WorkAssignment> findByAssignmentStatus(WorkAssignment.AssignmentStatus status);
+    List<WorkAssignment> findByAssignedEmployeeIdAndDeletedFalse(String employeeId);
 
-    List<WorkAssignment> findByAssignmentDate(LocalDate date);
+    List<WorkAssignment> findByAssignmentStatusAndDeletedFalse(WorkAssignment.AssignmentStatus status);
 
-    List<WorkAssignment> findByAssignmentDateBetween(LocalDate startDate, LocalDate endDate);
+    List<WorkAssignment> findByAssignmentDateAndDeletedFalse(LocalDate date);
+
+    List<WorkAssignment> findByAssignmentDateBetweenAndDeletedFalse(LocalDate startDate, LocalDate endDate);
 
     @Query("SELECT wa FROM WorkAssignment wa WHERE wa.assignedEmployee.id = :employeeId " +
-           "AND wa.assignmentDate BETWEEN :startDate AND :endDate")
+           "AND wa.assignmentDate BETWEEN :startDate AND :endDate " +
+           "AND wa.deleted = false")
     List<WorkAssignment> findEmployeeAssignmentsInDateRange(@Param("employeeId") String employeeId,
                                                               @Param("startDate") LocalDate startDate,
                                                               @Param("endDate") LocalDate endDate);
 
     @Query("SELECT wa FROM WorkAssignment wa WHERE wa.assignmentStatus = :status " +
-           "AND wa.assignmentDate = :date")
+           "AND wa.assignmentDate = :date " +
+           "AND wa.deleted = false")
     List<WorkAssignment> findByStatusAndDate(@Param("status") WorkAssignment.AssignmentStatus status,
                                                @Param("date") LocalDate date);
-
-    @Query("SELECT wa FROM WorkAssignment wa WHERE wa.assignmentStatus = 'UNASSIGNED' " +
-           "AND wa.assignmentDate >= :startDate")
-    List<WorkAssignment> findUnassignedFromDate(@Param("startDate") LocalDate startDate);
     
-    // Count assignments for a specific work activity
-    long countByWorkActivity(WorkActivity workActivity);
+    // Count non-deleted assignments for a specific work activity
+    long countByWorkActivityAndDeletedFalse(WorkActivity workActivity);
 }
 

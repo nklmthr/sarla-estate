@@ -8,8 +8,9 @@ import {
   TextField,
   Typography,
   Grid,
-  MenuItem,
   CircularProgress,
+  FormControlLabel,
+  Checkbox,
 } from '@mui/material';
 import { Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material';
 import { workActivityApi } from '../../api/workActivityApi';
@@ -51,6 +52,14 @@ const WorkActivityForm: React.FC = () => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
+    }));
+  };
+
+  const handleStatusChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const isActive = e.target.checked;
+    setFormData((prev) => ({
+      ...prev,
+      status: isActive ? 'ACTIVE' : 'INACTIVE',
     }));
   };
 
@@ -115,19 +124,20 @@ const WorkActivityForm: React.FC = () => {
               </Grid>
 
               <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  required
-                  select
-                  label="Status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleChange}
-                >
-                  <MenuItem value="ACTIVE">Active</MenuItem>
-                  <MenuItem value="INACTIVE">Inactive</MenuItem>
-                  <MenuItem value="SEASONAL">Seasonal</MenuItem>
-                </TextField>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={formData.status === 'ACTIVE'}
+                      onChange={handleStatusChange}
+                      name="status"
+                      color="primary"
+                    />
+                  }
+                  label="Active"
+                />
+                <Typography variant="caption" display="block" color="text.secondary" sx={{ ml: 4, mt: -0.5 }}>
+                  {formData.status === 'ACTIVE' ? 'This activity is currently active' : 'This activity is inactive'}
+                </Typography>
               </Grid>
 
               <Grid item xs={12}>

@@ -7,6 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * WorkAssignment entity representing a specific work task assignment
@@ -30,6 +31,20 @@ public class WorkAssignment extends BaseEntity {
 
     @Column(name = "assignment_date", nullable = false)
     private LocalDate assignmentDate;
+    
+    // Audit fields for tracking assignment and evaluation times
+    @Column(name = "assigned_at")
+    private LocalDateTime assignedAt;
+    
+    @Column(name = "last_evaluated_at")
+    private LocalDateTime lastEvaluatedAt;
+    
+    @Column(name = "evaluation_count")
+    private Integer evaluationCount = 0;
+    
+    // Soft delete flag - assignments are never hard deleted for audit purposes
+    @Column(name = "deleted")
+    private Boolean deleted = false;
 
     // Copied from WorkActivity at time of generation
     @Column(name = "activity_name", nullable = false)
@@ -41,10 +56,6 @@ public class WorkAssignment extends BaseEntity {
     @Column(name = "assignment_status")
     @Enumerated(EnumType.STRING)
     private AssignmentStatus assignmentStatus;
-
-    @Column(name = "priority")
-    @Enumerated(EnumType.STRING)
-    private Priority priority;
 
     @Column(name = "actual_duration_hours")
     private Double actualDurationHours;
@@ -59,19 +70,9 @@ public class WorkAssignment extends BaseEntity {
     private LocalDate completedDate;
 
     public enum AssignmentStatus {
-        UNASSIGNED,
         ASSIGNED,
         IN_PROGRESS,
-        COMPLETED,
-        CANCELLED,
-        RESCHEDULED
-    }
-
-    public enum Priority {
-        LOW,
-        MEDIUM,
-        HIGH,
-        URGENT
+        COMPLETED
     }
 
     /**
@@ -81,8 +82,7 @@ public class WorkAssignment extends BaseEntity {
         this.workActivity = workActivity;
         this.activityName = workActivity.getName();
         this.activityDescription = workActivity.getDescription();
-        this.priority = Priority.MEDIUM; // Default priority
-        this.assignmentStatus = AssignmentStatus.UNASSIGNED;
+        this.assignmentStatus = AssignmentStatus.ASSIGNED;
         this.completionPercentage = 0; // Default to 0% completion
     }
 }

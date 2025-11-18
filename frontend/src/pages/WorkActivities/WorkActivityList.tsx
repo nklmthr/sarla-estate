@@ -45,7 +45,7 @@ const WorkActivityList: React.FC = () => {
   const [filteredActivities, setFilteredActivities] = useState<WorkActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<WorkActivity | null>(null);
   const [criteriaDialogOpen, setCriteriaDialogOpen] = useState(false);
@@ -139,8 +139,6 @@ const WorkActivityList: React.FC = () => {
         return 'success';
       case 'INACTIVE':
         return 'default';
-      case 'SEASONAL':
-        return 'warning';
       default:
         return 'default';
     }
@@ -275,7 +273,6 @@ const WorkActivityList: React.FC = () => {
               <MenuItem value="ALL">All</MenuItem>
               <MenuItem value="ACTIVE">Active</MenuItem>
               <MenuItem value="INACTIVE">Inactive</MenuItem>
-              <MenuItem value="SEASONAL">Seasonal</MenuItem>
             </Select>
           </FormControl>
         </Box>

@@ -38,7 +38,7 @@ public class WorkActivity extends BaseEntity {
     private List<WorkActivityCompletionCriteria> completionCriteria = new ArrayList<>();
 
     public enum Status {
-        ACTIVE, INACTIVE, SEASONAL
+        ACTIVE, INACTIVE
     }
 }
 

@@ -73,12 +73,12 @@ public class WorkActivityService {
         WorkActivity workActivity = workActivityRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkActivity not found with id: " + id));
         
-        // Check if there are any work assignments referencing this activity
-        long assignmentCount = workAssignmentRepository.countByWorkActivity(workActivity);
+        // Check if there are any non-deleted work assignments referencing this activity
+        long assignmentCount = workAssignmentRepository.countByWorkActivityAndDeletedFalse(workActivity);
         if (assignmentCount > 0) {
             throw new DataIntegrityException(
                 "Cannot delete work activity '" + workActivity.getName() + 
-                "' because it has " + assignmentCount + " work assignment(s). " +
+                "' because it has " + assignmentCount + " active work assignment(s). " +
                 "Please delete or reassign the work assignments first, or set the activity status to INACTIVE instead."
             );
         }

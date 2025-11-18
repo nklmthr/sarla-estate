@@ -40,7 +40,7 @@ public class ReportService {
         log.info("Generating upcoming assignments report from {} to {}", startDate, endDate);
 
         List<WorkAssignment> assignments = workAssignmentRepository
-                .findByAssignmentDateBetween(startDate, endDate);
+                .findByAssignmentDateBetweenAndDeletedFalse(startDate, endDate);
 
         UpcomingAssignmentsReportDTO report = new UpcomingAssignmentsReportDTO();
         report.setReportGeneratedDate(LocalDate.now());
@@ -48,13 +48,16 @@ public class ReportService {
         report.setEndDate(endDate);
         report.setTotalAssignments(assignments.size());
 
-        long unassignedCount = assignments.stream()
-                .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.UNASSIGNED)
+        // Count assignments by status
+        long completedCount = assignments.stream()
+                .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.COMPLETED)
                 .count();
-        long assignedCount = assignments.size() - unassignedCount;
+        long inProgressCount = assignments.stream()
+                .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.IN_PROGRESS)
+                .count();
 
-        report.setUnassignedCount((int) unassignedCount);
-        report.setAssignedCount((int) assignedCount);
+        report.setUnassignedCount(0); // No longer used
+        report.setAssignedCount(assignments.size());
 
         List<UpcomingAssignmentsReportDTO.AssignmentSummary> summaries = assignments.stream()
                 .map(this::convertToAssignmentSummary)
@@ -62,8 +65,8 @@ public class ReportService {
 
         report.setAssignments(summaries);
 
-        log.info("Report generated with {} assignments ({} unassigned, {} assigned)", 
-                assignments.size(), unassignedCount, assignedCount);
+        log.info("Report generated with {} assignments ({} completed, {} in-progress)", 
+                assignments.size(), completedCount, inProgressCount);
 
         return report;
     }
@@ -73,9 +76,9 @@ public class ReportService {
         
         log.info("Generating payment report from {} to {}", startDate, endDate);
 
-        // Get all completed or in-progress assignments in the period
+        // Get all non-deleted completed or in-progress assignments in the period
         List<WorkAssignment> assignments = workAssignmentRepository
-                .findByAssignmentDateBetween(startDate, endDate).stream()
+                .findByAssignmentDateBetweenAndDeletedFalse(startDate, endDate).stream()
                 .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.COMPLETED ||
                             a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.IN_PROGRESS)
                 .collect(Collectors.toList());
@@ -235,7 +238,6 @@ public class ReportService {
         summary.setActivityName(assignment.getActivityName());
         summary.setAssignmentDate(assignment.getAssignmentDate());
         summary.setStatus(assignment.getAssignmentStatus());
-        summary.setPriority(assignment.getPriority());
         summary.setAssignedEmployeeId(assignment.getAssignedEmployee() != null ? assignment.getAssignedEmployee().getId() : null);
         summary.setAssignedEmployeeName(assignment.getAssignedEmployee() != null ? assignment.getAssignedEmployee().getName() : null);
         return summary;

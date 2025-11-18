@@ -1,12 +1,12 @@
 package com.sarlatea.crm.dto;
 
-import com.sarlatea.crm.model.WorkActivity;
 import com.sarlatea.crm.model.WorkAssignment;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * DTO for WorkAssignment entity
@@ -28,10 +28,14 @@ public class WorkAssignmentDTO {
     
     // Assignment details
     private WorkAssignment.AssignmentStatus assignmentStatus;
-    private WorkAssignment.Priority priority;
     private Double actualDurationHours;
     private Integer completionPercentage;
     private String completionNotes;
     private LocalDate completedDate;
+    
+    // Audit fields for tracking assignment and evaluation times
+    private LocalDateTime assignedAt;
+    private LocalDateTime lastEvaluatedAt;
+    private Integer evaluationCount;
 }
 

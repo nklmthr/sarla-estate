@@ -1,6 +1,5 @@
 package com.sarlatea.crm.dto;
 
-import com.sarlatea.crm.model.WorkActivity;
 import com.sarlatea.crm.model.WorkAssignment;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -32,7 +31,6 @@ public class UpcomingAssignmentsReportDTO {
         private String activityName;
         private LocalDate assignmentDate;
         private WorkAssignment.AssignmentStatus status;
-        private WorkAssignment.Priority priority;
         private String assignedEmployeeId;
         private String assignedEmployeeName;
     }

@@ -4,12 +4,10 @@ import com.sarlatea.crm.dto.WorkAssignmentDTO;
 import com.sarlatea.crm.service.WorkAssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -45,14 +43,6 @@ public class WorkAssignmentController {
         return ResponseEntity.ok(assignments);
     }
 
-    @GetMapping("/unassigned")
-    public ResponseEntity<List<WorkAssignmentDTO>> getUnassignedFromDate(
-            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate) {
-        log.info("GET request to fetch unassigned assignments from date: {}", startDate);
-        List<WorkAssignmentDTO> assignments = workAssignmentService.getUnassignedFromDate(startDate);
-        return ResponseEntity.ok(assignments);
-    }
-
     @PostMapping
     public ResponseEntity<WorkAssignmentDTO> createAssignment(@RequestBody WorkAssignmentDTO assignmentDTO) {
         log.info("POST request to create new work assignment for activity: {}", assignmentDTO.getWorkActivityId());
@@ -76,13 +66,6 @@ public class WorkAssignmentController {
         String employeeId = request.get("employeeId");
         log.info("POST request to assign work assignment {} to employee {}", id, employeeId);
         WorkAssignmentDTO assignment = workAssignmentService.assignToEmployee(id, employeeId);
-        return ResponseEntity.ok(assignment);
-    }
-
-    @PostMapping("/{id}/unassign")
-    public ResponseEntity<WorkAssignmentDTO> unassignFromEmployee(@PathVariable String id) {
-        log.info("POST request to unassign work assignment {}", id);
-        WorkAssignmentDTO assignment = workAssignmentService.unassignFromEmployee(id);
         return ResponseEntity.ok(assignment);
     }
 

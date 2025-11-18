@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -31,8 +32,8 @@ public class WorkAssignmentService {
 
     @Transactional(readOnly = true)
     public List<WorkAssignmentDTO> getAllAssignments() {
-        log.debug("Fetching all work assignments");
-        return workAssignmentRepository.findAll().stream()
+        log.debug("Fetching all non-deleted work assignments");
+        return workAssignmentRepository.findByDeletedFalse().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -47,16 +48,8 @@ public class WorkAssignmentService {
 
     @Transactional(readOnly = true)
     public List<WorkAssignmentDTO> getAssignmentsByEmployee(String employeeId) {
-        log.debug("Fetching work assignments for employee: {}", employeeId);
-        return workAssignmentRepository.findByAssignedEmployeeId(employeeId).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<WorkAssignmentDTO> getUnassignedFromDate(LocalDate startDate) {
-        log.debug("Fetching unassigned work assignments from date: {}", startDate);
-        return workAssignmentRepository.findUnassignedFromDate(startDate).stream()
+        log.debug("Fetching non-deleted work assignments for employee: {}", employeeId);
+        return workAssignmentRepository.findByAssignedEmployeeIdAndDeletedFalse(employeeId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -82,17 +75,9 @@ public class WorkAssignmentService {
         assignment.setAssignmentDate(dto.getAssignmentDate());
         assignment.setAssignedEmployee(employee);
         
-        // Set status based on whether employee is assigned
-        if (employee != null) {
-            assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.ASSIGNED);
-        } else {
-            assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.UNASSIGNED);
-        }
-        
-        // Set priority if provided, otherwise use default
-        if (dto.getPriority() != null) {
-            assignment.setPriority(dto.getPriority());
-        }
+        // Set status - all assignments start as ASSIGNED
+        assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.ASSIGNED);
+        assignment.setAssignedAt(LocalDateTime.now()); // Track assignment time
         
         // Set completion percentage if provided
         if (dto.getCompletionPercentage() != null) {
@@ -129,22 +114,10 @@ public class WorkAssignmentService {
         
         assignment.setAssignedEmployee(employee);
         assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.ASSIGNED);
+        assignment.setAssignedAt(LocalDateTime.now()); // Track assignment time
         
         WorkAssignment updatedAssignment = workAssignmentRepository.save(assignment);
-        return convertToDTO(updatedAssignment);
-    }
-
-    @Transactional
-    public WorkAssignmentDTO unassignFromEmployee(String assignmentId) {
-        log.info("Unassigning work assignment {}", assignmentId);
-        
-        WorkAssignment assignment = workAssignmentRepository.findById(assignmentId)
-                .orElseThrow(() -> new ResourceNotFoundException("WorkAssignment not found with id: " + assignmentId));
-        
-        assignment.setAssignedEmployee(null);
-        assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.UNASSIGNED);
-        
-        WorkAssignment updatedAssignment = workAssignmentRepository.save(assignment);
+        log.info("Assignment {} assigned to employee {} at {}", assignmentId, employeeId, assignment.getAssignedAt());
         return convertToDTO(updatedAssignment);
     }
 
@@ -168,7 +141,14 @@ public class WorkAssignmentService {
             assignment.setCompletionPercentage(100); // Default to fully completed
         }
         
+        // Track evaluation time and count for audit
+        assignment.setLastEvaluatedAt(LocalDateTime.now());
+        Integer currentCount = assignment.getEvaluationCount();
+        assignment.setEvaluationCount(currentCount != null ? currentCount + 1 : 1);
+        
         WorkAssignment updatedAssignment = workAssignmentRepository.save(assignment);
+        log.info("Assignment {} marked as completed (Evaluation #{}) at {}", 
+                assignmentId, assignment.getEvaluationCount(), assignment.getLastEvaluatedAt());
         return convertToDTO(updatedAssignment);
     }
 
@@ -183,6 +163,11 @@ public class WorkAssignmentService {
         int validPercentage = Math.min(100, Math.max(0, completionPercentage));
         assignment.setCompletionPercentage(validPercentage);
         
+        // Track evaluation time and count for audit
+        assignment.setLastEvaluatedAt(LocalDateTime.now());
+        Integer currentCount = assignment.getEvaluationCount();
+        assignment.setEvaluationCount(currentCount != null ? currentCount + 1 : 1);
+        
         // Update status based on percentage
         if (validPercentage == 0 && assignment.getAssignmentStatus() == WorkAssignment.AssignmentStatus.ASSIGNED) {
             // Keep as ASSIGNED
@@ -196,16 +181,21 @@ public class WorkAssignmentService {
         }
         
         WorkAssignment updatedAssignment = workAssignmentRepository.save(assignment);
+        log.info("Assignment {} evaluated to {}% (Evaluation #{}) at {}", 
+                assignmentId, validPercentage, assignment.getEvaluationCount(), assignment.getLastEvaluatedAt());
         return convertToDTO(updatedAssignment);
     }
 
     @Transactional
     public void deleteAssignment(String id) {
-        log.debug("Deleting work assignment with id: {}", id);
-        if (!workAssignmentRepository.existsById(id)) {
-            throw new ResourceNotFoundException("WorkAssignment not found with id: " + id);
-        }
-        workAssignmentRepository.deleteById(id);
+        log.info("Soft deleting work assignment with id: {}", id);
+        WorkAssignment assignment = workAssignmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("WorkAssignment not found with id: " + id));
+        
+        // Soft delete - set deleted flag instead of removing from database
+        assignment.setDeleted(true);
+        workAssignmentRepository.save(assignment);
+        log.info("Assignment {} marked as deleted for audit purposes", id);
     }
 
     private WorkAssignmentDTO convertToDTO(WorkAssignment assignment) {
@@ -218,11 +208,14 @@ public class WorkAssignmentService {
         dto.setActivityName(assignment.getActivityName());
         dto.setActivityDescription(assignment.getActivityDescription());
         dto.setAssignmentStatus(assignment.getAssignmentStatus());
-        dto.setPriority(assignment.getPriority());
         dto.setActualDurationHours(assignment.getActualDurationHours());
         dto.setCompletionPercentage(assignment.getCompletionPercentage());
         dto.setCompletionNotes(assignment.getCompletionNotes());
         dto.setCompletedDate(assignment.getCompletedDate());
+        // Audit fields
+        dto.setAssignedAt(assignment.getAssignedAt());
+        dto.setLastEvaluatedAt(assignment.getLastEvaluatedAt());
+        dto.setEvaluationCount(assignment.getEvaluationCount());
         return dto;
     }
 
@@ -232,9 +225,6 @@ public class WorkAssignmentService {
         }
         if (dto.getAssignmentStatus() != null) {
             assignment.setAssignmentStatus(dto.getAssignmentStatus());
-        }
-        if (dto.getPriority() != null) {
-            assignment.setPriority(dto.getPriority());
         }
         if (dto.getActualDurationHours() != null) {
             assignment.setActualDurationHours(dto.getActualDurationHours());

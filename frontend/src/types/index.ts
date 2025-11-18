@@ -14,7 +14,7 @@ export interface WorkActivity {
   id?: string;
   name: string;
   description?: string;
-  status?: 'ACTIVE' | 'INACTIVE' | 'SEASONAL';
+  status?: 'ACTIVE' | 'INACTIVE';
   notes?: string;
   completionCriteria?: WorkActivityCompletionCriteria[];
 }
@@ -38,12 +38,15 @@ export interface WorkAssignment {
   assignmentDate: string;
   activityName: string;
   activityDescription?: string;
-  assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED';
-  priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
+  assignmentStatus?: 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
   actualDurationHours?: number;
   completionPercentage?: number;
   completionNotes?: string;
   completedDate?: string;
+  // Audit fields for tracking assignment and evaluation times
+  assignedAt?: string;
+  lastEvaluatedAt?: string;
+  evaluationCount?: number;
 }
 
 export interface EmployeeSalary {
@@ -77,7 +80,6 @@ export interface AssignmentSummary {
   activityName: string;
   assignmentDate: string;
   status?: string;
-  priority?: string;
   assignedEmployeeId?: string;
   assignedEmployeeName?: string;
 }
