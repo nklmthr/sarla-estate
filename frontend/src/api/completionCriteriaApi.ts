@@ -2,19 +2,32 @@ import apiClient from './apiClient';
 import { WorkActivityCompletionCriteria } from '../types';
 
 export const completionCriteriaApi = {
-  getAllByActivity: (workActivityId: string) => 
-    apiClient.get(`/work-activities/${workActivityId}/completion-criteria`),
+  getAllByActivity: async (workActivityId: string): Promise<WorkActivityCompletionCriteria[]> => {
+    return apiClient.get<WorkActivityCompletionCriteria[]>(`/work-activities/${workActivityId}/completion-criteria`);
+  },
   
-  getActive: (workActivityId: string) => 
-    apiClient.get(`/work-activities/${workActivityId}/completion-criteria/active`),
+  getActive: async (workActivityId: string): Promise<WorkActivityCompletionCriteria | null> => {
+    try {
+      return await apiClient.get<WorkActivityCompletionCriteria>(`/work-activities/${workActivityId}/completion-criteria/active`);
+    } catch (error: any) {
+      // Return null if no active criteria found (204 No Content)
+      if (error?.response?.status === 204) {
+        return null;
+      }
+      throw error;
+    }
+  },
   
-  create: (workActivityId: string, criteria: WorkActivityCompletionCriteria) => 
-    apiClient.post(`/work-activities/${workActivityId}/completion-criteria`, criteria),
+  create: async (workActivityId: string, criteria: WorkActivityCompletionCriteria): Promise<WorkActivityCompletionCriteria> => {
+    return apiClient.post<WorkActivityCompletionCriteria>(`/work-activities/${workActivityId}/completion-criteria`, criteria);
+  },
   
-  update: (workActivityId: string, criteriaId: string, criteria: WorkActivityCompletionCriteria) => 
-    apiClient.put(`/work-activities/${workActivityId}/completion-criteria/${criteriaId}`, criteria),
+  update: async (workActivityId: string, criteriaId: string, criteria: WorkActivityCompletionCriteria): Promise<WorkActivityCompletionCriteria> => {
+    return apiClient.put<WorkActivityCompletionCriteria>(`/work-activities/${workActivityId}/completion-criteria/${criteriaId}`, criteria);
+  },
   
-  delete: (workActivityId: string, criteriaId: string) => 
-    apiClient.delete(`/work-activities/${workActivityId}/completion-criteria/${criteriaId}`),
+  delete: async (workActivityId: string, criteriaId: string): Promise<void> => {
+    return apiClient.delete(`/work-activities/${workActivityId}/completion-criteria/${criteriaId}`);
+  },
 };
 

@@ -89,7 +89,7 @@ const AssignmentList: React.FC = () => {
               const criteria = await completionCriteriaApi.getActive(activity.id!);
               return {
                 ...activity,
-                activeCriteria: Array.isArray(criteria) && criteria.length > 0 ? criteria[0] : null,
+                activeCriteria: criteria || null,
               };
             } catch (error) {
               console.error(`Error loading criteria for activity ${activity.id}:`, error);
