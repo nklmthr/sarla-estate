@@ -114,8 +114,15 @@ const Dashboard: React.FC = () => {
         monthlyPayment: monthlyTotal,
       });
 
+      // Sort: Pending (ASSIGNED) first, then Evaluated (COMPLETED)
+      const sortedAssignments = todayAssignmentsList.sort((a, b) => {
+        if (a.status === 'ASSIGNED' && b.status === 'COMPLETED') return -1;
+        if (a.status === 'COMPLETED' && b.status === 'ASSIGNED') return 1;
+        return 0;
+      });
+
       // Get today's assignments (first 10)
-      setTodayAssignments(todayAssignmentsList.slice(0, 10));
+      setTodayAssignments(sortedAssignments.slice(0, 10));
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setTodayAssignments([]);
