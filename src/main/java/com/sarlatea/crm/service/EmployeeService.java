@@ -24,8 +24,8 @@ public class EmployeeService {
 
     @Transactional(readOnly = true)
     public List<EmployeeDTO> getAllEmployees() {
-        log.debug("Fetching all employees");
-        return employeeRepository.findAll().stream()
+        log.debug("Fetching all employees ordered by assignment count and name");
+        return employeeRepository.findAllOrderedByName().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
