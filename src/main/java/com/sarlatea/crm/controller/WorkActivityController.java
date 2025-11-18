@@ -84,44 +84,5 @@ public class WorkActivityController {
         return ResponseEntity.ok(workActivities);
     }
 
-    @GetMapping("/by-season/{season}")
-    public ResponseEntity<List<WorkActivityDTO>> getWorkActivitiesBySeason(
-            @PathVariable WorkActivity.Season season) {
-        log.info("GET request to fetch work activities by season: {}", season);
-        List<WorkActivityDTO> workActivities = workActivityService.getWorkActivitiesBySeason(season);
-        return ResponseEntity.ok(workActivities);
-    }
-
-    @GetMapping("/by-work-shift/{workShift}")
-    public ResponseEntity<List<WorkActivityDTO>> getWorkActivitiesByWorkShift(
-            @PathVariable WorkActivity.WorkShift workShift) {
-        log.info("GET request to fetch work activities by work shift: {}", workShift);
-        List<WorkActivityDTO> workActivities = workActivityService.getWorkActivitiesByWorkShift(workShift);
-        return ResponseEntity.ok(workActivities);
-    }
-
-    @GetMapping("/by-frequency/{frequency}")
-    public ResponseEntity<List<WorkActivityDTO>> getWorkActivitiesByFrequency(
-            @PathVariable WorkActivity.Frequency frequency) {
-        log.info("GET request to fetch work activities by frequency: {}", frequency);
-        List<WorkActivityDTO> workActivities = workActivityService.getWorkActivitiesByFrequency(frequency);
-        return ResponseEntity.ok(workActivities);
-    }
-
-    @GetMapping("/schedulable")
-    public ResponseEntity<List<WorkActivityDTO>> getSchedulableActivities() {
-        log.info("GET request to fetch schedulable work activities");
-        List<WorkActivityDTO> workActivities = workActivityService.getSchedulableActivities();
-        return ResponseEntity.ok(workActivities);
-    }
-
-    @GetMapping("/by-frequency-and-shift")
-    public ResponseEntity<List<WorkActivityDTO>> getActiveByFrequencyAndWorkShift(
-            @RequestParam WorkActivity.Frequency frequency,
-            @RequestParam WorkActivity.WorkShift workShift) {
-        log.info("GET request to fetch active work activities by frequency: {} and work shift: {}", frequency, workShift);
-        List<WorkActivityDTO> workActivities = workActivityService.getActiveByFrequencyAndWorkShift(frequency, workShift);
-        return ResponseEntity.ok(workActivities);
-    }
 }
 

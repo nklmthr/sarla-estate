@@ -5,6 +5,9 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * DTO for WorkActivity entity
  */
@@ -16,14 +19,7 @@ public class WorkActivityDTO {
     private String name;
     private String description;
     private WorkActivity.Status status;
-    private Double estimatedDurationHoursPerDay;
-    private String typicalLocation;
-    private WorkActivity.Season season;
-    private WorkActivity.WorkShift workShift;
-    private WorkActivity.Frequency frequency;
-    private String frequencyDetails;
-    private String resourcesRequired;
-    private String safetyInstructions;
     private String notes;
+    private List<WorkActivityCompletionCriteriaDTO> completionCriteria = new ArrayList<>();
 }
 

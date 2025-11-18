@@ -25,14 +25,6 @@ const WorkActivityForm: React.FC = () => {
     name: '',
     description: '',
     status: 'ACTIVE',
-    estimatedDurationHoursPerDay: 8.0,
-    typicalLocation: '',
-    season: 'ALL_SEASON',
-    workShift: 'MORNING',
-    frequency: 'DAILY',
-    frequencyDetails: '',
-    resourcesRequired: '',
-    safetyInstructions: '',
     notes: '',
   });
 
@@ -58,7 +50,7 @@ const WorkActivityForm: React.FC = () => {
     const { name, value } = e.target;
     setFormData((prev) => ({
       ...prev,
-      [name]: name === 'estimatedDurationHoursPerDay' ? parseFloat(value) || 0 : value,
+      [name]: value,
     }));
   };
 
@@ -105,6 +97,7 @@ const WorkActivityForm: React.FC = () => {
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
+                  placeholder="e.g., Plucking, Pruning, Weeding, etc."
                 />
               </Grid>
 
@@ -114,90 +107,14 @@ const WorkActivityForm: React.FC = () => {
                   label="Description"
                   name="description"
                   multiline
-                  rows={3}
+                  rows={4}
                   value={formData.description || ''}
                   onChange={handleChange}
+                  placeholder="Describe the work activity in detail"
                 />
               </Grid>
 
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  required
-                  select
-                  label="Work Shift"
-                  name="workShift"
-                  value={formData.workShift}
-                  onChange={handleChange}
-                >
-                  <MenuItem value="MORNING">Morning</MenuItem>
-                  <MenuItem value="EVENING">Evening</MenuItem>
-                  <MenuItem value="FULL_DAY">Full Day</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  required
-                  select
-                  label="Frequency"
-                  name="frequency"
-                  value={formData.frequency}
-                  onChange={handleChange}
-                >
-                  <MenuItem value="DAILY">Daily</MenuItem>
-                  <MenuItem value="WEEKLY">Weekly</MenuItem>
-                  <MenuItem value="BIWEEKLY">Bi-weekly</MenuItem>
-                  <MenuItem value="MONTHLY">Monthly</MenuItem>
-                  <MenuItem value="QUARTERLY">Quarterly</MenuItem>
-                  <MenuItem value="MULTIPLE_DAILY">Multiple Daily</MenuItem>
-                  <MenuItem value="AS_NEEDED">As Needed</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={4}>
-                <TextField
-                  fullWidth
-                  required
-                  type="number"
-                  label="Duration (hours/day)"
-                  name="estimatedDurationHoursPerDay"
-                  value={formData.estimatedDurationHoursPerDay}
-                  onChange={handleChange}
-                  inputProps={{ min: 0, step: 0.5 }}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Typical Location"
-                  name="typicalLocation"
-                  value={formData.typicalLocation || ''}
-                  onChange={handleChange}
-                />
-              </Grid>
-
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Season"
-                  name="season"
-                  value={formData.season || 'ALL_SEASON'}
-                  onChange={handleChange}
-                >
-                  <MenuItem value="ALL_SEASON">All Season</MenuItem>
-                  <MenuItem value="SPRING">Spring</MenuItem>
-                  <MenuItem value="SUMMER">Summer</MenuItem>
-                  <MenuItem value="MONSOON">Monsoon</MenuItem>
-                  <MenuItem value="AUTUMN">Autumn</MenuItem>
-                  <MenuItem value="WINTER">Winter</MenuItem>
-                </TextField>
-              </Grid>
-
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12}>
                 <TextField
                   fullWidth
                   required
@@ -213,50 +130,16 @@ const WorkActivityForm: React.FC = () => {
                 </TextField>
               </Grid>
 
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Frequency Details"
-                  name="frequencyDetails"
-                  placeholder="e.g., Every Monday and Wednesday"
-                  value={formData.frequencyDetails || ''}
-                  onChange={handleChange}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Resources Required"
-                  name="resourcesRequired"
-                  multiline
-                  rows={2}
-                  value={formData.resourcesRequired || ''}
-                  onChange={handleChange}
-                />
-              </Grid>
-
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Safety Instructions"
-                  name="safetyInstructions"
-                  multiline
-                  rows={2}
-                  value={formData.safetyInstructions || ''}
-                  onChange={handleChange}
-                />
-              </Grid>
-
               <Grid item xs={12}>
                 <TextField
                   fullWidth
                   label="Notes"
                   name="notes"
                   multiline
-                  rows={2}
+                  rows={3}
                   value={formData.notes || ''}
                   onChange={handleChange}
+                  placeholder="Additional notes or comments"
                 />
               </Grid>
 

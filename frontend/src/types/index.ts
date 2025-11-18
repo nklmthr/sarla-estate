@@ -15,14 +15,18 @@ export interface WorkActivity {
   name: string;
   description?: string;
   status?: 'ACTIVE' | 'INACTIVE' | 'SEASONAL';
-  estimatedDurationHoursPerDay?: number;
-  typicalLocation?: string;
-  season?: 'SPRING' | 'SUMMER' | 'AUTUMN' | 'WINTER' | 'ALL_SEASON';
-  workShift?: 'MORNING' | 'EVENING' | 'FULL_DAY';
-  frequency?: 'DAILY' | 'WEEKLY' | 'BIWEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'AS_NEEDED' | 'MULTIPLE_DAILY';
-  frequencyDetails?: string;
-  resourcesRequired?: string;
-  safetyInstructions?: string;
+  notes?: string;
+  completionCriteria?: WorkActivityCompletionCriteria[];
+}
+
+export interface WorkActivityCompletionCriteria {
+  id?: string;
+  workActivityId?: string;
+  unit: 'KG' | 'AREA' | 'PLANTS' | 'LITERS';
+  value: number;
+  startDate: string;
+  endDate?: string;
+  isActive: boolean;
   notes?: string;
 }
 
@@ -32,13 +36,8 @@ export interface WorkAssignment {
   assignedEmployeeId?: string;
   assignedEmployeeName?: string;
   assignmentDate: string;
-  workShift?: 'MORNING' | 'EVENING' | 'FULL_DAY';
   activityName: string;
   activityDescription?: string;
-  estimatedDurationHours?: number;
-  location?: string;
-  resourcesRequired?: string;
-  safetyInstructions?: string;
   assignmentStatus?: 'UNASSIGNED' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'RESCHEDULED';
   priority?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
   actualDurationHours?: number;
@@ -77,14 +76,10 @@ export interface AssignmentSummary {
   assignmentId: string;
   activityName: string;
   assignmentDate: string;
-  workShift?: string;
-  location?: string;
   status?: string;
   priority?: string;
   assignedEmployeeId?: string;
   assignedEmployeeName?: string;
-  estimatedDurationHours?: number;
-  resourcesRequired?: string;
 }
 
 export interface PaymentReport {

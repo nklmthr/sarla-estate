@@ -12,6 +12,9 @@ export const assignmentApi = {
   getUnassignedAssignments: (startDate: string) => 
     apiClient.get<WorkAssignment[]>(`/work-assignments/unassigned?startDate=${startDate}`),
   
+  createAssignment: (assignment: WorkAssignment) => 
+    apiClient.post<WorkAssignment>('/work-assignments', assignment),
+  
   updateAssignment: (id: string, assignment: WorkAssignment) => 
     apiClient.put<WorkAssignment>(`/work-assignments/${id}`, assignment),
   

@@ -1,5 +1,4 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -12,219 +11,314 @@ import {
   TableRow,
   Typography,
   IconButton,
-  Chip,
   CircularProgress,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   Select,
   MenuItem,
   FormControl,
-  InputLabel,
-  Slider,
-  LinearProgress,
-  Stack,
-  Autocomplete,
-  Tooltip,
+  Chip,
+  TablePagination,
+  Paper,
 } from '@mui/material';
 import {
-  PersonAdd as AssignIcon,
-  PersonRemove as UnassignIcon,
-  Check as CompleteIcon,
-  Edit as EditIcon,
-  FilterList as FilterIcon,
+  ChevronLeft as PrevIcon,
+  ChevronRight as NextIcon,
+  Add as AddIcon,
+  Save as SaveIcon,
+  Close as CloseIcon,
 } from '@mui/icons-material';
 import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
-import { WorkAssignment, Employee } from '../../types';
-import { format } from 'date-fns';
+import { workActivityApi } from '../../api/workActivityApi';
+import { completionCriteriaApi } from '../../api/completionCriteriaApi';
+import { WorkAssignment, Employee, WorkActivity, WorkActivityCompletionCriteria } from '../../types';
+import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
+
+interface ActivityWithCriteria extends WorkActivity {
+  activeCriteria?: WorkActivityCompletionCriteria | null;
+}
+
+interface AssignmentCell {
+  assignment?: WorkAssignment;
+  isEditing: boolean;
+  selectedActivityId?: string;
+}
 
 const AssignmentList: React.FC = () => {
-  const navigate = useNavigate();
-  
-  const [assignments, setAssignments] = useState<WorkAssignment[]>([]);
   const [employees, setEmployees] = useState<Employee[]>([]);
+  const [activities, setActivities] = useState<ActivityWithCriteria[]>([]);
+  const [assignments, setAssignments] = useState<WorkAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Filter states
-  const [statusFilter, setStatusFilter] = useState<string>('ALL');
-  const [dateFilter, setDateFilter] = useState<string>('');
-  const [employeeFilter, setEmployeeFilter] = useState<Employee | null>(null);
+  // Pagination
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   
-  // Dialog states
-  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
-  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
-  const [progressDialogOpen, setProgressDialogOpen] = useState(false);
-  const [selectedAssignment, setSelectedAssignment] = useState<WorkAssignment | null>(null);
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [completionPercentage, setCompletionPercentage] = useState<number>(100);
-  const [actualHours, setActualHours] = useState<number>(0);
-  const [completionNotes, setCompletionNotes] = useState<string>('');
+  // Week navigation
+  const [currentWeekStart, setCurrentWeekStart] = useState<Date>(
+    startOfWeek(new Date(), { weekStartsOn: 1 }) // Monday
+  );
+  
+  // Cell editing state - key is "employeeId-dateString"
+  const [editingCells, setEditingCells] = useState<Map<string, AssignmentCell>>(new Map());
+
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
   useEffect(() => {
     loadData();
-  }, []);
-
-  useEffect(() => {
-    filterAssignments();
-  }, [statusFilter]);
+  }, [currentWeekStart]);
 
   const loadData = async () => {
     try {
       setLoading(true);
-      const [assignmentsData, employeesData] = await Promise.all([
-        assignmentApi.getAllAssignments(),
+      const [employeesData, activitiesData, assignmentsData] = await Promise.all([
         employeeApi.getAllEmployees(),
+        workActivityApi.getAllWorkActivities(),
+        assignmentApi.getAllAssignments(),
       ]);
       
-      const assignmentsArray = Array.isArray(assignmentsData) ? assignmentsData : [];
       const employeesArray = Array.isArray(employeesData) ? employeesData : [];
+      const activitiesArray = Array.isArray(activitiesData) ? activitiesData : [];
+      const assignmentsArray = Array.isArray(assignmentsData) ? assignmentsData : [];
       
+      // Load active completion criteria for each activity
+      const activitiesWithCriteria: ActivityWithCriteria[] = await Promise.all(
+        activitiesArray
+          .filter(a => a.status === 'ACTIVE')
+          .map(async (activity) => {
+            try {
+              const criteria = await completionCriteriaApi.getActive(activity.id!);
+              return {
+                ...activity,
+                activeCriteria: Array.isArray(criteria) && criteria.length > 0 ? criteria[0] : null,
+              };
+            } catch (error) {
+              console.error(`Error loading criteria for activity ${activity.id}:`, error);
+              return { ...activity, activeCriteria: null };
+            }
+          })
+      );
+      
+      setEmployees(employeesArray);
+      setActivities(activitiesWithCriteria);
       setAssignments(assignmentsArray);
-      setEmployees(employeesArray.filter(e => e.status === 'ACTIVE'));
+      setEditingCells(new Map());
     } catch (error) {
       console.error('Error loading data:', error);
-      setAssignments([]);
       setEmployees([]);
+      setActivities([]);
+      setAssignments([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const filterAssignments = () => {
-    // This would filter assignments based on status
-    // For now, we'll just trigger a re-render
+  const getCellKey = (employeeId: string, date: Date): string => {
+    return `${employeeId}-${format(date, 'yyyy-MM-dd')}`;
   };
 
-  const openAssignDialog = (assignment: WorkAssignment) => {
-    setSelectedAssignment(assignment);
-    setSelectedEmployeeId('');
-    setAssignDialogOpen(true);
+  const getAssignment = (employeeId: string, date: Date): WorkAssignment | undefined => {
+    return assignments.find(
+      (a) =>
+        a.assignedEmployeeId === employeeId &&
+        isSameDay(parseISO(a.assignmentDate), date)
+    );
   };
 
-  const openCompleteDialog = (assignment: WorkAssignment) => {
-    setSelectedAssignment(assignment);
-    setCompletionPercentage(assignment.completionPercentage || 100);
-    setActualHours(assignment.estimatedDurationHours || 0);
-    setCompletionNotes('');
-    setCompleteDialogOpen(true);
+  const handleAddAssignment = (employeeId: string, date: Date) => {
+    const key = getCellKey(employeeId, date);
+    const newCell: AssignmentCell = {
+      isEditing: true,
+      selectedActivityId: '',
+    };
+    setEditingCells(new Map(editingCells.set(key, newCell)));
   };
 
-  const openProgressDialog = (assignment: WorkAssignment) => {
-    setSelectedAssignment(assignment);
-    setCompletionPercentage(assignment.completionPercentage || 0);
-    setProgressDialogOpen(true);
-  };
-
-  const handleUpdateProgress = async () => {
-    if (!selectedAssignment) return;
-
-    try {
-      await assignmentApi.updateCompletionPercentage(selectedAssignment.id!, {
-        completionPercentage,
-      });
-      await loadData();
-      setProgressDialogOpen(false);
-      setSelectedAssignment(null);
-    } catch (error) {
-      console.error('Error updating progress:', error);
+  const handleActivityChange = (employeeId: string, date: Date, activityId: string) => {
+    const key = getCellKey(employeeId, date);
+    const cell = editingCells.get(key);
+    if (cell) {
+      cell.selectedActivityId = activityId;
+      setEditingCells(new Map(editingCells.set(key, cell)));
     }
   };
 
-  const handleAssign = async () => {
-    if (!selectedAssignment || !selectedEmployeeId) return;
-
-    try {
-      await assignmentApi.assignToEmployee(selectedAssignment.id!, { employeeId: selectedEmployeeId });
-      await loadData();
-      setAssignDialogOpen(false);
-      setSelectedAssignment(null);
-      setSelectedEmployeeId('');
-    } catch (error) {
-      console.error('Error assigning work:', error);
-    }
-  };
-
-  const handleUnassign = async (assignmentId: string) => {
-    try {
-      await assignmentApi.unassignFromEmployee(assignmentId);
-      await loadData();
-    } catch (error) {
-      console.error('Error unassigning work:', error);
-    }
-  };
-
-  const handleComplete = async () => {
-    if (!selectedAssignment) return;
-
-    try {
-      await assignmentApi.markAsCompleted(selectedAssignment.id!, {
-        completionPercentage,
-        actualDurationHours: actualHours,
-        completionNotes,
-      });
-      await loadData();
-      setCompleteDialogOpen(false);
-      setSelectedAssignment(null);
-    } catch (error) {
-      console.error('Error completing assignment:', error);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'UNASSIGNED':
-        return 'default';
-      case 'ASSIGNED':
-        return 'info';
-      case 'IN_PROGRESS':
-        return 'warning';
-      case 'COMPLETED':
-        return 'success';
-      case 'CANCELLED':
-        return 'error';
-      case 'RESCHEDULED':
-        return 'secondary';
-      default:
-        return 'default';
-    }
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'LOW':
-        return 'default';
-      case 'MEDIUM':
-        return 'info';
-      case 'HIGH':
-        return 'warning';
-      case 'URGENT':
-        return 'error';
-      default:
-        return 'default';
-    }
-  };
-
-  const filteredAssignments = assignments.filter(assignment => {
-    // Status filter
-    if (statusFilter !== 'ALL' && assignment.assignmentStatus !== statusFilter) {
-      return false;
-    }
+  const handleSaveAssignment = async (employeeId: string, date: Date) => {
+    const key = getCellKey(employeeId, date);
+    const cell = editingCells.get(key);
     
-    // Date filter
-    if (dateFilter && format(new Date(assignment.assignmentDate), 'yyyy-MM-dd') !== dateFilter) {
-      return false;
-    }
+    if (!cell || !cell.selectedActivityId) return;
     
-    // Employee filter
-    if (employeeFilter && assignment.employee?.id !== employeeFilter.id) {
-      return false;
+    try {
+      const activity = activities.find(a => a.id === cell.selectedActivityId);
+      if (!activity) return;
+
+      const newAssignment: WorkAssignment = {
+        workActivityId: activity.id,
+        assignedEmployeeId: employeeId,
+        assignmentDate: format(date, 'yyyy-MM-dd'),
+        activityName: activity.name,
+        activityDescription: activity.description,
+        assignmentStatus: 'ASSIGNED',
+        priority: 'MEDIUM',
+        completionPercentage: 0,
+      };
+
+      await assignmentApi.createAssignment(newAssignment);
+      await loadData();
+    } catch (error) {
+      console.error('Error saving assignment:', error);
     }
-    
-    return true;
-  });
+  };
+
+  const handleCancelEdit = (employeeId: string, date: Date) => {
+    const key = getCellKey(employeeId, date);
+    const newMap = new Map(editingCells);
+    newMap.delete(key);
+    setEditingCells(newMap);
+  };
+
+  const handlePreviousWeek = () => {
+    setCurrentWeekStart(addDays(currentWeekStart, -7));
+  };
+
+  const handleNextWeek = () => {
+    setCurrentWeekStart(addDays(currentWeekStart, 7));
+  };
+
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const paginatedEmployees = employees.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
+  const renderCell = (employee: Employee, date: Date) => {
+    const key = getCellKey(employee.id!, date);
+    const editingCell = editingCells.get(key);
+    const assignment = getAssignment(employee.id!, date);
+
+    // If editing
+    if (editingCell?.isEditing) {
+      return (
+        <TableCell key={key} sx={{ minWidth: 180, p: 1 }}>
+          <Box>
+            <FormControl fullWidth size="small">
+              <Select
+                value={editingCell.selectedActivityId || ''}
+                onChange={(e) => handleActivityChange(employee.id!, date, e.target.value)}
+                displayEmpty
+              >
+                <MenuItem value="">Select Activity</MenuItem>
+                {activities.map((activity) => (
+                  <MenuItem key={activity.id} value={activity.id}>
+                    {activity.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            {editingCell.selectedActivityId && (
+              <Box sx={{ mt: 1 }}>
+                {(() => {
+                  const selectedActivity = activities.find(
+                    (a) => a.id === editingCell.selectedActivityId
+                  );
+                  if (selectedActivity?.activeCriteria) {
+                    return (
+                      <Typography variant="caption" color="text.secondary">
+                        Target: {selectedActivity.activeCriteria.value}{' '}
+                        {selectedActivity.activeCriteria.unit}
+                      </Typography>
+                    );
+                  }
+                  return (
+                    <Typography variant="caption" color="warning.main">
+                      No active criteria
+                    </Typography>
+                  );
+                })()}
+              </Box>
+            )}
+            <Box sx={{ mt: 1, display: 'flex', gap: 0.5 }}>
+              <IconButton
+                size="small"
+                onClick={() => handleSaveAssignment(employee.id!, date)}
+                color="primary"
+                disabled={!editingCell.selectedActivityId}
+              >
+                <SaveIcon fontSize="small" />
+              </IconButton>
+              <IconButton
+                size="small"
+                onClick={() => handleCancelEdit(employee.id!, date)}
+                color="error"
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            </Box>
+          </Box>
+        </TableCell>
+      );
+    }
+
+    // If assignment exists
+    if (assignment) {
+      const activity = activities.find((a) => a.id === assignment.workActivityId);
+      return (
+        <TableCell key={key} sx={{ minWidth: 180, p: 1 }}>
+          <Paper elevation={1} sx={{ p: 1, bgcolor: 'action.hover' }}>
+            <Typography variant="body2" fontWeight="bold">
+              {assignment.activityName}
+            </Typography>
+            {activity?.activeCriteria && (
+              <Typography variant="caption" color="text.secondary">
+                Target: {activity.activeCriteria.value} {activity.activeCriteria.unit}
+              </Typography>
+            )}
+            <Box sx={{ mt: 0.5 }}>
+              <Chip
+                label={assignment.assignmentStatus?.replace('_', ' ')}
+                size="small"
+                color={
+                  assignment.assignmentStatus === 'COMPLETED'
+                    ? 'success'
+                    : assignment.assignmentStatus === 'IN_PROGRESS'
+                    ? 'warning'
+                    : 'info'
+                }
+              />
+            </Box>
+            {assignment.completionPercentage !== undefined && (
+              <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
+                {assignment.completionPercentage}% complete
+              </Typography>
+            )}
+          </Paper>
+        </TableCell>
+      );
+    }
+
+    // Empty cell
+    return (
+      <TableCell key={key} sx={{ minWidth: 180, p: 1 }}>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<AddIcon />}
+          onClick={() => handleAddAssignment(employee.id!, date)}
+          fullWidth
+        >
+          Add
+        </Button>
+      </TableCell>
+    );
+  };
 
   if (loading) {
     return (
@@ -237,317 +331,72 @@ const AssignmentList: React.FC = () => {
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4">
-          All Assignments
-        </Typography>
+        <Typography variant="h4">All Assignments</Typography>
+        <Box display="flex" alignItems="center" gap={2}>
+          <IconButton onClick={handlePreviousWeek} color="primary">
+            <PrevIcon />
+          </IconButton>
+          <Typography variant="h6">
+            Week of {format(currentWeekStart, 'MMM dd, yyyy')}
+          </Typography>
+          <IconButton onClick={handleNextWeek} color="primary">
+            <NextIcon />
+          </IconButton>
+        </Box>
       </Box>
 
       <Card>
-        <Box p={2}>
-          <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems="center">
-            <FormControl sx={{ minWidth: 200 }}>
-              <InputLabel>Filter by Status</InputLabel>
-              <Select
-                value={statusFilter}
-                label="Filter by Status"
-                onChange={(e) => setStatusFilter(e.target.value)}
-                size="small"
-              >
-                <MenuItem value="ALL">All</MenuItem>
-                <MenuItem value="UNASSIGNED">Unassigned</MenuItem>
-                <MenuItem value="ASSIGNED">Assigned</MenuItem>
-                <MenuItem value="IN_PROGRESS">In Progress</MenuItem>
-                <MenuItem value="COMPLETED">Completed</MenuItem>
-                <MenuItem value="CANCELLED">Cancelled</MenuItem>
-              </Select>
-            </FormControl>
-
-            <TextField
-              type="date"
-              label="Filter by Date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-              size="small"
-              sx={{ minWidth: 200 }}
-            />
-
-            <Autocomplete
-              value={employeeFilter}
-              onChange={(_, newValue) => setEmployeeFilter(newValue)}
-              options={employees}
-              getOptionLabel={(option) => option.name}
-              renderInput={(params) => (
-                <TextField {...params} label="Filter by Employee" size="small" />
-              )}
-              sx={{ minWidth: 250 }}
-            />
-
-            {(statusFilter !== 'ALL' || dateFilter || employeeFilter) && (
-              <Button
-                variant="outlined"
-                onClick={() => {
-                  setStatusFilter('ALL');
-                  setDateFilter('');
-                  setEmployeeFilter(null);
-                }}
-                size="small"
-              >
-                Clear Filters
-              </Button>
-            )}
-          </Stack>
-        </Box>
-
         <TableContainer>
-          <Table>
+          <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell>Date</TableCell>
-                <TableCell>Activity</TableCell>
-                <TableCell>Shift</TableCell>
-                <TableCell>Employee</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Priority</TableCell>
-                <TableCell>Completion %</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell sx={{ fontWeight: 'bold', minWidth: 150, position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 2 }}>
+                  Employee
+                </TableCell>
+                {weekDays.map((day) => (
+                  <TableCell key={day.toISOString()} align="center" sx={{ fontWeight: 'bold', minWidth: 180 }}>
+                    <Box>
+                      <Typography variant="body2">{format(day, 'EEE')}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {format(day, 'MMM dd')}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                ))}
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredAssignments.length === 0 ? (
+              {paginatedEmployees.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={8} align="center">
-                    <Typography color="textSecondary">No assignments found</Typography>
+                    <Typography color="textSecondary">No employees found</Typography>
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredAssignments.map((assignment) => (
-                  <TableRow key={assignment.id} hover>
-                    <TableCell>
-                      {format(new Date(assignment.assignmentDate), 'MMM dd, yyyy')}
+                paginatedEmployees.map((employee) => (
+                  <TableRow key={employee.id} hover>
+                    <TableCell sx={{ fontWeight: 'bold', position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 1 }}>
+                      {employee.name}
                     </TableCell>
-                    <TableCell><strong>{assignment.activityName}</strong></TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={assignment.workShift?.replace('_', ' ')} 
-                        size="small" 
-                      />
-                    </TableCell>
-                    <TableCell>
-                      {assignment.employee?.name || '-'}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={assignment.assignmentStatus?.replace('_', ' ')}
-                        color={getStatusColor(assignment.assignmentStatus || '')}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={assignment.priority}
-                        color={getPriorityColor(assignment.priority || '')}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Box sx={{ width: '100%', maxWidth: 100 }}>
-                          <LinearProgress 
-                            variant="determinate" 
-                            value={assignment.completionPercentage || 0} 
-                            sx={{ height: 8, borderRadius: 4 }}
-                          />
-                        </Box>
-                        <Typography variant="body2" sx={{ minWidth: 35 }}>
-                          {assignment.completionPercentage || 0}%
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell align="right">
-                      {assignment.assignmentStatus === 'UNASSIGNED' && (
-                        <Tooltip title="Assign to Employee">
-                          <IconButton
-                            size="small"
-                            onClick={() => openAssignDialog(assignment)}
-                            color="primary"
-                          >
-                            <AssignIcon />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                      {(assignment.assignmentStatus === 'ASSIGNED' || assignment.assignmentStatus === 'IN_PROGRESS') && (
-                        <>
-                          <Tooltip title="Update Progress %">
-                            <IconButton
-                              size="small"
-                              onClick={() => openProgressDialog(assignment)}
-                              color="info"
-                            >
-                              <EditIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Unassign">
-                            <IconButton
-                              size="small"
-                              onClick={() => handleUnassign(assignment.id!)}
-                              color="warning"
-                            >
-                              <UnassignIcon />
-                            </IconButton>
-                          </Tooltip>
-                          <Tooltip title="Mark as Complete">
-                            <IconButton
-                              size="small"
-                              onClick={() => openCompleteDialog(assignment)}
-                              color="success"
-                            >
-                              <CompleteIcon />
-                            </IconButton>
-                          </Tooltip>
-                        </>
-                      )}
-                    </TableCell>
+                    {weekDays.map((day) => renderCell(employee, day))}
                   </TableRow>
                 ))
               )}
             </TableBody>
           </Table>
         </TableContainer>
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={employees.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
       </Card>
-
-      {/* Assign Dialog */}
-      <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Assign to Employee</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" gutterBottom>
-              Activity: <strong>{selectedAssignment?.activityName}</strong>
-            </Typography>
-            <Typography variant="body2" gutterBottom sx={{ mb: 3 }}>
-              Date: {selectedAssignment && format(new Date(selectedAssignment.assignmentDate), 'MMM dd, yyyy')}
-            </Typography>
-            <FormControl fullWidth>
-              <InputLabel>Select Employee</InputLabel>
-              <Select
-                value={selectedEmployeeId}
-                label="Select Employee"
-                onChange={(e) => setSelectedEmployeeId(e.target.value)}
-              >
-                {employees.map((emp) => (
-                  <MenuItem key={emp.id} value={emp.id}>
-                    {emp.name} - {emp.department}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleAssign} 
-            variant="contained" 
-            disabled={!selectedEmployeeId}
-          >
-            Assign
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Complete Dialog */}
-      <Dialog open={completeDialogOpen} onClose={() => setCompleteDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Complete Assignment</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" gutterBottom>
-              Activity: <strong>{selectedAssignment?.activityName}</strong>
-            </Typography>
-            <Typography variant="body2" gutterBottom sx={{ mb: 3 }}>
-              Employee: <strong>{selectedAssignment?.employee?.name}</strong>
-            </Typography>
-            
-            <Typography gutterBottom>Completion Percentage: {completionPercentage}%</Typography>
-            <Slider
-              value={completionPercentage}
-              onChange={(_, value) => setCompletionPercentage(value as number)}
-              min={0}
-              max={100}
-              step={5}
-              marks
-              valueLabelDisplay="auto"
-              sx={{ mb: 3 }}
-            />
-
-            <TextField
-              fullWidth
-              type="number"
-              label="Actual Hours"
-              value={actualHours}
-              onChange={(e) => setActualHours(parseFloat(e.target.value) || 0)}
-              inputProps={{ min: 0, step: 0.5 }}
-              sx={{ mb: 2 }}
-            />
-
-            <TextField
-              fullWidth
-              multiline
-              rows={3}
-              label="Completion Notes"
-              value={completionNotes}
-              onChange={(e) => setCompletionNotes(e.target.value)}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setCompleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleComplete} variant="contained" color="success">
-            Mark Complete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Update Progress Dialog */}
-      <Dialog open={progressDialogOpen} onClose={() => setProgressDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Update Task Progress</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <Typography variant="body2" gutterBottom>
-              Activity: <strong>{selectedAssignment?.activityName}</strong>
-            </Typography>
-            <Typography variant="body2" gutterBottom sx={{ mb: 3 }}>
-              Employee: <strong>{selectedAssignment?.employee?.name}</strong>
-            </Typography>
-            
-            <Typography gutterBottom>Completion: {completionPercentage}%</Typography>
-            <Slider
-              value={completionPercentage}
-              onChange={(_, value) => setCompletionPercentage(value as number)}
-              min={0}
-              max={100}
-              step={10}
-              marks={[
-                { value: 0, label: '0%' },
-                { value: 25, label: '25%' },
-                { value: 50, label: '50%' },
-                { value: 75, label: '75%' },
-                { value: 100, label: '100%' },
-              ]}
-              valueLabelDisplay="on"
-              sx={{ mb: 3, mt: 4 }}
-            />
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setProgressDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleUpdateProgress} variant="contained" color="primary">
-            Update Progress
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Box>
   );
 };
 
 export default AssignmentList;
-

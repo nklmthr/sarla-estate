@@ -1,9 +1,12 @@
 package com.sarlatea.crm.service;
 
+import com.sarlatea.crm.dto.WorkActivityCompletionCriteriaDTO;
 import com.sarlatea.crm.dto.WorkActivityDTO;
 import com.sarlatea.crm.exception.DataIntegrityException;
 import com.sarlatea.crm.exception.ResourceNotFoundException;
 import com.sarlatea.crm.model.WorkActivity;
+import com.sarlatea.crm.model.WorkActivityCompletionCriteria;
+import com.sarlatea.crm.repository.WorkActivityCompletionCriteriaRepository;
 import com.sarlatea.crm.repository.WorkActivityRepository;
 import com.sarlatea.crm.repository.WorkAssignmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -25,6 +28,7 @@ public class WorkActivityService {
 
     private final WorkActivityRepository workActivityRepository;
     private final WorkAssignmentRepository workAssignmentRepository;
+    private final WorkActivityCompletionCriteriaRepository completionCriteriaRepository;
 
     @Transactional(readOnly = true)
     public List<WorkActivityDTO> getAllWorkActivities() {
@@ -107,46 +111,6 @@ public class WorkActivityService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public List<WorkActivityDTO> getWorkActivitiesBySeason(WorkActivity.Season season) {
-        log.debug("Fetching work activities by season: {}", season);
-        return workActivityRepository.findBySeason(season).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<WorkActivityDTO> getWorkActivitiesByWorkShift(WorkActivity.WorkShift workShift) {
-        log.debug("Fetching work activities by work shift: {}", workShift);
-        return workActivityRepository.findByWorkShift(workShift).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<WorkActivityDTO> getWorkActivitiesByFrequency(WorkActivity.Frequency frequency) {
-        log.debug("Fetching work activities by frequency: {}", frequency);
-        return workActivityRepository.findByFrequency(frequency).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<WorkActivityDTO> getSchedulableActivities() {
-        log.debug("Fetching schedulable work activities (DAILY, WEEKLY, BIWEEKLY, MULTIPLE_DAILY)");
-        return workActivityRepository.findSchedulableActivities().stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<WorkActivityDTO> getActiveByFrequencyAndWorkShift(WorkActivity.Frequency frequency, 
-                                                                    WorkActivity.WorkShift workShift) {
-        log.debug("Fetching active work activities by frequency: {} and work shift: {}", frequency, workShift);
-        return workActivityRepository.findActiveByFrequencyAndWorkShift(frequency, workShift).stream()
-                .map(this::convertToDTO)
-                .collect(Collectors.toList());
-    }
 
     private WorkActivityDTO convertToDTO(WorkActivity workActivity) {
         WorkActivityDTO dto = new WorkActivityDTO();
@@ -154,15 +118,14 @@ public class WorkActivityService {
         dto.setName(workActivity.getName());
         dto.setDescription(workActivity.getDescription());
         dto.setStatus(workActivity.getStatus());
-        dto.setEstimatedDurationHoursPerDay(workActivity.getEstimatedDurationHoursPerDay());
-        dto.setTypicalLocation(workActivity.getTypicalLocation());
-        dto.setSeason(workActivity.getSeason());
-        dto.setWorkShift(workActivity.getWorkShift());
-        dto.setFrequency(workActivity.getFrequency());
-        dto.setFrequencyDetails(workActivity.getFrequencyDetails());
-        dto.setResourcesRequired(workActivity.getResourcesRequired());
-        dto.setSafetyInstructions(workActivity.getSafetyInstructions());
         dto.setNotes(workActivity.getNotes());
+        
+        // Convert completion criteria
+        List<WorkActivityCompletionCriteriaDTO> criteriaList = workActivity.getCompletionCriteria().stream()
+                .map(this::convertCriteriaToDTO)
+                .collect(Collectors.toList());
+        dto.setCompletionCriteria(criteriaList);
+        
         return dto;
     }
 
@@ -171,14 +134,6 @@ public class WorkActivityService {
         workActivity.setName(dto.getName());
         workActivity.setDescription(dto.getDescription());
         workActivity.setStatus(dto.getStatus() != null ? dto.getStatus() : WorkActivity.Status.ACTIVE);
-        workActivity.setEstimatedDurationHoursPerDay(dto.getEstimatedDurationHoursPerDay());
-        workActivity.setTypicalLocation(dto.getTypicalLocation());
-        workActivity.setSeason(dto.getSeason());
-        workActivity.setWorkShift(dto.getWorkShift());
-        workActivity.setFrequency(dto.getFrequency());
-        workActivity.setFrequencyDetails(dto.getFrequencyDetails());
-        workActivity.setResourcesRequired(dto.getResourcesRequired());
-        workActivity.setSafetyInstructions(dto.getSafetyInstructions());
         workActivity.setNotes(dto.getNotes());
         return workActivity;
     }
@@ -187,15 +142,32 @@ public class WorkActivityService {
         workActivity.setName(dto.getName());
         workActivity.setDescription(dto.getDescription());
         workActivity.setStatus(dto.getStatus());
-        workActivity.setEstimatedDurationHoursPerDay(dto.getEstimatedDurationHoursPerDay());
-        workActivity.setTypicalLocation(dto.getTypicalLocation());
-        workActivity.setSeason(dto.getSeason());
-        workActivity.setWorkShift(dto.getWorkShift());
-        workActivity.setFrequency(dto.getFrequency());
-        workActivity.setFrequencyDetails(dto.getFrequencyDetails());
-        workActivity.setResourcesRequired(dto.getResourcesRequired());
-        workActivity.setSafetyInstructions(dto.getSafetyInstructions());
         workActivity.setNotes(dto.getNotes());
+    }
+
+    private WorkActivityCompletionCriteriaDTO convertCriteriaToDTO(WorkActivityCompletionCriteria criteria) {
+        WorkActivityCompletionCriteriaDTO dto = new WorkActivityCompletionCriteriaDTO();
+        dto.setId(criteria.getId());
+        dto.setWorkActivityId(criteria.getWorkActivity().getId());
+        dto.setUnit(criteria.getUnit());
+        dto.setValue(criteria.getValue());
+        dto.setStartDate(criteria.getStartDate());
+        dto.setEndDate(criteria.getEndDate());
+        dto.setIsActive(criteria.getIsActive());
+        dto.setNotes(criteria.getNotes());
+        return dto;
+    }
+
+    public WorkActivityCompletionCriteria convertCriteriaDTOToEntity(WorkActivityCompletionCriteriaDTO dto, WorkActivity workActivity) {
+        WorkActivityCompletionCriteria criteria = new WorkActivityCompletionCriteria();
+        criteria.setWorkActivity(workActivity);
+        criteria.setUnit(dto.getUnit());
+        criteria.setValue(dto.getValue());
+        criteria.setStartDate(dto.getStartDate());
+        criteria.setEndDate(dto.getEndDate());
+        criteria.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
+        criteria.setNotes(dto.getNotes());
+        return criteria;
     }
 }
 

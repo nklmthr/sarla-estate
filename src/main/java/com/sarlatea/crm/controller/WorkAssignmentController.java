@@ -5,6 +5,7 @@ import com.sarlatea.crm.service.WorkAssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -50,6 +51,13 @@ public class WorkAssignmentController {
         log.info("GET request to fetch unassigned assignments from date: {}", startDate);
         List<WorkAssignmentDTO> assignments = workAssignmentService.getUnassignedFromDate(startDate);
         return ResponseEntity.ok(assignments);
+    }
+
+    @PostMapping
+    public ResponseEntity<WorkAssignmentDTO> createAssignment(@RequestBody WorkAssignmentDTO assignmentDTO) {
+        log.info("POST request to create new work assignment for activity: {}", assignmentDTO.getWorkActivityId());
+        WorkAssignmentDTO createdAssignment = workAssignmentService.createAssignment(assignmentDTO);
+        return ResponseEntity.status(HttpStatus.CREATED).body(createdAssignment);
     }
 
     @PutMapping("/{id}")

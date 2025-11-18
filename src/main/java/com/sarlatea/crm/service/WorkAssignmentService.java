@@ -3,8 +3,10 @@ package com.sarlatea.crm.service;
 import com.sarlatea.crm.dto.WorkAssignmentDTO;
 import com.sarlatea.crm.exception.ResourceNotFoundException;
 import com.sarlatea.crm.model.Employee;
+import com.sarlatea.crm.model.WorkActivity;
 import com.sarlatea.crm.model.WorkAssignment;
 import com.sarlatea.crm.repository.EmployeeRepository;
+import com.sarlatea.crm.repository.WorkActivityRepository;
 import com.sarlatea.crm.repository.WorkAssignmentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,6 +27,7 @@ public class WorkAssignmentService {
 
     private final WorkAssignmentRepository workAssignmentRepository;
     private final EmployeeRepository employeeRepository;
+    private final WorkActivityRepository workActivityRepository;
 
     @Transactional(readOnly = true)
     public List<WorkAssignmentDTO> getAllAssignments() {
@@ -56,6 +59,51 @@ public class WorkAssignmentService {
         return workAssignmentRepository.findUnassignedFromDate(startDate).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public WorkAssignmentDTO createAssignment(WorkAssignmentDTO dto) {
+        log.debug("Creating new work assignment for activity: {}", dto.getWorkActivityId());
+        
+        // Fetch the work activity
+        WorkActivity workActivity = workActivityRepository.findById(dto.getWorkActivityId())
+                .orElseThrow(() -> new ResourceNotFoundException("WorkActivity not found with id: " + dto.getWorkActivityId()));
+        
+        // Fetch employee if provided
+        Employee employee = null;
+        if (dto.getAssignedEmployeeId() != null) {
+            employee = employeeRepository.findById(dto.getAssignedEmployeeId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + dto.getAssignedEmployeeId()));
+        }
+        
+        // Create new assignment
+        WorkAssignment assignment = new WorkAssignment();
+        assignment.copyFromWorkActivity(workActivity);
+        assignment.setAssignmentDate(dto.getAssignmentDate());
+        assignment.setAssignedEmployee(employee);
+        
+        // Set status based on whether employee is assigned
+        if (employee != null) {
+            assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.ASSIGNED);
+        } else {
+            assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.UNASSIGNED);
+        }
+        
+        // Set priority if provided, otherwise use default
+        if (dto.getPriority() != null) {
+            assignment.setPriority(dto.getPriority());
+        }
+        
+        // Set completion percentage if provided
+        if (dto.getCompletionPercentage() != null) {
+            assignment.setCompletionPercentage(Math.min(100, Math.max(0, dto.getCompletionPercentage())));
+        } else {
+            assignment.setCompletionPercentage(0);
+        }
+        
+        WorkAssignment savedAssignment = workAssignmentRepository.save(assignment);
+        log.info("Created work assignment with id: {}", savedAssignment.getId());
+        return convertToDTO(savedAssignment);
     }
 
     @Transactional
@@ -167,13 +215,8 @@ public class WorkAssignmentService {
         dto.setAssignedEmployeeId(assignment.getAssignedEmployee() != null ? assignment.getAssignedEmployee().getId() : null);
         dto.setAssignedEmployeeName(assignment.getAssignedEmployee() != null ? assignment.getAssignedEmployee().getName() : null);
         dto.setAssignmentDate(assignment.getAssignmentDate());
-        dto.setWorkShift(assignment.getWorkShift());
         dto.setActivityName(assignment.getActivityName());
         dto.setActivityDescription(assignment.getActivityDescription());
-        dto.setEstimatedDurationHours(assignment.getEstimatedDurationHours());
-        dto.setLocation(assignment.getLocation());
-        dto.setResourcesRequired(assignment.getResourcesRequired());
-        dto.setSafetyInstructions(assignment.getSafetyInstructions());
         dto.setAssignmentStatus(assignment.getAssignmentStatus());
         dto.setPriority(assignment.getPriority());
         dto.setActualDurationHours(assignment.getActualDurationHours());
@@ -186,9 +229,6 @@ public class WorkAssignmentService {
     private void updateAssignmentFields(WorkAssignment assignment, WorkAssignmentDTO dto) {
         if (dto.getAssignmentDate() != null) {
             assignment.setAssignmentDate(dto.getAssignmentDate());
-        }
-        if (dto.getWorkShift() != null) {
-            assignment.setWorkShift(dto.getWorkShift());
         }
         if (dto.getAssignmentStatus() != null) {
             assignment.setAssignmentStatus(dto.getAssignmentStatus());

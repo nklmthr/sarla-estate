@@ -21,15 +21,10 @@ public class WorkAssignmentDTO {
     private String assignedEmployeeName;
     
     private LocalDate assignmentDate;
-    private WorkActivity.WorkShift workShift;
     
     // Copied activity details
     private String activityName;
     private String activityDescription;
-    private Double estimatedDurationHours;
-    private String location;
-    private String resourcesRequired;
-    private String safetyInstructions;
     
     // Assignment details
     private WorkAssignment.AssignmentStatus assignmentStatus;

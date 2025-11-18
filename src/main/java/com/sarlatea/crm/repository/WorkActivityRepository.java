@@ -19,32 +19,8 @@ public interface WorkActivityRepository extends JpaRepository<WorkActivity, Stri
 
     List<WorkActivity> findByStatus(WorkActivity.Status status);
 
-    List<WorkActivity> findBySeason(WorkActivity.Season season);
-
-    List<WorkActivity> findByWorkShift(WorkActivity.WorkShift workShift);
-
-    List<WorkActivity> findByFrequency(WorkActivity.Frequency frequency);
-
-    List<WorkActivity> findByTypicalLocation(String typicalLocation);
-
     @Query("SELECT w FROM WorkActivity w WHERE LOWER(w.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
-           "OR LOWER(w.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
-           "OR LOWER(w.typicalLocation) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+           "OR LOWER(w.description) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
     List<WorkActivity> searchWorkActivities(@Param("searchTerm") String searchTerm);
-
-    @Query("SELECT w FROM WorkActivity w WHERE w.season = :season AND w.status = :status")
-    List<WorkActivity> findBySeasonAndStatus(@Param("season") WorkActivity.Season season,
-                                               @Param("status") WorkActivity.Status status);
-
-    @Query("SELECT w FROM WorkActivity w WHERE w.workShift = :workShift AND w.status = :status")
-    List<WorkActivity> findByWorkShiftAndStatus(@Param("workShift") WorkActivity.WorkShift workShift,
-                                                  @Param("status") WorkActivity.Status status);
-
-    @Query("SELECT w FROM WorkActivity w WHERE w.frequency = :frequency AND w.workShift = :workShift AND w.status = 'ACTIVE'")
-    List<WorkActivity> findActiveByFrequencyAndWorkShift(@Param("frequency") WorkActivity.Frequency frequency,
-                                                           @Param("workShift") WorkActivity.WorkShift workShift);
-
-    @Query("SELECT w FROM WorkActivity w WHERE w.status = 'ACTIVE' AND w.frequency IN ('DAILY', 'WEEKLY', 'BIWEEKLY', 'MONTHLY', 'QUARTERLY', 'MULTIPLE_DAILY')")
-    List<WorkActivity> findSchedulableActivities();
 }
 

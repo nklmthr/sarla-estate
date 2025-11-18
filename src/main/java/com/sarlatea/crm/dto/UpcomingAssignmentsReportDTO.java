@@ -31,14 +31,10 @@ public class UpcomingAssignmentsReportDTO {
         private String assignmentId;
         private String activityName;
         private LocalDate assignmentDate;
-        private WorkActivity.WorkShift workShift;
-        private String location;
         private WorkAssignment.AssignmentStatus status;
         private WorkAssignment.Priority priority;
         private String assignedEmployeeId;
         private String assignedEmployeeName;
-        private Double estimatedDurationHours;
-        private String resourcesRequired;
     }
 }
 
