@@ -101,6 +101,7 @@ export interface PaymentReport {
   totalEmployees: number;
   totalPaymentAmount: number;
   totalEmployeePfContribution: number;
+  totalVoluntaryPfContribution: number;
   totalEmployerPfContribution: number;
   currency: string;
   employeePayments: EmployeePaymentSummary[];

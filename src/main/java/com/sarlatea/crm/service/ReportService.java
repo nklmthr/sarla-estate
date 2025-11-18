@@ -105,6 +105,7 @@ public class ReportService {
         List<PaymentReportDTO.EmployeePaymentSummary> employeePayments = new ArrayList<>();
         BigDecimal totalPayment = BigDecimal.ZERO;
         BigDecimal totalEmployeePf = BigDecimal.ZERO;
+        BigDecimal totalVoluntaryPf = BigDecimal.ZERO;
         BigDecimal totalEmployerPf = BigDecimal.ZERO;
 
         for (Map.Entry<String, List<WorkAssignment>> entry : assignmentsByEmployee.entrySet()) {
@@ -117,6 +118,7 @@ public class ReportService {
             employeePayments.add(summary);
             totalPayment = totalPayment.add(summary.getNetPayment());
             totalEmployeePf = totalEmployeePf.add(summary.getEmployeePfContribution());
+            totalVoluntaryPf = totalVoluntaryPf.add(summary.getVoluntaryPfContribution());
             totalEmployerPf = totalEmployerPf.add(summary.getEmployerPfContribution());
         }
 
@@ -124,6 +126,7 @@ public class ReportService {
         report.setEmployeePayments(employeePayments);
         report.setTotalPaymentAmount(totalPayment);
         report.setTotalEmployeePfContribution(totalEmployeePf);
+        report.setTotalVoluntaryPfContribution(totalVoluntaryPf);
         report.setTotalEmployerPfContribution(totalEmployerPf);
 
         log.info("Payment report generated for {} employees with total payment: {} {}", 

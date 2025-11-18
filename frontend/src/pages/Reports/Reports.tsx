@@ -80,20 +80,6 @@ const Reports: React.FC = () => {
     }
   };
 
-  const loadCurrentMonthPayment = async () => {
-    try {
-      setLoading(true);
-      const startDate = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-      const endDate = format(endOfMonth(new Date()), 'yyyy-MM-dd');
-      const data = await reportApi.getPaymentReport(startDate, endDate);
-      setPaymentReport(data);
-    } catch (error) {
-      console.error('Error loading payment report:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const loadLastMonthPayment = async () => {
     try {
       setLoading(true);
@@ -194,8 +180,11 @@ const Reports: React.FC = () => {
     const tableData = paymentReport.employeePayments.map((payment) => [
       payment.employeeName + ((payment.voluntaryPfPercentage ?? 0) > 0 ? ` (+${payment.voluntaryPfPercentage}% VPF)` : ''),
       `${payment.currency} ${payment.baseSalary ? payment.baseSalary.toLocaleString() : '0'}`,
-      `₹${payment.employeePfContribution ? payment.employeePfContribution.toLocaleString() : '0'}`,
-      `₹${payment.employerPfContribution ? payment.employerPfContribution.toLocaleString() : '0'}`,
+      `-₹${payment.employeePfContribution ? payment.employeePfContribution.toLocaleString() : '0'}`,
+      (payment.voluntaryPfContribution && payment.voluntaryPfContribution > 0) 
+        ? `-₹${payment.voluntaryPfContribution.toLocaleString()}` 
+        : '-',
+      `+₹${payment.employerPfContribution ? payment.employerPfContribution.toLocaleString() : '0'}`,
       payment.totalAssignments || 0,
       `${payment.averageCompletionPercentage ? payment.averageCompletionPercentage.toFixed(0) : '0'}%`,
       `₹${payment.calculatedPayment ? payment.calculatedPayment.toLocaleString() : '0'}`,
@@ -204,25 +193,28 @@ const Reports: React.FC = () => {
 
     autoTable(doc, {
       startY: 55,
-      head: [['Employee', 'Base Salary', 'Employee PF', 'Employer PF', 'Assignments', 'Avg %', 'Gross', 'Net Payment']],
+      head: [['Employee', 'Base', 'EPF (12%)', 'VPF', 'Emp PF (12%)', 'Assgn', 'Avg %', 'Gross', 'Net']],
       body: tableData,
       foot: [['Total', '', 
         `-₹${paymentReport.totalEmployeePfContribution ? paymentReport.totalEmployeePfContribution.toLocaleString() : '0'}`,
+        `-₹${paymentReport.totalVoluntaryPfContribution ? paymentReport.totalVoluntaryPfContribution.toLocaleString() : '0'}`,
         `+₹${paymentReport.totalEmployerPfContribution ? paymentReport.totalEmployerPfContribution.toLocaleString() : '0'}`,
-        '', '', '', 
+        '', '', 
+        `₹${paymentReport.employeePayments.reduce((sum, p) => sum + (p.calculatedPayment || 0), 0).toLocaleString()}`,
         `₹${paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}`]],
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [76, 175, 80], fontStyle: 'bold' },
       footStyles: { fillColor: [240, 240, 240], fontStyle: 'bold' },
       columnStyles: {
-        0: { cellWidth: 35 },
-        1: { cellWidth: 22 },
-        2: { cellWidth: 20, halign: 'right' },
-        3: { cellWidth: 20, halign: 'right' },
-        4: { cellWidth: 18, halign: 'center' },
-        5: { cellWidth: 15, halign: 'center' },
-        6: { cellWidth: 22, halign: 'right' },
-        7: { cellWidth: 25, halign: 'right', fontStyle: 'bold' },
+        0: { cellWidth: 30 },
+        1: { cellWidth: 18 },
+        2: { cellWidth: 18, halign: 'right' },
+        3: { cellWidth: 15, halign: 'right' },
+        4: { cellWidth: 18, halign: 'right' },
+        5: { cellWidth: 13, halign: 'center' },
+        6: { cellWidth: 13, halign: 'center' },
+        7: { cellWidth: 18, halign: 'right' },
+        8: { cellWidth: 20, halign: 'right', fontStyle: 'bold' },
       },
     });
     
@@ -241,6 +233,7 @@ const Reports: React.FC = () => {
       'Voluntary PF %': (payment.voluntaryPfPercentage ?? 0) > 0 ? `${payment.voluntaryPfPercentage}%` : '-',
       'Base Salary': payment.baseSalary || 0,
       'Employee PF': payment.employeePfContribution || 0,
+      'VPF': payment.voluntaryPfContribution || 0,
       'Employer PF': payment.employerPfContribution || 0,
       'Total Assignments': payment.totalAssignments || 0,
       'Avg Completion %': payment.averageCompletionPercentage ? payment.averageCompletionPercentage.toFixed(2) : '0',
@@ -249,15 +242,17 @@ const Reports: React.FC = () => {
     }));
 
     // Add totals row
+    const totalGrossPayment = paymentReport.employeePayments.reduce((sum, p) => sum + (p.calculatedPayment || 0), 0);
     data.push({
       'Employee': 'TOTAL',
       'Voluntary PF %': '-',
       'Base Salary': 0,
       'Employee PF': paymentReport.totalEmployeePfContribution || 0,
+      'VPF': paymentReport.totalVoluntaryPfContribution || 0,
       'Employer PF': paymentReport.totalEmployerPfContribution || 0,
       'Total Assignments': 0,
       'Avg Completion %': '-',
-      'Gross Payment': 0,
+      'Gross Payment': totalGrossPayment,
       'Net Payment': paymentReport.totalPaymentAmount || 0,
     });
 
@@ -270,6 +265,7 @@ const Reports: React.FC = () => {
       { wch: 15 }, // Voluntary PF %
       { wch: 15 }, // Base Salary
       { wch: 15 }, // Employee PF
+      { wch: 15 }, // VPF
       { wch: 15 }, // Employer PF
       { wch: 18 }, // Total Assignments
       { wch: 18 }, // Avg Completion %
@@ -657,13 +653,6 @@ const Reports: React.FC = () => {
                           </Button>
                           <Button
                             variant="outlined"
-                            onClick={loadCurrentMonthPayment}
-                            disabled={loading}
-                          >
-                            Current Month
-                          </Button>
-                          <Button
-                            variant="outlined"
                             onClick={loadLastMonthPayment}
                             disabled={loading}
                           >
@@ -769,8 +758,9 @@ const Reports: React.FC = () => {
                               <TableRow>
                                 <TableCell>Employee</TableCell>
                                 <TableCell>Base Salary</TableCell>
-                                <TableCell>Employee PF</TableCell>
-                                <TableCell>Employer PF</TableCell>
+                                <TableCell>Employee PF (12%)</TableCell>
+                                <TableCell>VPF</TableCell>
+                                <TableCell>Employer PF (12%)</TableCell>
                                 <TableCell>Assignments</TableCell>
                                 <TableCell>Avg Completion</TableCell>
                                 <TableCell align="right">Gross Payment</TableCell>
@@ -780,7 +770,7 @@ const Reports: React.FC = () => {
                             <TableBody>
                               {paymentReport.employeePayments.length === 0 ? (
                                 <TableRow>
-                                  <TableCell colSpan={8} align="center">
+                                  <TableCell colSpan={9} align="center">
                                     <Typography color="textSecondary">
                                       No payment data found
                                     </Typography>
@@ -803,6 +793,13 @@ const Reports: React.FC = () => {
                                     <TableCell>
                                       <Typography variant="body2" fontWeight="bold" sx={{ color: '#d32f2f' }}>
                                         -₹{payment.employeePfContribution ? payment.employeePfContribution.toLocaleString() : '0'}
+                                      </Typography>
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant="body2" fontWeight="bold" sx={{ color: '#ff5722' }}>
+                                        {(payment.voluntaryPfContribution && payment.voluntaryPfContribution > 0) 
+                                          ? `-₹${payment.voluntaryPfContribution.toLocaleString()}` 
+                                          : '-'}
                                       </Typography>
                                     </TableCell>
                                     <TableCell>
@@ -842,18 +839,28 @@ const Reports: React.FC = () => {
                                   <TableCell colSpan={2}>
                                     <Typography variant="h6" fontWeight="bold">Total:</Typography>
                                   </TableCell>
-                                  <TableCell align="right">
+                                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                                     <Typography variant="body1" fontWeight="bold" color="error">
                                       -₹{paymentReport.totalEmployeePfContribution ? paymentReport.totalEmployeePfContribution.toLocaleString() : '0'}
                                     </Typography>
                                   </TableCell>
-                                  <TableCell align="right">
+                                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                                    <Typography variant="body1" fontWeight="bold" sx={{ color: '#ff5722' }}>
+                                      -₹{paymentReport.totalVoluntaryPfContribution ? paymentReport.totalVoluntaryPfContribution.toLocaleString() : '0'}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                                     <Typography variant="body1" fontWeight="bold" color="success.main">
                                       +₹{paymentReport.totalEmployerPfContribution ? paymentReport.totalEmployerPfContribution.toLocaleString() : '0'}
                                     </Typography>
                                   </TableCell>
-                                  <TableCell colSpan={3}></TableCell>
-                                  <TableCell align="right">
+                                  <TableCell colSpan={2}></TableCell>
+                                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+                                    <Typography variant="body1" fontWeight="bold">
+                                      ₹{paymentReport.employeePayments.reduce((sum, p) => sum + (p.calculatedPayment || 0), 0).toLocaleString()}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                                     <Typography variant="h6" color="primary" fontWeight="bold">
                                       ₹{paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}
                                     </Typography>

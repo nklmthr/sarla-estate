@@ -21,6 +21,7 @@ public class PaymentReportDTO {
     private Integer totalEmployees;
     private BigDecimal totalPaymentAmount;
     private BigDecimal totalEmployeePfContribution;
+    private BigDecimal totalVoluntaryPfContribution;
     private BigDecimal totalEmployerPfContribution;
     private String currency;
     private List<EmployeePaymentSummary> employeePayments;
