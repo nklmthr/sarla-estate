@@ -34,7 +34,7 @@ public class Employee extends BaseEntity {
     private String idCardValue;
 
     @Lob
-    @Column(name = "id_card_photo", columnDefinition = "LONGBLOB")
+    @Column(name = "id_card_photo")
     private byte[] idCardPhoto;
 
     public enum IdCardType {
