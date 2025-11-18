@@ -48,25 +48,18 @@ const EmployeeForm: React.FC = () => {
   const loadEmployee = async (employeeId: string) => {
     try {
       setLoading(true);
-      const data = await employeeApi.getEmployeeById(employeeId);
-      setFormData(data);
+      const employee = await employeeApi.getEmployeeById(employeeId);
+      // Set default idCardType if null
+      setFormData({
+        ...employee,
+        idCardType: employee.idCardType || 'AADHAAR'
+      });
       
       // Load photo if exists
       try {
-        const photoResponse = await employeeApi.getEmployeePhoto(employeeId);
+        const photoBlob = await employeeApi.getEmployeePhoto(employeeId);
         
-        // Handle both direct blob and axios response with data property
-        let photoBlob: Blob | null = null;
-        
-        if (photoResponse instanceof Blob) {
-          photoBlob = photoResponse;
-        } else if (photoResponse && photoResponse.data instanceof Blob) {
-          photoBlob = photoResponse.data;
-        } else if (photoResponse && photoResponse.data) {
-          photoBlob = new Blob([photoResponse.data]);
-        }
-        
-        if (photoBlob && photoBlob.size > 0) {
+        if (photoBlob && photoBlob instanceof Blob && photoBlob.size > 0) {
           const photoUrl = URL.createObjectURL(photoBlob);
           setPhotoPreview(photoUrl);
         }

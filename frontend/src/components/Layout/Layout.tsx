@@ -20,9 +20,7 @@ import {
   Dashboard as DashboardIcon,
   People as PeopleIcon,
   Work as WorkIcon,
-  Schedule as ScheduleIcon,
   Assignment as AssignmentIcon,
-  AttachMoney as MoneyIcon,
   Assessment as ReportsIcon,
   LocalFlorist as TeaIcon,
 } from '@mui/icons-material';
@@ -44,7 +42,6 @@ const menuItems: MenuItem[] = [
   { text: 'Employees', icon: <PeopleIcon />, path: '/employees' },
   { text: 'Work Activities', icon: <WorkIcon />, path: '/work-activities' },
   { text: 'Assignments', icon: <AssignmentIcon />, path: '/assignments' },
-  { text: 'Salary Management', icon: <MoneyIcon />, path: '/salary' },
   { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },
 ];
 
