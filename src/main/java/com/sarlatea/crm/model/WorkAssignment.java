@@ -70,9 +70,8 @@ public class WorkAssignment extends BaseEntity {
     private LocalDate completedDate;
 
     public enum AssignmentStatus {
-        ASSIGNED,
-        IN_PROGRESS,
-        COMPLETED
+        ASSIGNED,    // Initial status when assignment is created
+        COMPLETED    // Status after evaluation, regardless of completion percentage
     }
 
     /**

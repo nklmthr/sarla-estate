@@ -1,5 +1,6 @@
 package com.sarlatea.crm.service;
 
+import com.sarlatea.crm.config.SalaryConfiguration;
 import com.sarlatea.crm.dto.PaymentReportDTO;
 import com.sarlatea.crm.dto.UpcomingAssignmentsReportDTO;
 import com.sarlatea.crm.model.Employee;
@@ -32,6 +33,7 @@ public class ReportService {
     private final WorkAssignmentRepository workAssignmentRepository;
     private final EmployeeSalaryRepository salaryRepository;
     private final EmployeeRepository employeeRepository;
+    private final SalaryConfiguration salaryConfiguration;
 
     @Transactional(readOnly = true)
     public UpcomingAssignmentsReportDTO generateUpcomingAssignmentsReport(
@@ -52,8 +54,8 @@ public class ReportService {
         long completedCount = assignments.stream()
                 .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.COMPLETED)
                 .count();
-        long inProgressCount = assignments.stream()
-                .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.IN_PROGRESS)
+        long assignedCount = assignments.stream()
+                .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.ASSIGNED)
                 .count();
 
         report.setUnassignedCount(0); // No longer used
@@ -65,8 +67,8 @@ public class ReportService {
 
         report.setAssignments(summaries);
 
-        log.info("Report generated with {} assignments ({} completed, {} in-progress)", 
-                assignments.size(), completedCount, inProgressCount);
+        log.info("Report generated with {} assignments ({} assigned, {} completed)", 
+                assignments.size(), assignedCount, completedCount);
 
         return report;
     }
@@ -76,11 +78,11 @@ public class ReportService {
         
         log.info("Generating payment report from {} to {}", startDate, endDate);
 
-        // Get all non-deleted completed or in-progress assignments in the period
+        // Get all non-deleted completed assignments in the period
+        // Only completed (evaluated) assignments are considered for payment
         List<WorkAssignment> assignments = workAssignmentRepository
                 .findByAssignmentDateBetweenAndDeletedFalse(startDate, endDate).stream()
-                .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.COMPLETED ||
-                            a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.IN_PROGRESS)
+                .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.COMPLETED)
                 .collect(Collectors.toList());
 
         // Group assignments by employee
@@ -121,6 +123,11 @@ public class ReportService {
     private PaymentReportDTO.EmployeePaymentSummary calculateEmployeePayment(
             String employeeId, List<WorkAssignment> assignments, 
             LocalDate periodStart, LocalDate periodEnd) {
+
+        if (employeeId == null) {
+            log.warn("Employee ID is null");
+            return createEmptyPaymentSummary("unknown");
+        }
 
         Employee employee = employeeRepository.findById(employeeId).orElse(null);
         if (employee == null) {
@@ -169,6 +176,23 @@ public class ReportService {
         BigDecimal calculatedPayment = calculatePaymentAmount(salary, assignments, periodStart, periodEnd);
         summary.setCalculatedPayment(calculatedPayment);
 
+        // Calculate PF (Provident Fund) fields
+        BigDecimal employeePfPercentage = salaryConfiguration.getEmployeePfPercentage();
+        BigDecimal employerPfPercentage = salaryConfiguration.getEmployerPfPercentage();
+        
+        summary.setVoluntaryPfPercentage(salary.getVoluntaryPfPercentage());
+        summary.setEmployeePfContribution(salary.calculateEmployeePfContribution(employeePfPercentage));
+        summary.setEmployerPfContribution(salary.calculateEmployerPfContribution(employerPfPercentage));
+        summary.setTakeHomeSalary(salary.calculateTakeHomeSalary(employeePfPercentage));
+        summary.setTotalCostToEmployer(salary.calculateTotalSalaryCost(employerPfPercentage));
+        
+        // Net payment = calculated payment - employee PF contribution
+        BigDecimal netPayment = calculatedPayment.subtract(
+            calculatedPayment.multiply(salary.calculateEmployeePfContribution(employeePfPercentage))
+                .divide(salary.getAmount(), 2, RoundingMode.HALF_UP)
+        );
+        summary.setNetPayment(netPayment);
+
         // Add assignment details
         List<PaymentReportDTO.AssignmentDetail> details = assignments.stream()
                 .map(a -> createAssignmentDetail(a, salary))
@@ -176,8 +200,9 @@ public class ReportService {
         summary.setAssignments(details);
 
         summary.setPaymentNotes(String.format(
-                "Based on base salary of %s %s. Average completion: %d%%",
-                salary.getAmount(), salary.getCurrency(), avgCompletion
+                "Based on base salary of %s %s. Average completion: %d%%. PF: Employee %.2f%%, Employer %.2f%%",
+                salary.getAmount(), salary.getCurrency(), avgCompletion,
+                employeePfPercentage.add(salary.getVoluntaryPfPercentage()), employerPfPercentage
         ));
 
         return summary;

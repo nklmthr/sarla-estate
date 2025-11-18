@@ -1,5 +1,6 @@
 package com.sarlatea.crm.service;
 
+import com.sarlatea.crm.config.SalaryConfiguration;
 import com.sarlatea.crm.dto.EmployeeSalaryDTO;
 import com.sarlatea.crm.exception.ResourceNotFoundException;
 import com.sarlatea.crm.model.Employee;
@@ -11,12 +12,14 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
  * Service class for EmployeeSalary operations with versioning support
+ * Includes PF calculations based on configuration
  */
 @Service
 @RequiredArgsConstructor
@@ -25,6 +28,7 @@ public class EmployeeSalaryService {
 
     private final EmployeeSalaryRepository salaryRepository;
     private final EmployeeRepository employeeRepository;
+    private final SalaryConfiguration salaryConfiguration;
 
     @Transactional(readOnly = true)
     public EmployeeSalaryDTO getCurrentSalary(String employeeId) {
@@ -55,12 +59,17 @@ public class EmployeeSalaryService {
     public EmployeeSalaryDTO createInitialSalary(EmployeeSalaryDTO salaryDTO) {
         log.info("Creating initial salary for employee: {}", salaryDTO.getEmployeeId());
         
-        Employee employee = employeeRepository.findById(salaryDTO.getEmployeeId())
+        String employeeId = salaryDTO.getEmployeeId();
+        if (employeeId == null) {
+            throw new IllegalArgumentException("Employee ID is required");
+        }
+        
+        Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException(
-                    "Employee not found with id: " + salaryDTO.getEmployeeId()));
+                    "Employee not found with id: " + employeeId));
 
         // Check if employee already has an active salary
-        if (salaryRepository.hasActiveSalary(salaryDTO.getEmployeeId())) {
+        if (salaryRepository.hasActiveSalary(employeeId)) {
             throw new IllegalStateException(
                 "Employee already has an active salary. Use updateSalary to change it.");
         }
@@ -74,6 +83,8 @@ public class EmployeeSalaryService {
         salary.setReasonForChange(salaryDTO.getReasonForChange());
         salary.setNotes(salaryDTO.getNotes());
         salary.setIsActive(true);
+        salary.setVoluntaryPfPercentage(salaryDTO.getVoluntaryPfPercentage() != null ? 
+            salaryDTO.getVoluntaryPfPercentage() : BigDecimal.ZERO);
 
         EmployeeSalary savedSalary = salaryRepository.save(salary);
         log.info("Created initial salary record with id: {}", savedSalary.getId());
@@ -84,6 +95,10 @@ public class EmployeeSalaryService {
     @Transactional
     public EmployeeSalaryDTO updateSalary(String employeeId, EmployeeSalaryDTO newSalaryDTO) {
         log.info("Updating salary for employee: {}", employeeId);
+
+        if (employeeId == null) {
+            throw new IllegalArgumentException("Employee ID is required");
+        }
 
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException(
@@ -115,6 +130,8 @@ public class EmployeeSalaryService {
         newSalary.setReasonForChange(newSalaryDTO.getReasonForChange());
         newSalary.setNotes(newSalaryDTO.getNotes());
         newSalary.setIsActive(true);
+        newSalary.setVoluntaryPfPercentage(newSalaryDTO.getVoluntaryPfPercentage() != null ? 
+            newSalaryDTO.getVoluntaryPfPercentage() : BigDecimal.ZERO);
 
         EmployeeSalary savedSalary = salaryRepository.save(newSalary);
         log.info("Created new salary record with id: {} starting from: {}", 
@@ -135,6 +152,11 @@ public class EmployeeSalaryService {
     @Transactional
     public void deleteSalaryRecord(String salaryId) {
         log.warn("Deleting salary record with id: {}", salaryId);
+        
+        if (salaryId == null) {
+            throw new IllegalArgumentException("Salary ID is required");
+        }
+        
         EmployeeSalary salary = salaryRepository.findById(salaryId)
                 .orElseThrow(() -> new ResourceNotFoundException(
                     "Salary record not found with id: " + salaryId));
@@ -144,7 +166,10 @@ public class EmployeeSalaryService {
                 "Cannot delete active salary record. Update salary instead to maintain history.");
         }
         
-        salaryRepository.deleteById(salaryId);
+        String idToDelete = salary.getId();
+        if (idToDelete != null) {
+            salaryRepository.deleteById(idToDelete);
+        }
     }
 
     private EmployeeSalaryDTO convertToDTO(EmployeeSalary salary) {
@@ -159,6 +184,18 @@ public class EmployeeSalaryService {
         dto.setReasonForChange(salary.getReasonForChange());
         dto.setIsActive(salary.getIsActive());
         dto.setNotes(salary.getNotes());
+        dto.setVoluntaryPfPercentage(salary.getVoluntaryPfPercentage());
+        
+        // Calculate PF fields using configuration
+        BigDecimal employeePfPercentage = salaryConfiguration.getEmployeePfPercentage();
+        BigDecimal employerPfPercentage = salaryConfiguration.getEmployerPfPercentage();
+        
+        dto.setBaseSalary(salary.getAmount());
+        dto.setEmployeePfContribution(salary.calculateEmployeePfContribution(employeePfPercentage));
+        dto.setEmployerPfContribution(salary.calculateEmployerPfContribution(employerPfPercentage));
+        dto.setTotalSalaryCost(salary.calculateTotalSalaryCost(employerPfPercentage));
+        dto.setTakeHomeSalary(salary.calculateTakeHomeSalary(employeePfPercentage));
+        
         return dto;
     }
 }

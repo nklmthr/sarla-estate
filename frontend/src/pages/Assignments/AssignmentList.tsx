@@ -25,6 +25,8 @@ import {
   Slider,
   TextField,
   Tooltip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   ChevronLeft as PrevIcon,
@@ -80,6 +82,10 @@ const AssignmentList: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState<WorkAssignment | null>(null);
 
+  // Error handling
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [errorOpen, setErrorOpen] = useState(false);
+
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
   useEffect(() => {
@@ -99,22 +105,20 @@ const AssignmentList: React.FC = () => {
       const activitiesArray = Array.isArray(activitiesData) ? activitiesData : [];
       const assignmentsArray = Array.isArray(assignmentsData) ? assignmentsData : [];
       
-      // Load active completion criteria for each activity
+      // Load active completion criteria for ALL activities (including inactive)
       const activitiesWithCriteria: ActivityWithCriteria[] = await Promise.all(
-        activitiesArray
-          .filter(a => a.status === 'ACTIVE')
-          .map(async (activity) => {
-            try {
-              const criteria = await completionCriteriaApi.getActive(activity.id!);
-              return {
-                ...activity,
-                activeCriteria: criteria || null,
-              };
-            } catch (error) {
-              console.error(`Error loading criteria for activity ${activity.id}:`, error);
-              return { ...activity, activeCriteria: null };
-            }
-          })
+        activitiesArray.map(async (activity) => {
+          try {
+            const criteria = await completionCriteriaApi.getActive(activity.id!);
+            return {
+              ...activity,
+              activeCriteria: criteria || null,
+            };
+          } catch (error) {
+            console.error(`Error loading criteria for activity ${activity.id}:`, error);
+            return { ...activity, activeCriteria: null };
+          }
+        })
       );
       
       setEmployees(employeesArray);
@@ -170,6 +174,16 @@ const AssignmentList: React.FC = () => {
     try {
       const activity = activities.find(a => a.id === cell.selectedActivityId);
       if (!activity) return;
+      
+      // Validate that activity has active completion criteria before saving
+      if (!activity.activeCriteria) {
+        setErrorMessage(
+          `Cannot create assignment: "${activity.name}" does not have active completion criteria. ` +
+          'Please define completion criteria for this activity before creating assignments.'
+        );
+        setErrorOpen(true);
+        return;
+      }
 
       const newAssignment: WorkAssignment = {
         workActivityId: activity.id,
@@ -190,9 +204,13 @@ const AssignmentList: React.FC = () => {
       const newMap = new Map(editingCells);
       newMap.delete(key);
       setEditingCells(newMap);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving assignment:', error);
-      alert('Error saving assignment. Please try again.');
+      const message = error?.response?.data?.message || 
+                     error?.message || 
+                     'Failed to save assignment. Please try again.';
+      setErrorMessage(message);
+      setErrorOpen(true);
     }
   };
 
@@ -232,10 +250,18 @@ const AssignmentList: React.FC = () => {
       ));
 
       handleCloseCompletionDialog();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating completion percentage:', error);
-      alert('Error updating completion percentage. Please try again.');
+      const message = error?.response?.data?.message || 
+                     error?.message || 
+                     'Failed to update completion percentage. Please try again.';
+      setErrorMessage(message);
+      setErrorOpen(true);
     }
+  };
+
+  const handleCloseError = () => {
+    setErrorOpen(false);
   };
 
   const handleCompletionSliderChange = (_event: Event, newValue: number | number[]) => {
@@ -267,9 +293,14 @@ const AssignmentList: React.FC = () => {
       setAssignments(assignments.filter(a => a.id !== assignmentToDelete.id));
 
       handleCloseDeleteDialog();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting assignment:', error);
-      alert('Error deleting assignment. Please try again.');
+      const message = error?.response?.data?.message || 
+                     error?.message || 
+                     'Failed to delete assignment. Please try again.';
+      setErrorMessage(message);
+      setErrorOpen(true);
+      handleCloseDeleteDialog();
     }
   };
 
@@ -313,8 +344,15 @@ const AssignmentList: React.FC = () => {
               >
                 <MenuItem value="">Select Activity</MenuItem>
                 {activities.map((activity) => (
-                  <MenuItem key={activity.id} value={activity.id}>
+                  <MenuItem 
+                    key={activity.id} 
+                    value={activity.id}
+                    sx={{
+                      color: activity.activeCriteria ? 'inherit' : 'error.main',
+                    }}
+                  >
                     {activity.name}
+                    {!activity.activeCriteria && ' ⚠️'}
                   </MenuItem>
                 ))}
               </Select>
@@ -334,8 +372,8 @@ const AssignmentList: React.FC = () => {
                     );
                   }
                   return (
-                    <Typography variant="caption" color="warning.main">
-                      No active criteria
+                    <Typography variant="caption" color="error.main">
+                      ⚠️ Cannot assign: This activity does not have active completion criteria
                     </Typography>
                   );
                 })()}
@@ -346,7 +384,10 @@ const AssignmentList: React.FC = () => {
                 size="small"
                 onClick={() => handleSaveAssignment(employee.id!, date)}
                 color="primary"
-                disabled={!editingCell.selectedActivityId}
+                disabled={
+                  !editingCell.selectedActivityId ||
+                  !activities.find((a) => a.id === editingCell.selectedActivityId)?.activeCriteria
+                }
               >
                 <SaveIcon fontSize="small" />
               </IconButton>
@@ -408,8 +449,6 @@ const AssignmentList: React.FC = () => {
                 color={
                   assignment.assignmentStatus === 'COMPLETED'
                     ? 'success'
-                    : assignment.assignmentStatus === 'IN_PROGRESS'
-                    ? 'warning'
                     : 'info'
                 }
               />
@@ -629,6 +668,18 @@ const AssignmentList: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Error Snackbar */}
+      <Snackbar 
+        open={errorOpen} 
+        autoHideDuration={8000} 
+        onClose={handleCloseError}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+          {errorMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

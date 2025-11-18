@@ -1,11 +1,13 @@
 package com.sarlatea.crm.service;
 
 import com.sarlatea.crm.dto.WorkAssignmentDTO;
+import com.sarlatea.crm.exception.DataIntegrityException;
 import com.sarlatea.crm.exception.ResourceNotFoundException;
 import com.sarlatea.crm.model.Employee;
 import com.sarlatea.crm.model.WorkActivity;
 import com.sarlatea.crm.model.WorkAssignment;
 import com.sarlatea.crm.repository.EmployeeRepository;
+import com.sarlatea.crm.repository.EmployeeSalaryRepository;
 import com.sarlatea.crm.repository.WorkActivityRepository;
 import com.sarlatea.crm.repository.WorkAssignmentRepository;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ public class WorkAssignmentService {
     private final WorkAssignmentRepository workAssignmentRepository;
     private final EmployeeRepository employeeRepository;
     private final WorkActivityRepository workActivityRepository;
+    private final EmployeeSalaryRepository employeeSalaryRepository;
 
     @Transactional(readOnly = true)
     public List<WorkAssignmentDTO> getAllAssignments() {
@@ -67,6 +70,17 @@ public class WorkAssignmentService {
         if (dto.getAssignedEmployeeId() != null) {
             employee = employeeRepository.findById(dto.getAssignedEmployeeId())
                     .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + dto.getAssignedEmployeeId()));
+            
+            // Validate that employee has an active salary
+            if (!employeeSalaryRepository.hasActiveSalary(dto.getAssignedEmployeeId())) {
+                String errorMessage = String.format(
+                    "Cannot create assignment: Employee '%s' does not have an active salary record. " +
+                    "Please add salary information before creating assignments.",
+                    employee.getName()
+                );
+                log.warn(errorMessage);
+                throw new DataIntegrityException(errorMessage);
+            }
         }
         
         // Create new assignment
@@ -87,7 +101,8 @@ public class WorkAssignmentService {
         }
         
         WorkAssignment savedAssignment = workAssignmentRepository.save(assignment);
-        log.info("Created work assignment with id: {}", savedAssignment.getId());
+        log.info("Created work assignment with id: {} for employee: {}", savedAssignment.getId(), 
+                employee != null ? employee.getName() : "unassigned");
         return convertToDTO(savedAssignment);
     }
 
@@ -168,16 +183,10 @@ public class WorkAssignmentService {
         Integer currentCount = assignment.getEvaluationCount();
         assignment.setEvaluationCount(currentCount != null ? currentCount + 1 : 1);
         
-        // Update status based on percentage
-        if (validPercentage == 0 && assignment.getAssignmentStatus() == WorkAssignment.AssignmentStatus.ASSIGNED) {
-            // Keep as ASSIGNED
-        } else if (validPercentage > 0 && validPercentage < 100) {
-            assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.IN_PROGRESS);
-        } else if (validPercentage == 100) {
-            assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.COMPLETED);
-            if (assignment.getCompletedDate() == null) {
-                assignment.setCompletedDate(LocalDate.now());
-            }
+        // Once an assignment is evaluated, mark it as COMPLETED regardless of percentage
+        assignment.setAssignmentStatus(WorkAssignment.AssignmentStatus.COMPLETED);
+        if (assignment.getCompletedDate() == null) {
+            assignment.setCompletedDate(LocalDate.now());
         }
         
         WorkAssignment updatedAssignment = workAssignmentRepository.save(assignment);

@@ -23,7 +23,6 @@ public class WorkActivityCompletionCriteriaService {
 
     private final WorkActivityCompletionCriteriaRepository criteriaRepository;
     private final WorkActivityRepository workActivityRepository;
-    private final WorkActivityService workActivityService;
 
     @Transactional(readOnly = true)
     public List<WorkActivityCompletionCriteriaDTO> getCriteriaByWorkActivityId(String workActivityId) {
@@ -48,10 +47,8 @@ public class WorkActivityCompletionCriteriaService {
         WorkActivity workActivity = workActivityRepository.findById(workActivityId)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkActivity not found with id: " + workActivityId));
 
-        // If creating an active criteria, deactivate all existing active criteria
-        if (criteriaDTO.getIsActive() != null && criteriaDTO.getIsActive()) {
-            deactivateExistingActiveCriteria(workActivityId);
-        }
+        // Validate no overlapping date ranges
+        validateNoOverlappingRanges(workActivityId, criteriaDTO.getStartDate(), criteriaDTO.getEndDate(), null);
 
         WorkActivityCompletionCriteria criteria = convertToEntity(criteriaDTO, workActivity);
         WorkActivityCompletionCriteria savedCriteria = criteriaRepository.save(criteria);
@@ -67,10 +64,11 @@ public class WorkActivityCompletionCriteriaService {
         WorkActivityCompletionCriteria criteria = criteriaRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Completion criteria not found with id: " + id));
 
-        // If activating this criteria, deactivate all other active criteria for the same work activity
-        if (criteriaDTO.getIsActive() != null && criteriaDTO.getIsActive() && !criteria.getIsActive()) {
-            deactivateExistingActiveCriteria(criteria.getWorkActivity().getId());
-        }
+        // Validate no overlapping date ranges (excluding current criteria)
+        validateNoOverlappingRanges(criteria.getWorkActivity().getId(), 
+                                   criteriaDTO.getStartDate(), 
+                                   criteriaDTO.getEndDate(), 
+                                   id);
 
         updateCriteriaFields(criteria, criteriaDTO);
         WorkActivityCompletionCriteria updatedCriteria = criteriaRepository.save(criteria);
@@ -83,23 +81,34 @@ public class WorkActivityCompletionCriteriaService {
     public void deleteCriteria(String id) {
         log.debug("Deleting completion criteria with id: {}", id);
         
-        WorkActivityCompletionCriteria criteria = criteriaRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Completion criteria not found with id: " + id));
+        // Verify criteria exists before deleting
+        if (!criteriaRepository.existsById(id)) {
+            throw new ResourceNotFoundException("Completion criteria not found with id: " + id);
+        }
 
         criteriaRepository.deleteById(id);
         log.info("Deleted completion criteria with id: {}", id);
     }
 
-    @Transactional
-    public void deactivateExistingActiveCriteria(String workActivityId) {
-        log.debug("Deactivating existing active criteria for work activity: {}", workActivityId);
+    /**
+     * Validates that the given date range does not overlap with existing criteria
+     * for the same work activity
+     * @throws DataIntegrityException if overlapping ranges are found
+     */
+    private void validateNoOverlappingRanges(String workActivityId, LocalDate startDate, 
+                                            LocalDate endDate, String criteriaId) {
+        List<WorkActivityCompletionCriteria> overlapping = criteriaRepository.findOverlappingCriteria(
+            workActivityId, startDate, endDate, criteriaId
+        );
         
-        criteriaRepository.findActiveByWorkActivityId(workActivityId).ifPresent(activeCriteria -> {
-            activeCriteria.setIsActive(false);
-            activeCriteria.setEndDate(LocalDate.now());
-            criteriaRepository.save(activeCriteria);
-            log.info("Deactivated criteria with id: {}", activeCriteria.getId());
-        });
+        if (!overlapping.isEmpty()) {
+            String message = String.format(
+                "Date range overlaps with existing criteria. Start: %s, End: %s conflicts with %d existing criteria.",
+                startDate, endDate, overlapping.size()
+            );
+            log.warn(message);
+            throw new DataIntegrityException(message);
+        }
     }
 
     private WorkActivityCompletionCriteriaDTO convertToDTO(WorkActivityCompletionCriteria criteria) {
@@ -110,7 +119,8 @@ public class WorkActivityCompletionCriteriaService {
         dto.setValue(criteria.getValue());
         dto.setStartDate(criteria.getStartDate());
         dto.setEndDate(criteria.getEndDate());
-        dto.setIsActive(criteria.getIsActive());
+        // Always calculate isActive based on current date, not the stored value
+        dto.setIsActive(criteria.calculateIsActive());
         dto.setNotes(criteria.getNotes());
         return dto;
     }
@@ -122,7 +132,7 @@ public class WorkActivityCompletionCriteriaService {
         criteria.setValue(dto.getValue());
         criteria.setStartDate(dto.getStartDate());
         criteria.setEndDate(dto.getEndDate());
-        criteria.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
+        // isActive is calculated automatically in @PrePersist
         criteria.setNotes(dto.getNotes());
         return criteria;
     }
@@ -132,7 +142,7 @@ public class WorkActivityCompletionCriteriaService {
         criteria.setValue(dto.getValue());
         criteria.setStartDate(dto.getStartDate());
         criteria.setEndDate(dto.getEndDate());
-        criteria.setIsActive(dto.getIsActive());
+        // isActive is calculated automatically in @PreUpdate
         criteria.setNotes(dto.getNotes());
     }
 }

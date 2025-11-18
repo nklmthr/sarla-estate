@@ -26,7 +26,7 @@ export interface WorkActivityCompletionCriteria {
   value: number;
   startDate: string;
   endDate?: string;
-  isActive: boolean;
+  isActive?: boolean; // Calculated field, not settable by user
   notes?: string;
 }
 
@@ -38,7 +38,7 @@ export interface WorkAssignment {
   assignmentDate: string;
   activityName: string;
   activityDescription?: string;
-  assignmentStatus?: 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED';
+  assignmentStatus?: 'ASSIGNED' | 'COMPLETED';
   actualDurationHours?: number;
   completionPercentage?: number;
   completionNotes?: string;
@@ -53,7 +53,7 @@ export interface EmployeeSalary {
   id?: string;
   employeeId?: string;
   employeeName?: string;
-  amount: number;
+  amount: number; // Base salary
   currency?: string;
   startDate: string;
   endDate?: string;
@@ -63,6 +63,16 @@ export interface EmployeeSalary {
   isActive?: boolean;
   approvedBy?: string;
   notes?: string;
+  
+  // PF (Provident Fund) fields
+  voluntaryPfPercentage?: number; // Voluntary PF beyond mandatory 12%
+  
+  // Calculated fields (read-only from backend)
+  baseSalary?: number; // Same as amount, for clarity
+  employeePfContribution?: number; // Mandatory + Voluntary
+  employerPfContribution?: number; // Fixed 12%
+  totalSalaryCost?: number; // Base + Employer PF
+  takeHomeSalary?: number; // Base - Employee PF
 }
 
 export interface UpcomingAssignmentsReport {
@@ -109,6 +119,14 @@ export interface EmployeePaymentSummary {
   calculatedPayment: number;
   paymentNotes?: string;
   assignments: AssignmentDetail[];
+  
+  // PF (Provident Fund) fields
+  voluntaryPfPercentage?: number;
+  employeePfContribution?: number;
+  employerPfContribution?: number;
+  takeHomeSalary?: number;
+  totalCostToEmployer?: number;
+  netPayment?: number;
 }
 
 export interface AssignmentDetail {

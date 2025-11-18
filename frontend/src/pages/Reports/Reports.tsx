@@ -18,6 +18,10 @@ import {
   Tabs,
   Tab,
   Paper,
+  Select,
+  MenuItem,
+  FormControl,
+  InputLabel,
 } from '@mui/material';
 import {
   Assessment as ReportIcon,
@@ -25,8 +29,8 @@ import {
   AttachMoney as MoneyIcon,
 } from '@mui/icons-material';
 import { reportApi } from '../../api/reportApi';
-import { UpcomingAssignmentsReport, PaymentReport } from '../../types';
-import { format, addDays, startOfMonth, endOfMonth, subMonths } from 'date-fns';
+import { UpcomingAssignmentsReport, PaymentReport, WorkAssignment } from '../../types';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -48,8 +52,8 @@ const Reports: React.FC = () => {
   
   // Upcoming Assignments Report
   const [assignmentsReport, setAssignmentsReport] = useState<UpcomingAssignmentsReport | null>(null);
-  const [assignmentsStartDate, setAssignmentsStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [assignmentsEndDate, setAssignmentsEndDate] = useState(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
+  const [reportDate, setReportDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   
   // Payment Report
   const [paymentReport, setPaymentReport] = useState<PaymentReport | null>(null);
@@ -60,22 +64,11 @@ const Reports: React.FC = () => {
     setTabValue(newValue);
   };
 
-  const loadUpcomingAssignments = async () => {
+  const loadDailyAssignments = async () => {
     try {
       setLoading(true);
-      const data = await reportApi.getUpcomingAssignments(assignmentsStartDate, assignmentsEndDate);
-      setAssignmentsReport(data);
-    } catch (error) {
-      console.error('Error loading assignments report:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const loadNextWeekAssignments = async () => {
-    try {
-      setLoading(true);
-      const data = await reportApi.getUpcomingAssignmentsNextWeek();
+      // Use the same date for both start and end to get single day report
+      const data = await reportApi.getUpcomingAssignments(reportDate, reportDate);
       setAssignmentsReport(data);
     } catch (error) {
       console.error('Error loading assignments report:', error);
@@ -99,7 +92,9 @@ const Reports: React.FC = () => {
   const loadCurrentMonthPayment = async () => {
     try {
       setLoading(true);
-      const data = await reportApi.getPaymentReportCurrentMonth();
+      const startDate = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+      const endDate = format(endOfMonth(new Date()), 'yyyy-MM-dd');
+      const data = await reportApi.getPaymentReport(startDate, endDate);
       setPaymentReport(data);
     } catch (error) {
       console.error('Error loading payment report:', error);
@@ -111,7 +106,11 @@ const Reports: React.FC = () => {
   const loadLastMonthPayment = async () => {
     try {
       setLoading(true);
-      const data = await reportApi.getPaymentReportLastMonth();
+      const lastMonth = new Date();
+      lastMonth.setMonth(lastMonth.getMonth() - 1);
+      const startDate = format(startOfMonth(lastMonth), 'yyyy-MM-dd');
+      const endDate = format(endOfMonth(lastMonth), 'yyyy-MM-dd');
+      const data = await reportApi.getPaymentReport(startDate, endDate);
       setPaymentReport(data);
     } catch (error) {
       console.error('Error loading payment report:', error);
@@ -120,19 +119,65 @@ const Reports: React.FC = () => {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'UNASSIGNED':
-        return 'default';
-      case 'ASSIGNED':
-        return 'info';
-      case 'IN_PROGRESS':
-        return 'warning';
-      case 'COMPLETED':
-        return 'success';
-      default:
-        return 'default';
-    }
+  // Group assignments by activity
+  interface ActivityGroup {
+    activityName: string;
+    totalEmployees: number;
+    assignedCount: number;
+    completedCount: number;
+    assignments: WorkAssignment[];
+  }
+
+  const groupAssignmentsByActivity = (assignments: any[]): ActivityGroup[] => {
+    const grouped = new Map<string, ActivityGroup>();
+
+    // Filter by status first
+    const filteredAssignments = statusFilter === 'ALL' 
+      ? assignments 
+      : assignments.filter(a => a.status === statusFilter);
+
+    filteredAssignments.forEach((assignment) => {
+      const activityName = assignment.activityName || 'Unknown';
+      
+      if (!grouped.has(activityName)) {
+        grouped.set(activityName, {
+          activityName,
+          totalEmployees: 0,
+          assignedCount: 0,
+          completedCount: 0,
+          assignments: [],
+        });
+      }
+
+      const group = grouped.get(activityName)!;
+      group.assignments.push(assignment);
+      group.totalEmployees++;
+      
+      if (assignment.status === 'ASSIGNED') {
+        group.assignedCount++;
+      } else if (assignment.status === 'COMPLETED') {
+        group.completedCount++;
+      }
+    });
+
+    return Array.from(grouped.values()).sort((a, b) => 
+      a.activityName.localeCompare(b.activityName)
+    );
+  };
+
+  const getFilteredAssignments = () => {
+    if (!assignmentsReport?.assignments) return [];
+    return statusFilter === 'ALL'
+      ? assignmentsReport.assignments
+      : assignmentsReport.assignments.filter(a => a.status === statusFilter);
+  };
+
+  const getEvaluatedCount = () => {
+    return assignmentsReport?.assignments.filter(a => a.status === 'COMPLETED').length || 0;
+  };
+
+  const getNotEvaluatedCount = () => {
+    return assignmentsReport?.assignments.filter(a => a.status === 'ASSIGNED').length || 0;
   };
 
   return (
@@ -148,7 +193,7 @@ const Reports: React.FC = () => {
           <Tab icon={<MoneyIcon />} label="Payment Report" />
         </Tabs>
 
-        {/* Upcoming Assignments Report */}
+        {/* Daily Assignments Report */}
         <TabPanel value={tabValue} index={0}>
           <Box p={3}>
             <Grid container spacing={3}>
@@ -156,46 +201,41 @@ const Reports: React.FC = () => {
                 <Card>
                   <CardContent>
                     <Typography variant="h6" gutterBottom>
-                      Generate Upcoming Assignments Report
+                      Daily Assignments Report
                     </Typography>
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} md={3}>
                         <TextField
                           fullWidth
                           type="date"
-                          label="Start Date"
-                          value={assignmentsStartDate}
-                          onChange={(e) => setAssignmentsStartDate(e.target.value)}
+                          label="Date"
+                          value={reportDate}
+                          onChange={(e) => setReportDate(e.target.value)}
                           InputLabelProps={{ shrink: true }}
                         />
                       </Grid>
                       <Grid item xs={12} md={3}>
-                        <TextField
-                          fullWidth
-                          type="date"
-                          label="End Date"
-                          value={assignmentsEndDate}
-                          onChange={(e) => setAssignmentsEndDate(e.target.value)}
-                          InputLabelProps={{ shrink: true }}
-                        />
+                        <FormControl fullWidth>
+                          <InputLabel>Status</InputLabel>
+                          <Select
+                            value={statusFilter}
+                            label="Status"
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                          >
+                            <MenuItem value="ALL">All</MenuItem>
+                            <MenuItem value="ASSIGNED">Not Yet Evaluated</MenuItem>
+                            <MenuItem value="COMPLETED">Evaluated</MenuItem>
+                          </Select>
+                        </FormControl>
                       </Grid>
                       <Grid item xs={12} md={6}>
-                        <Box display="flex" gap={2}>
-                          <Button
-                            variant="contained"
-                            onClick={loadUpcomingAssignments}
-                            disabled={loading}
-                          >
-                            Generate Report
-                          </Button>
-                          <Button
-                            variant="outlined"
-                            onClick={loadNextWeekAssignments}
-                            disabled={loading}
-                          >
-                            Next Week
-                          </Button>
-                        </Box>
+                        <Button
+                          variant="contained"
+                          onClick={loadDailyAssignments}
+                          disabled={loading}
+                        >
+                          Generate Report
+                        </Button>
                       </Grid>
                     </Grid>
                   </CardContent>
@@ -219,8 +259,8 @@ const Reports: React.FC = () => {
                         <Typography color="textSecondary" gutterBottom>
                           Total Assignments
                         </Typography>
-                        <Typography variant="h4">
-                          {assignmentsReport.totalAssignments}
+                        <Typography variant="h4" color="primary.main">
+                          {getFilteredAssignments().length}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -229,72 +269,93 @@ const Reports: React.FC = () => {
                     <Card>
                       <CardContent>
                         <Typography color="textSecondary" gutterBottom>
-                          Unassigned
-                        </Typography>
-                        <Typography variant="h4" color="warning.main">
-                          {assignmentsReport.unassignedCount}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                  <Grid item xs={12} md={4}>
-                    <Card>
-                      <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
-                          Assigned
+                          Evaluated
                         </Typography>
                         <Typography variant="h4" color="success.main">
-                          {assignmentsReport.assignedCount}
+                          {getEvaluatedCount()}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={4}>
+                    <Card>
+                      <CardContent>
+                        <Typography color="textSecondary" gutterBottom>
+                          Assigned (Not Yet Evaluated)
+                        </Typography>
+                        <Typography variant="h4" color="info.main">
+                          {getNotEvaluatedCount()}
                         </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
 
-                  {/* Assignments Table */}
+                  {/* Grouped Assignments Table */}
                   <Grid item xs={12}>
                     <Card>
                       <CardContent>
                         <Typography variant="h6" gutterBottom>
                           Assignment Details
                         </Typography>
+                        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
+                          Date: {format(new Date(reportDate), 'MMMM dd, yyyy')}
+                        </Typography>
                         <TableContainer>
                           <Table>
                             <TableHead>
                               <TableRow>
-                                <TableCell>Date</TableCell>
                                 <TableCell>Activity</TableCell>
-                                <TableCell>Shift</TableCell>
-                                <TableCell>Employee</TableCell>
+                                <TableCell>Count</TableCell>
                                 <TableCell>Status</TableCell>
-                                <TableCell>Completion %</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
-                              {assignmentsReport.assignments.length === 0 ? (
+                              {getFilteredAssignments().length === 0 ? (
                                 <TableRow>
-                                  <TableCell colSpan={6} align="center">
+                                  <TableCell colSpan={3} align="center">
                                     <Typography color="textSecondary">
-                                      No assignments found
+                                      No assignments found for this date
                                     </Typography>
                                   </TableCell>
                                 </TableRow>
                               ) : (
-                                assignmentsReport.assignments.map((assignment, idx) => (
-                                  <TableRow key={idx}>
+                                groupAssignmentsByActivity(assignmentsReport.assignments).map((group, idx) => (
+                                  <TableRow key={idx} hover>
                                     <TableCell>
-                                      {format(new Date(assignment.assignmentDate), 'MMM dd, yyyy')}
+                                      <Typography variant="body1" fontWeight="bold">
+                                        {group.activityName}
+                                      </Typography>
                                     </TableCell>
-                                    <TableCell>{assignment.activityName}</TableCell>
-                                    <TableCell>{assignment.workShift?.replace('_', ' ')}</TableCell>
-                                    <TableCell>{assignment.employeeName || '-'}</TableCell>
                                     <TableCell>
-                                      <Chip
-                                        label={assignment.status?.replace('_', ' ')}
-                                        color={getStatusColor(assignment.status || '')}
-                                        size="small"
-                                      />
+                                      {group.completedCount === group.totalEmployees ? (
+                                        <Chip
+                                          label={group.totalEmployees}
+                                          color="success"
+                                          sx={{ minWidth: 60, fontWeight: 'bold', fontSize: '1rem' }}
+                                        />
+                                      ) : group.assignedCount === group.totalEmployees ? (
+                                        <Chip
+                                          label={group.totalEmployees}
+                                          color="info"
+                                          sx={{ minWidth: 60, fontWeight: 'bold', fontSize: '1rem' }}
+                                        />
+                                      ) : (
+                                        <Chip
+                                          label={group.totalEmployees}
+                                          color="warning"
+                                          sx={{ minWidth: 60, fontWeight: 'bold', fontSize: '1rem' }}
+                                        />
+                                      )}
                                     </TableCell>
-                                    <TableCell>{assignment.completionPercentage || 0}%</TableCell>
+                                    <TableCell>
+                                      {group.completedCount === group.totalEmployees ? (
+                                        <Chip label="All Evaluated" color="success" size="small" />
+                                      ) : group.assignedCount === group.totalEmployees ? (
+                                        <Chip label="Pending Evaluation" color="info" size="small" />
+                                      ) : (
+                                        <Chip label="Partially Evaluated" color="warning" size="small" />
+                                      )}
+                                    </TableCell>
                                   </TableRow>
                                 ))
                               )}
@@ -416,7 +477,7 @@ const Reports: React.FC = () => {
                           Total Payment
                         </Typography>
                         <Typography variant="h4" color="white">
-                          ₹{paymentReport.totalPaymentAmount.toLocaleString()}
+                          ₹{paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}
                         </Typography>
                       </CardContent>
                     </Card>
@@ -435,15 +496,18 @@ const Reports: React.FC = () => {
                               <TableRow>
                                 <TableCell>Employee</TableCell>
                                 <TableCell>Base Salary</TableCell>
+                                <TableCell>Employee PF</TableCell>
+                                <TableCell>Employer PF</TableCell>
                                 <TableCell>Assignments</TableCell>
                                 <TableCell>Avg Completion</TableCell>
-                                <TableCell align="right">Payment Amount</TableCell>
+                                <TableCell align="right">Gross Payment</TableCell>
+                                <TableCell align="right">Net Payment</TableCell>
                               </TableRow>
                             </TableHead>
                             <TableBody>
                               {paymentReport.employeePayments.length === 0 ? (
                                 <TableRow>
-                                  <TableCell colSpan={5} align="center">
+                                  <TableCell colSpan={8} align="center">
                                     <Typography color="textSecondary">
                                       No payment data found
                                     </Typography>
@@ -454,22 +518,33 @@ const Reports: React.FC = () => {
                                   <TableRow key={idx}>
                                     <TableCell>
                                       <strong>{payment.employeeName}</strong>
-                                      <br />
-                                      <Typography variant="caption" color="textSecondary">
-                                        {payment.department}
+                                      {payment.voluntaryPfPercentage && payment.voluntaryPfPercentage > 0 && (
+                                        <Typography variant="caption" display="block" color="textSecondary">
+                                          +{payment.voluntaryPfPercentage}% VPF
+                                        </Typography>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      {payment.currency} {payment.baseSalary ? payment.baseSalary.toLocaleString() : '0'}
+                                    </TableCell>
+                                    <TableCell>
+                                      <Typography variant="body2" color="error">
+                                        -₹{payment.employeePfContribution ? payment.employeePfContribution.toLocaleString() : '0'}
                                       </Typography>
                                     </TableCell>
                                     <TableCell>
-                                      {payment.currency} {payment.baseSalary.toLocaleString()}
+                                      <Typography variant="body2" color="success.main">
+                                        +₹{payment.employerPfContribution ? payment.employerPfContribution.toLocaleString() : '0'}
+                                      </Typography>
                                     </TableCell>
-                                    <TableCell>{payment.totalAssignments}</TableCell>
+                                    <TableCell>{payment.totalAssignments || 0}</TableCell>
                                     <TableCell>
                                       <Chip
-                                        label={`${payment.averageCompletionPercentage.toFixed(0)}%`}
+                                        label={`${payment.averageCompletionPercentage ? payment.averageCompletionPercentage.toFixed(0) : '0'}%`}
                                         color={
-                                          payment.averageCompletionPercentage >= 90
+                                          (payment.averageCompletionPercentage || 0) >= 90
                                             ? 'success'
-                                            : payment.averageCompletionPercentage >= 70
+                                            : (payment.averageCompletionPercentage || 0) >= 70
                                             ? 'primary'
                                             : 'warning'
                                         }
@@ -477,8 +552,13 @@ const Reports: React.FC = () => {
                                       />
                                     </TableCell>
                                     <TableCell align="right">
+                                      <Typography variant="body1">
+                                        ₹{payment.calculatedPayment ? payment.calculatedPayment.toLocaleString() : '0'}
+                                      </Typography>
+                                    </TableCell>
+                                    <TableCell align="right">
                                       <Typography variant="h6" color="primary">
-                                        ₹{payment.calculatedPayment.toLocaleString()}
+                                        ₹{payment.netPayment ? payment.netPayment.toLocaleString() : '0'}
                                       </Typography>
                                     </TableCell>
                                   </TableRow>
@@ -486,12 +566,12 @@ const Reports: React.FC = () => {
                               )}
                               {paymentReport.employeePayments.length > 0 && (
                                 <TableRow>
-                                  <TableCell colSpan={4} align="right">
+                                  <TableCell colSpan={7} align="right">
                                     <strong>Total:</strong>
                                   </TableCell>
                                   <TableCell align="right">
                                     <Typography variant="h6" color="primary">
-                                      <strong>₹{paymentReport.totalPaymentAmount.toLocaleString()}</strong>
+                                      <strong>₹{paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}</strong>
                                     </Typography>
                                   </TableCell>
                                 </TableRow>

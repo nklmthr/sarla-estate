@@ -25,15 +25,15 @@ import {
   FormControl,
   InputLabel,
   Grid,
-  FormControlLabel,
-  Checkbox,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  CheckCircle as CheckCircleIcon,
+  Rule as RuleIcon,
 } from '@mui/icons-material';
 import { workActivityApi } from '../../api/workActivityApi';
 import { completionCriteriaApi } from '../../api/completionCriteriaApi';
@@ -58,9 +58,10 @@ const WorkActivityList: React.FC = () => {
     value: 0,
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
-    isActive: true,
     notes: '',
   });
+  const [errorMessage, setErrorMessage] = useState<string>('');
+  const [errorOpen, setErrorOpen] = useState(false);
 
   useEffect(() => {
     loadActivities();
@@ -123,8 +124,14 @@ const WorkActivityList: React.FC = () => {
       setActivities(activities.filter((a) => a.id !== activityToDelete.id));
       setDeleteDialogOpen(false);
       setActivityToDelete(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting work activity:', error);
+      const message = error?.response?.data?.message || 
+                     error?.message || 
+                     'Failed to delete work activity. Please try again.';
+      setErrorMessage(message);
+      setErrorOpen(true);
+      setDeleteDialogOpen(false);
     }
   };
 
@@ -149,9 +156,14 @@ const WorkActivityList: React.FC = () => {
     try {
       const data = await completionCriteriaApi.getAllByActivity(activity.id!);
       setCompletionCriteria(Array.isArray(data) ? data : []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error loading completion criteria:', error);
       setCompletionCriteria([]);
+      const message = error?.response?.data?.message || 
+                     error?.message || 
+                     'Failed to load completion criteria.';
+      setErrorMessage(message);
+      setErrorOpen(true);
     }
     setCriteriaDialogOpen(true);
   };
@@ -171,7 +183,6 @@ const WorkActivityList: React.FC = () => {
       value: 0,
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
-      isActive: true,
       notes: '',
     });
   };
@@ -216,9 +227,18 @@ const WorkActivityList: React.FC = () => {
       setShowCriteriaForm(false);
       setEditingCriteria(null);
       resetCriteriaForm();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving completion criteria:', error);
+      const message = error?.response?.data?.message || 
+                     error?.message || 
+                     'Failed to save completion criteria. Please try again.';
+      setErrorMessage(message);
+      setErrorOpen(true);
     }
+  };
+
+  const handleCloseError = () => {
+    setErrorOpen(false);
   };
 
   const handleCancelCriteriaForm = () => {
@@ -316,10 +336,10 @@ const WorkActivityList: React.FC = () => {
                       <IconButton
                         size="small"
                         onClick={() => openCriteriaDialog(activity)}
-                        color="success"
+                        color="primary"
                         title="Manage Completion Criteria"
                       >
-                        <CheckCircleIcon />
+                        <RuleIcon />
                       </IconButton>
                       <IconButton
                         size="small"
@@ -442,18 +462,7 @@ const WorkActivityList: React.FC = () => {
                   value={criteriaFormData.endDate || ''}
                   onChange={handleCriteriaFormChange}
                   InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={criteriaFormData.isActive}
-                      onChange={handleCriteriaFormChange}
-                      name="isActive"
-                    />
-                  }
-                  label="Active"
+                  helperText="Leave empty for ongoing criteria"
                 />
               </Grid>
               <Grid item xs={12}>
@@ -531,6 +540,18 @@ const WorkActivityList: React.FC = () => {
           )}
         </DialogActions>
       </Dialog>
+
+      {/* Error Snackbar */}
+      <Snackbar 
+        open={errorOpen} 
+        autoHideDuration={6000} 
+        onClose={handleCloseError}
+        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      >
+        <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
+          {errorMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 };

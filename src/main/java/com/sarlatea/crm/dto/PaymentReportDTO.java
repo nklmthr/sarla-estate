@@ -1,6 +1,5 @@
 package com.sarlatea.crm.dto;
 
-import com.sarlatea.crm.model.EmployeeSalary;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -40,6 +39,14 @@ public class PaymentReportDTO {
         private BigDecimal calculatedPayment;
         private String paymentNotes;
         private List<AssignmentDetail> assignments;
+        
+        // PF (Provident Fund) fields
+        private BigDecimal voluntaryPfPercentage; // Voluntary PF beyond mandatory 12%
+        private BigDecimal employeePfContribution; // Total employee PF deduction
+        private BigDecimal employerPfContribution; // Employer's PF contribution
+        private BigDecimal takeHomeSalary; // Gross salary after PF deduction
+        private BigDecimal totalCostToEmployer; // Base + Employer PF
+        private BigDecimal netPayment; // Actual payment after PF deductions (calculatedPayment - employeePfContribution)
     }
 
     @Data
