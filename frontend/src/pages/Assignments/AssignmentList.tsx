@@ -32,6 +32,7 @@ import {
   Save as SaveIcon,
   Close as CloseIcon,
   Percent as PercentIcon,
+  Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
@@ -73,6 +74,10 @@ const AssignmentList: React.FC = () => {
   const [selectedAssignment, setSelectedAssignment] = useState<WorkAssignment | null>(null);
   const [completionPercentage, setCompletionPercentage] = useState<number>(0);
   const completionInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [assignmentToDelete, setAssignmentToDelete] = useState<WorkAssignment | null>(null);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
@@ -242,6 +247,32 @@ const AssignmentList: React.FC = () => {
     setCompletionPercentage(Math.min(100, Math.max(0, value)));
   };
 
+  const handleOpenDeleteDialog = (assignment: WorkAssignment) => {
+    setAssignmentToDelete(assignment);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setAssignmentToDelete(null);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!assignmentToDelete?.id) return;
+
+    try {
+      await assignmentApi.deleteAssignment(assignmentToDelete.id);
+
+      // Remove the assignment from state
+      setAssignments(assignments.filter(a => a.id !== assignmentToDelete.id));
+
+      handleCloseDeleteDialog();
+    } catch (error) {
+      console.error('Error deleting assignment:', error);
+      alert('Error deleting assignment. Please try again.');
+    }
+  };
+
   const handlePreviousWeek = () => {
     setCurrentWeekStart(addDays(currentWeekStart, -7));
   };
@@ -342,14 +373,24 @@ const AssignmentList: React.FC = () => {
               <Typography variant="body2" fontWeight="bold">
                 {assignment.activityName}
               </Typography>
-              <IconButton
-                size="small"
-                onClick={() => handleOpenCompletionDialog(assignment)}
-                color="primary"
-                sx={{ mt: -0.5, mr: -0.5 }}
-              >
-                <PercentIcon fontSize="small" />
-              </IconButton>
+              <Box display="flex" gap={0.5}>
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpenCompletionDialog(assignment)}
+                  color="primary"
+                  sx={{ mt: -0.5 }}
+                >
+                  <PercentIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                  size="small"
+                  onClick={() => handleOpenDeleteDialog(assignment)}
+                  color="error"
+                  sx={{ mt: -0.5, mr: -0.5 }}
+                >
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
             </Box>
             {activity?.activeCriteria && (
               <Typography variant="caption" color="text.secondary" display="block">
@@ -529,6 +570,55 @@ const AssignmentList: React.FC = () => {
             startIcon={<SaveIcon />}
           >
             Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDeleteDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Delete Assignment</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this assignment?
+          </Typography>
+          {assignmentToDelete && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'grey.100', borderRadius: 1 }}>
+              <Typography variant="body2" fontWeight="bold">
+                {assignmentToDelete.activityName}
+              </Typography>
+              <Typography variant="caption" display="block">
+                Date: {assignmentToDelete.assignmentDate}
+              </Typography>
+              <Typography variant="caption" display="block">
+                Status: {assignmentToDelete.assignmentStatus?.replace('_', ' ')}
+              </Typography>
+              {assignmentToDelete.completionPercentage !== undefined && (
+                <Typography variant="caption" display="block">
+                  Progress: {assignmentToDelete.completionPercentage}%
+                </Typography>
+              )}
+            </Box>
+          )}
+          <Typography variant="body2" color="error" sx={{ mt: 2 }}>
+            This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDeleteDialog} color="inherit">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleConfirmDelete} 
+            variant="contained" 
+            color="error"
+            startIcon={<DeleteIcon />}
+          >
+            Delete
           </Button>
         </DialogActions>
       </Dialog>
