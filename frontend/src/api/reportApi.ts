@@ -13,6 +13,9 @@ export const reportApi = {
   getNextMonthAssignments: () => 
     apiClient.get<UpcomingAssignmentsReport>('/reports/upcoming-assignments/next-month'),
   
+  getDailyAssignmentsReport: (date: string) => 
+    apiClient.get<UpcomingAssignmentsReport>(`/reports/upcoming-assignments?startDate=${date}&endDate=${date}`),
+  
   getPaymentReport: (startDate: string, endDate: string) => 
     apiClient.get<PaymentReport>(`/reports/payments?startDate=${startDate}&endDate=${endDate}`),
   

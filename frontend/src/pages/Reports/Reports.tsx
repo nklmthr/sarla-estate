@@ -42,7 +42,7 @@ import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 
 const Reports: React.FC = () => {
-  const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments'>('assignments');
+  const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments'>('payments');
   const [loading, setLoading] = useState(false);
   
   // Assignment Report
@@ -323,39 +323,6 @@ const Reports: React.FC = () => {
           <List>
             <ListItem disablePadding>
               <ListItemButton
-                selected={selectedReport === 'assignments'}
-                onClick={() => setSelectedReport('assignments')}
-                sx={{
-                  py: 2,
-                  '&.Mui-selected': {
-                    backgroundColor: 'primary.light',
-                    color: 'primary.contrastText',
-                    '&:hover': {
-                      backgroundColor: 'primary.main',
-                    },
-                    '& .MuiListItemIcon-root': {
-                      color: 'primary.contrastText',
-                    },
-                  },
-                }}
-              >
-                <ListItemIcon>
-                  <AssignmentIcon color={selectedReport === 'assignments' ? 'inherit' : 'primary'} />
-                </ListItemIcon>
-                <ListItemText 
-                  primary="Assignment Report" 
-                  secondary="Daily assignments overview"
-                  secondaryTypographyProps={{
-                    sx: { 
-                      color: selectedReport === 'assignments' ? 'rgba(255,255,255,0.7)' : 'text.secondary' 
-                    }
-                  }}
-                />
-              </ListItemButton>
-            </ListItem>
-            <Divider />
-            <ListItem disablePadding>
-              <ListItemButton
                 selected={selectedReport === 'payments'}
                 onClick={() => setSelectedReport('payments')}
                 sx={{
@@ -381,6 +348,39 @@ const Reports: React.FC = () => {
                   secondaryTypographyProps={{
                     sx: { 
                       color: selectedReport === 'payments' ? 'rgba(255,255,255,0.7)' : 'text.secondary' 
+                    }
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <Divider />
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={selectedReport === 'assignments'}
+                onClick={() => setSelectedReport('assignments')}
+                sx={{
+                  py: 2,
+                  '&.Mui-selected': {
+                    backgroundColor: 'primary.light',
+                    color: 'primary.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'primary.main',
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: 'primary.contrastText',
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon>
+                  <AssignmentIcon color={selectedReport === 'assignments' ? 'inherit' : 'primary'} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Assignment Report" 
+                  secondary="Daily assignments overview"
+                  secondaryTypographyProps={{
+                    sx: { 
+                      color: selectedReport === 'assignments' ? 'rgba(255,255,255,0.7)' : 'text.secondary' 
                     }
                   }}
                 />

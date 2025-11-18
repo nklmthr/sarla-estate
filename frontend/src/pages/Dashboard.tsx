@@ -10,17 +10,21 @@ import {
   List,
   ListItem,
   ListItemText,
+  Chip,
+  Divider,
 } from '@mui/material';
 import {
   People as PeopleIcon,
   Work as WorkIcon,
   Assignment as AssignmentIcon,
   AttachMoney as MoneyIcon,
+  CheckCircle as CompletedIcon,
+  PendingActions as PendingIcon,
 } from '@mui/icons-material';
 import { employeeApi } from '../api/employeeApi';
 import { workActivityApi } from '../api/workActivityApi';
 import { reportApi } from '../api/reportApi';
-import { format } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 
 interface StatCardProps {
   title: string;
@@ -62,11 +66,11 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalEmployees: 0,
-    activeEmployees: 0,
+    todayAssignments: 0,
     totalActivities: 0,
-    upcomingAssignments: 0,
+    monthlyPayment: 0,
   });
-  const [recentAssignments, setRecentAssignments] = useState<any[]>([]);
+  const [todayAssignments, setTodayAssignments] = useState<any[]>([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -76,44 +80,45 @@ const Dashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      // Calculate date range for next week
       const today = new Date();
-      const nextWeek = new Date(today);
-      nextWeek.setDate(today.getDate() + 7);
+      const todayStr = format(today, 'yyyy-MM-dd');
+      const monthStart = format(startOfMonth(today), 'yyyy-MM-dd');
+      const monthEnd = format(endOfMonth(today), 'yyyy-MM-dd');
       
       // Fetch all data in parallel
-      const [employees, activities, upcomingReport] = await Promise.all([
+      const [employees, activities, todayReport, paymentReport] = await Promise.all([
         employeeApi.getAllEmployees().catch(() => []),
         workActivityApi.getAllWorkActivities().catch(() => []),
-        reportApi.getUpcomingAssignments(
-          format(today, 'yyyy-MM-dd'),
-          format(nextWeek, 'yyyy-MM-dd')
-        ).catch(() => ({ totalAssignments: 0, assignments: [] })),
+        reportApi.getDailyAssignmentsReport(todayStr).catch(() => null),
+        reportApi.getPaymentReport(monthStart, monthEnd).catch(() => null),
       ]);
 
       const employeesArray = Array.isArray(employees) ? employees : [];
       const activitiesArray = Array.isArray(activities) ? activities : [];
-      const reportData = upcomingReport.data || upcomingReport;
       
-      const activeEmployees = employeesArray.filter(e => e.status === 'ACTIVE').length;
-      const activeActivities = activitiesArray.filter(a => a.status === 'ACTIVE').length;
+      // Count active activities (those with active completion criteria)
+      const activeActivities = activitiesArray.filter(a => a.activeCompletionCriteria).length;
+      
+      // Today's assignments data
+      const todayData = todayReport?.data || todayReport;
+      const todayAssignmentsList = Array.isArray(todayData?.assignments) ? todayData.assignments : [];
+      
+      // Payment data
+      const paymentData = paymentReport?.data || paymentReport;
+      const monthlyTotal = paymentData?.totalPaymentAmount || 0;
 
       setStats({
         totalEmployees: employeesArray.length,
-        activeEmployees,
+        todayAssignments: todayAssignmentsList.length,
         totalActivities: activeActivities,
-        upcomingAssignments: reportData.totalAssignments || 0,
+        monthlyPayment: monthlyTotal,
       });
 
-      // Get recent assignments (first 5 from report)
-      if (Array.isArray(reportData.assignments)) {
-        setRecentAssignments(reportData.assignments.slice(0, 5));
-      } else {
-        setRecentAssignments([]);
-      }
+      // Get today's assignments (first 10)
+      setTodayAssignments(todayAssignmentsList.slice(0, 10));
     } catch (error) {
       console.error('Error loading dashboard data:', error);
-      setRecentAssignments([]);
+      setTodayAssignments([]);
     } finally {
       setLoading(false);
     }
@@ -145,10 +150,10 @@ const Dashboard: React.FC = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Active Employees"
-            value={stats.activeEmployees}
-            icon={<PeopleIcon />}
-            color="#66bb6a"
+            title="Today's Assignments"
+            value={stats.todayAssignments}
+            icon={<AssignmentIcon />}
+            color="#2196f3"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -161,35 +166,83 @@ const Dashboard: React.FC = () => {
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
           <StatCard
-            title="Upcoming Assignments"
-            value={stats.upcomingAssignments}
-            icon={<AssignmentIcon />}
-            color="#ffd54f"
+            title="Current Month Payment"
+            value={`₹${stats.monthlyPayment.toLocaleString()}`}
+            icon={<MoneyIcon />}
+            color="#4caf50"
           />
         </Grid>
 
-        {/* Recent Assignments */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6" gutterBottom>
-              Upcoming Assignments
-            </Typography>
-            {recentAssignments.length === 0 ? (
-              <Typography color="textSecondary">
-                No upcoming assignments
+        {/* Today's Assignments */}
+        <Grid item xs={12} md={7}>
+          <Paper sx={{ p: 3, minHeight: 400 }}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6">
+                Today's Assignments
               </Typography>
+              <Chip 
+                label={format(new Date(), 'MMMM dd, yyyy')} 
+                color="primary" 
+                variant="outlined"
+              />
+            </Box>
+            <Divider sx={{ mb: 2 }} />
+            {todayAssignments.length === 0 ? (
+              <Box display="flex" flexDirection="column" alignItems="center" justifyContent="center" py={8}>
+                <AssignmentIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
+                <Typography color="textSecondary" variant="h6">
+                  No assignments for today
+                </Typography>
+                <Typography color="textSecondary" variant="body2">
+                  Check back tomorrow or create new assignments
+                </Typography>
+              </Box>
             ) : (
-              <List>
-                {recentAssignments.map((assignment, index) => (
-                  <ListItem key={index} divider={index < recentAssignments.length - 1}>
+              <List sx={{ maxHeight: 350, overflow: 'auto' }}>
+                {todayAssignments.map((assignment, index) => (
+                  <ListItem 
+                    key={index} 
+                    divider={index < todayAssignments.length - 1}
+                    sx={{ 
+                      px: 0, 
+                      py: 1.5,
+                      '&:hover': { backgroundColor: 'action.hover' }
+                    }}
+                  >
                     <ListItemText
-                      primary={assignment.activityName}
+                      primary={
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="body1" fontWeight="medium">
+                            {assignment.assignedEmployeeName}
+                          </Typography>
+                          {assignment.status === 'COMPLETED' ? (
+                            <Chip 
+                              icon={<CompletedIcon />}
+                              label="Evaluated" 
+                              size="small" 
+                              color="success" 
+                            />
+                          ) : (
+                            <Chip 
+                              icon={<PendingIcon />}
+                              label="Pending" 
+                              size="small" 
+                              color="warning" 
+                            />
+                          )}
+                        </Box>
+                      }
                       secondary={
-                        <>
-                          Date: {format(new Date(assignment.assignmentDate), 'MMM dd, yyyy')} | 
-                          Status: {assignment.status} | 
-                          Shift: {assignment.workShift}
-                        </>
+                        <Box>
+                          <Typography variant="body2" color="textSecondary">
+                            Activity: {assignment.activityName}
+                          </Typography>
+                          {assignment.completionPercentage !== undefined && assignment.completionPercentage !== null && (
+                            <Typography variant="body2" color="textSecondary">
+                              Completion: {assignment.completionPercentage}%
+                            </Typography>
+                          )}
+                        </Box>
                       }
                     />
                   </ListItem>
@@ -199,30 +252,78 @@ const Dashboard: React.FC = () => {
           </Paper>
         </Grid>
 
-        {/* Quick Info */}
-        <Grid item xs={12} md={6}>
+        {/* Quick Stats & System Overview */}
+        <Grid item xs={12} md={5}>
+          <Paper sx={{ p: 3, mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Quick Stats
+            </Typography>
+            <Divider sx={{ mb: 2 }} />
+            <Box sx={{ mt: 2 }}>
+              <Box display="flex" justifyContent="space-between" alignItems="center" py={1.5}>
+                <Typography variant="body2" color="textSecondary">
+                  Total Employees
+                </Typography>
+                <Typography variant="h6" color="success.main">
+                  {stats.totalEmployees}
+                </Typography>
+              </Box>
+              <Divider />
+              <Box display="flex" justifyContent="space-between" alignItems="center" py={1.5}>
+                <Typography variant="body2" color="textSecondary">
+                  Active Activities
+                </Typography>
+                <Typography variant="h6" color="warning.main">
+                  {stats.totalActivities}
+                </Typography>
+              </Box>
+              <Divider />
+              <Box display="flex" justifyContent="space-between" alignItems="center" py={1.5}>
+                <Typography variant="body2" color="textSecondary">
+                  Today's Assignments
+                </Typography>
+                <Typography variant="h6" color="info.main">
+                  {stats.todayAssignments}
+                </Typography>
+              </Box>
+              <Divider />
+              <Box display="flex" justifyContent="space-between" alignItems="center" py={1.5}>
+                <Typography variant="body2" color="textSecondary">
+                  Current Month Payment
+                </Typography>
+                <Typography variant="h6" color="success.main">
+                  ₹{stats.monthlyPayment.toLocaleString()}
+                </Typography>
+              </Box>
+            </Box>
+          </Paper>
+
           <Paper sx={{ p: 3 }}>
             <Typography variant="h6" gutterBottom>
-              System Overview
+              System Features
             </Typography>
+            <Divider sx={{ mb: 2 }} />
             <Box sx={{ mt: 2 }}>
-              <Typography variant="body1" paragraph>
+              <Typography variant="body2" color="textSecondary" paragraph>
                 <strong>Tea Estate Management System</strong>
               </Typography>
-              <Typography variant="body2" color="textSecondary" paragraph>
-                Manage your tea estate operations efficiently with our comprehensive CRM system.
+              <Typography variant="body2" color="textSecondary">
+                ✓ Employee management & salary tracking
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                • Track employees and their activities
+                ✓ Work activity assignments & evaluation
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                • Schedule work assignments
+                ✓ PF calculations (EPF & VPF)
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                • Manage salaries and payments
+                ✓ Completion criteria management
               </Typography>
               <Typography variant="body2" color="textSecondary">
-                • Generate detailed reports
+                ✓ Payment reports with PDF/Excel export
+              </Typography>
+              <Typography variant="body2" color="textSecondary">
+                ✓ Assignment tracking & analytics
               </Typography>
             </Box>
           </Paper>
