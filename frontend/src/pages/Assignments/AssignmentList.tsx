@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Box,
   Button,
@@ -18,6 +18,12 @@ import {
   Chip,
   TablePagination,
   Paper,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Slider,
+  TextField,
 } from '@mui/material';
 import {
   ChevronLeft as PrevIcon,
@@ -25,6 +31,7 @@ import {
   Add as AddIcon,
   Save as SaveIcon,
   Close as CloseIcon,
+  Percent as PercentIcon,
 } from '@mui/icons-material';
 import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
@@ -60,6 +67,12 @@ const AssignmentList: React.FC = () => {
   
   // Cell editing state - key is "employeeId-dateString"
   const [editingCells, setEditingCells] = useState<Map<string, AssignmentCell>>(new Map());
+  
+  // Completion percentage dialog
+  const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<WorkAssignment | null>(null);
+  const [completionPercentage, setCompletionPercentage] = useState<number>(0);
+  const completionInputRef = useRef<HTMLInputElement>(null);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
@@ -163,10 +176,18 @@ const AssignmentList: React.FC = () => {
         completionPercentage: 0,
       };
 
-      await assignmentApi.createAssignment(newAssignment);
-      await loadData();
+      const savedAssignment = await assignmentApi.createAssignment(newAssignment);
+      
+      // Update state locally instead of reloading all data
+      setAssignments([...assignments, savedAssignment]);
+      
+      // Clear the editing cell
+      const newMap = new Map(editingCells);
+      newMap.delete(key);
+      setEditingCells(newMap);
     } catch (error) {
       console.error('Error saving assignment:', error);
+      alert('Error saving assignment. Please try again.');
     }
   };
 
@@ -175,6 +196,50 @@ const AssignmentList: React.FC = () => {
     const newMap = new Map(editingCells);
     newMap.delete(key);
     setEditingCells(newMap);
+  };
+
+  const handleOpenCompletionDialog = (assignment: WorkAssignment) => {
+    setSelectedAssignment(assignment);
+    setCompletionPercentage(assignment.completionPercentage || 0);
+    setCompletionDialogOpen(true);
+    // Focus input after dialog opens
+    setTimeout(() => completionInputRef.current?.focus(), 100);
+  };
+
+  const handleCloseCompletionDialog = () => {
+    setCompletionDialogOpen(false);
+    setSelectedAssignment(null);
+    setCompletionPercentage(0);
+  };
+
+  const handleSaveCompletion = async () => {
+    if (!selectedAssignment?.id) return;
+
+    try {
+      const updatedAssignment = await assignmentApi.updateCompletionPercentage(
+        selectedAssignment.id,
+        { completionPercentage }
+      );
+
+      // Update the assignment in state
+      setAssignments(assignments.map(a => 
+        a.id === updatedAssignment.id ? updatedAssignment : a
+      ));
+
+      handleCloseCompletionDialog();
+    } catch (error) {
+      console.error('Error updating completion percentage:', error);
+      alert('Error updating completion percentage. Please try again.');
+    }
+  };
+
+  const handleCompletionSliderChange = (_event: Event, newValue: number | number[]) => {
+    setCompletionPercentage(newValue as number);
+  };
+
+  const handleCompletionInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const value = event.target.value === '' ? 0 : Number(event.target.value);
+    setCompletionPercentage(Math.min(100, Math.max(0, value)));
   };
 
   const handlePreviousWeek = () => {
@@ -273,11 +338,21 @@ const AssignmentList: React.FC = () => {
       return (
         <TableCell key={key} sx={{ minWidth: 180, p: 1 }}>
           <Paper elevation={1} sx={{ p: 1, bgcolor: 'action.hover' }}>
-            <Typography variant="body2" fontWeight="bold">
-              {assignment.activityName}
-            </Typography>
+            <Box display="flex" justifyContent="space-between" alignItems="flex-start">
+              <Typography variant="body2" fontWeight="bold">
+                {assignment.activityName}
+              </Typography>
+              <IconButton
+                size="small"
+                onClick={() => handleOpenCompletionDialog(assignment)}
+                color="primary"
+                sx={{ mt: -0.5, mr: -0.5 }}
+              >
+                <PercentIcon fontSize="small" />
+              </IconButton>
+            </Box>
             {activity?.activeCriteria && (
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant="caption" color="text.secondary" display="block">
                 Target: {activity.activeCriteria.value} {activity.activeCriteria.unit}
               </Typography>
             )}
@@ -395,6 +470,68 @@ const AssignmentList: React.FC = () => {
           onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Card>
+
+      {/* Completion Percentage Dialog */}
+      <Dialog 
+        open={completionDialogOpen} 
+        onClose={handleCloseCompletionDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Update Completion Percentage
+          {selectedAssignment && (
+            <Typography variant="body2" color="text.secondary">
+              {selectedAssignment.activityName}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            <Typography gutterBottom>
+              Completion: {completionPercentage}%
+            </Typography>
+            <Slider
+              value={completionPercentage}
+              onChange={handleCompletionSliderChange}
+              aria-labelledby="completion-slider"
+              valueLabelDisplay="auto"
+              step={5}
+              marks
+              min={0}
+              max={100}
+              sx={{ mb: 3 }}
+            />
+            <TextField
+              inputRef={completionInputRef}
+              fullWidth
+              label="Completion Percentage"
+              type="number"
+              value={completionPercentage}
+              onChange={handleCompletionInputChange}
+              InputProps={{
+                endAdornment: '%',
+                inputProps: { min: 0, max: 100, step: 1 }
+              }}
+              helperText="Enter a value between 0 and 100"
+              autoFocus
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseCompletionDialog} color="inherit">
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSaveCompletion} 
+            variant="contained" 
+            color="primary"
+            startIcon={<SaveIcon />}
+          >
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };
