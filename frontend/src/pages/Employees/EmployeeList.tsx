@@ -29,7 +29,7 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  AttachMoney as MoneyIcon,
+  AccountBalanceWallet as MoneyIcon,
   History as HistoryIcon,
 } from '@mui/icons-material';
 import { employeeApi } from '../../api/employeeApi';
@@ -59,6 +59,7 @@ const EmployeeList: React.FC = () => {
     amount: 0,
     currency: 'INR',
     startDate: format(new Date(), 'yyyy-MM-dd'),
+    voluntaryPfPercentage: 0,
     reasonForChange: '',
     notes: '',
   });
@@ -163,6 +164,7 @@ const EmployeeList: React.FC = () => {
         amount: 0,
         currency: 'INR',
         startDate: format(new Date(), 'yyyy-MM-dd'),
+        voluntaryPfPercentage: 0,
         reasonForChange: 'Initial salary',
         notes: '',
       });
@@ -171,6 +173,7 @@ const EmployeeList: React.FC = () => {
         amount: currentSalary.amount,
         currency: currentSalary.currency || 'INR',
         startDate: format(new Date(), 'yyyy-MM-dd'),
+        voluntaryPfPercentage: currentSalary.voluntaryPfPercentage || 0,
         reasonForChange: '',
         notes: '',
       });
@@ -428,6 +431,7 @@ const EmployeeList: React.FC = () => {
                         <TableHead>
                           <TableRow>
                             <TableCell>Amount</TableCell>
+                            <TableCell>Voluntary PF</TableCell>
                             <TableCell>Start Date</TableCell>
                             <TableCell>End Date</TableCell>
                             <TableCell>Status</TableCell>
@@ -438,6 +442,11 @@ const EmployeeList: React.FC = () => {
                             <TableRow key={salary.id}>
                               <TableCell>
                                 {salary.currency} {salary.amount.toLocaleString()}
+                              </TableCell>
+                              <TableCell>
+                                {salary.voluntaryPfPercentage 
+                                  ? `${salary.voluntaryPfPercentage}%` 
+                                  : '0%'}
                               </TableCell>
                               <TableCell>
                                 {format(new Date(salary.startDate), 'MMM dd, yyyy')}
@@ -523,6 +532,18 @@ const EmployeeList: React.FC = () => {
                   value={salaryFormData.startDate}
                   onChange={handleSalaryFormChange}
                   InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Voluntary PF Percentage"
+                  name="voluntaryPfPercentage"
+                  value={salaryFormData.voluntaryPfPercentage}
+                  onChange={handleSalaryFormChange}
+                  inputProps={{ min: 0, max: 100, step: 0.5 }}
+                  helperText="Additional PF contribution beyond mandatory 12% (e.g., 0, 2, 3)"
                 />
               </Grid>
               <Grid item xs={12}>

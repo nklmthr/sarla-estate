@@ -53,6 +53,7 @@ const SalaryManagement: React.FC = () => {
     startDate: format(new Date(), 'yyyy-MM-dd'),
     salaryType: 'BASE_SALARY',
     paymentFrequency: 'MONTHLY',
+    voluntaryPfPercentage: 0,
     reasonForChange: '',
     approvedBy: '',
     notes: '',
@@ -108,6 +109,7 @@ const SalaryManagement: React.FC = () => {
       startDate: format(new Date(), 'yyyy-MM-dd'),
       salaryType: 'BASE_SALARY',
       paymentFrequency: 'MONTHLY',
+      voluntaryPfPercentage: 0,
       reasonForChange: 'Initial salary',
       approvedBy: '',
       notes: '',
@@ -124,6 +126,7 @@ const SalaryManagement: React.FC = () => {
       startDate: format(new Date(), 'yyyy-MM-dd'),
       salaryType: currentSalary.salaryType || 'BASE_SALARY',
       paymentFrequency: currentSalary.paymentFrequency || 'MONTHLY',
+      voluntaryPfPercentage: currentSalary.voluntaryPfPercentage || 0,
       reasonForChange: '',
       approvedBy: '',
       notes: '',
@@ -317,6 +320,7 @@ const SalaryManagement: React.FC = () => {
                     <TableHead>
                       <TableRow>
                         <TableCell>Amount</TableCell>
+                        <TableCell>Voluntary PF</TableCell>
                         <TableCell>Start Date</TableCell>
                         <TableCell>End Date</TableCell>
                         <TableCell>Status</TableCell>
@@ -327,6 +331,11 @@ const SalaryManagement: React.FC = () => {
                         <TableRow key={salary.id}>
                           <TableCell>
                             {salary.currency} {salary.amount.toLocaleString()}
+                          </TableCell>
+                          <TableCell>
+                            {salary.voluntaryPfPercentage 
+                              ? `${salary.voluntaryPfPercentage}%` 
+                              : '0%'}
                           </TableCell>
                           <TableCell>
                             {format(new Date(salary.startDate), 'MMM dd, yyyy')}
@@ -435,6 +444,18 @@ const SalaryManagement: React.FC = () => {
               <Grid item xs={12}>
                 <TextField
                   fullWidth
+                  type="number"
+                  label="Voluntary PF Percentage"
+                  name="voluntaryPfPercentage"
+                  value={salaryFormData.voluntaryPfPercentage}
+                  onChange={handleFormChange}
+                  inputProps={{ min: 0, max: 100, step: 0.5 }}
+                  helperText="Additional PF contribution beyond mandatory 12% (e.g., 0, 2, 3)"
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
                   label="Reason"
                   name="reasonForChange"
                   value={salaryFormData.reasonForChange}
@@ -513,6 +534,18 @@ const SalaryManagement: React.FC = () => {
                   value={salaryFormData.startDate}
                   onChange={handleFormChange}
                   InputLabelProps={{ shrink: true }}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  type="number"
+                  label="Voluntary PF Percentage"
+                  name="voluntaryPfPercentage"
+                  value={salaryFormData.voluntaryPfPercentage}
+                  onChange={handleFormChange}
+                  inputProps={{ min: 0, max: 100, step: 0.5 }}
+                  helperText="Additional PF contribution beyond mandatory 12% (e.g., 0, 2, 3)"
                 />
               </Grid>
               <Grid item xs={12}>

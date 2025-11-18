@@ -15,13 +15,17 @@ import {
   TableRow,
   Chip,
   CircularProgress,
-  Tabs,
-  Tab,
   Paper,
   Select,
   MenuItem,
   FormControl,
   InputLabel,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
 } from '@mui/material';
 import {
   Assessment as ReportIcon,
@@ -32,25 +36,11 @@ import { reportApi } from '../../api/reportApi';
 import { UpcomingAssignmentsReport, PaymentReport, WorkAssignment } from '../../types';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 
-interface TabPanelProps {
-  children?: React.ReactNode;
-  index: number;
-  value: number;
-}
-
-const TabPanel: React.FC<TabPanelProps> = ({ children, value, index }) => {
-  return (
-    <div hidden={value !== index}>
-      {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
-    </div>
-  );
-};
-
 const Reports: React.FC = () => {
-  const [tabValue, setTabValue] = useState(0);
+  const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments'>('assignments');
   const [loading, setLoading] = useState(false);
   
-  // Upcoming Assignments Report
+  // Assignment Report
   const [assignmentsReport, setAssignmentsReport] = useState<UpcomingAssignmentsReport | null>(null);
   const [reportDate, setReportDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
@@ -59,10 +49,6 @@ const Reports: React.FC = () => {
   const [paymentReport, setPaymentReport] = useState<PaymentReport | null>(null);
   const [paymentStartDate, setPaymentStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [paymentEndDate, setPaymentEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
-
-  const handleTabChange = (_: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
 
   const loadDailyAssignments = async () => {
     try {
@@ -187,21 +173,117 @@ const Reports: React.FC = () => {
         <Typography variant="h4">Reports</Typography>
       </Box>
 
-      <Paper>
-        <Tabs value={tabValue} onChange={handleTabChange}>
-          <Tab icon={<AssignmentIcon />} label="Upcoming Assignments" />
-          <Tab icon={<MoneyIcon />} label="Payment Report" />
-        </Tabs>
+      <Box sx={{ display: 'flex', gap: 3 }}>
+        {/* Left Sidebar Navigation */}
+        <Paper 
+          sx={{ 
+            width: 280, 
+            minHeight: 'calc(100vh - 200px)',
+            position: 'sticky',
+            top: 100,
+            alignSelf: 'flex-start'
+          }}
+        >
+          <Box sx={{ p: 2 }}>
+            <Typography variant="h6" gutterBottom sx={{ px: 2, pt: 1 }}>
+              Report Types
+            </Typography>
+          </Box>
+          <Divider />
+          <List>
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={selectedReport === 'assignments'}
+                onClick={() => setSelectedReport('assignments')}
+                sx={{
+                  py: 2,
+                  '&.Mui-selected': {
+                    backgroundColor: 'primary.light',
+                    color: 'primary.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'primary.main',
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: 'primary.contrastText',
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon>
+                  <AssignmentIcon color={selectedReport === 'assignments' ? 'inherit' : 'primary'} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Assignment Report" 
+                  secondary="Daily assignments overview"
+                  secondaryTypographyProps={{
+                    sx: { 
+                      color: selectedReport === 'assignments' ? 'rgba(255,255,255,0.7)' : 'text.secondary' 
+                    }
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <Divider />
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={selectedReport === 'payments'}
+                onClick={() => setSelectedReport('payments')}
+                sx={{
+                  py: 2,
+                  '&.Mui-selected': {
+                    backgroundColor: 'success.light',
+                    color: 'success.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'success.main',
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: 'success.contrastText',
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon>
+                  <MoneyIcon color={selectedReport === 'payments' ? 'inherit' : 'success'} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Payment Report" 
+                  secondary="Employee payment summary"
+                  secondaryTypographyProps={{
+                    sx: { 
+                      color: selectedReport === 'payments' ? 'rgba(255,255,255,0.7)' : 'text.secondary' 
+                    }
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
+          </List>
+        </Paper>
 
-        {/* Daily Assignments Report */}
-        <TabPanel value={tabValue} index={0}>
-          <Box p={3}>
+        {/* Main Content Area */}
+        <Box sx={{ flex: 1 }}>
+          {/* Assignment Report */}
+          {selectedReport === 'assignments' && (
+          <Box>
+            <Paper sx={{ mb: 3, p: 3, backgroundColor: 'primary.main', color: 'white' }}>
+              <Box display="flex" alignItems="center">
+                <AssignmentIcon sx={{ mr: 2, fontSize: 40 }} />
+                <Box>
+                  <Typography variant="h4" gutterBottom>
+                    Assignment Report
+                  </Typography>
+                  <Typography variant="body1">
+                    View and analyze daily work assignments and their evaluation status
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+
             <Grid container spacing={3}>
               <Grid item xs={12}>
-                <Card>
+                <Card elevation={3}>
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Daily Assignments Report
+                    <Typography variant="h6" gutterBottom color="primary">
+                      Report Parameters
                     </Typography>
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} md={3}>
@@ -253,37 +335,42 @@ const Reports: React.FC = () => {
               {!loading && assignmentsReport && (
                 <>
                   {/* Summary Cards */}
+                  <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 2 }}>
+                      Summary
+                    </Typography>
+                  </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card>
+                    <Card elevation={3} sx={{ backgroundColor: 'info.light', color: 'white' }}>
                       <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
+                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
                           Total Assignments
                         </Typography>
-                        <Typography variant="h4" color="primary.main">
+                        <Typography variant="h3" fontWeight="bold">
                           {getFilteredAssignments().length}
                         </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card>
+                    <Card elevation={3} sx={{ backgroundColor: 'success.main', color: 'white' }}>
                       <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
+                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
                           Evaluated
                         </Typography>
-                        <Typography variant="h4" color="success.main">
+                        <Typography variant="h3" fontWeight="bold">
                           {getEvaluatedCount()}
                         </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card>
+                    <Card elevation={3} sx={{ backgroundColor: 'warning.main', color: 'white' }}>
                       <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
-                          Assigned (Not Yet Evaluated)
+                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
+                          Pending Evaluation
                         </Typography>
-                        <Typography variant="h4" color="info.main">
+                        <Typography variant="h3" fontWeight="bold">
                           {getNotEvaluatedCount()}
                         </Typography>
                       </CardContent>
@@ -292,14 +379,23 @@ const Reports: React.FC = () => {
 
                   {/* Grouped Assignments Table */}
                   <Grid item xs={12}>
-                    <Card>
+                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 3 }}>
+                      Assignment Details
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Card elevation={3}>
                       <CardContent>
-                        <Typography variant="h6" gutterBottom>
-                          Assignment Details
-                        </Typography>
-                        <Typography variant="body2" color="textSecondary" sx={{ mb: 2 }}>
-                          Date: {format(new Date(reportDate), 'MMMM dd, yyyy')}
-                        </Typography>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                          <Typography variant="h6" color="primary">
+                            Activity Breakdown
+                          </Typography>
+                          <Chip 
+                            label={format(new Date(reportDate), 'MMMM dd, yyyy')}
+                            color="primary"
+                            variant="outlined"
+                          />
+                        </Box>
                         <TableContainer>
                           <Table>
                             <TableHead>
@@ -369,17 +465,31 @@ const Reports: React.FC = () => {
               )}
             </Grid>
           </Box>
-        </TabPanel>
+          )}
 
-        {/* Payment Report */}
-        <TabPanel value={tabValue} index={1}>
-          <Box p={3}>
+          {/* Payment Report */}
+          {selectedReport === 'payments' && (
+          <Box>
+            <Paper sx={{ mb: 3, p: 3, backgroundColor: 'success.main', color: 'white' }}>
+              <Box display="flex" alignItems="center">
+                <MoneyIcon sx={{ mr: 2, fontSize: 40 }} />
+                <Box>
+                  <Typography variant="h4" gutterBottom>
+                    Payment Report
+                  </Typography>
+                  <Typography variant="body1">
+                    Calculate and analyze employee payments based on completed assignments
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+
             <Grid container spacing={3}>
               <Grid item xs={12}>
-                <Card>
+                <Card elevation={3}>
                   <CardContent>
-                    <Typography variant="h6" gutterBottom>
-                      Generate Payment Report
+                    <Typography variant="h6" gutterBottom color="success.main">
+                      Report Parameters
                     </Typography>
                     <Grid container spacing={2} alignItems="center">
                       <Grid item xs={12} md={3}>
@@ -443,40 +553,45 @@ const Reports: React.FC = () => {
               {!loading && paymentReport && (
                 <>
                   {/* Summary Cards */}
+                  <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 2 }}>
+                      Summary
+                    </Typography>
+                  </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card>
+                    <Card elevation={3} sx={{ backgroundColor: 'info.light', color: 'white' }}>
                       <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
+                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
                           Total Employees
                         </Typography>
-                        <Typography variant="h4">
+                        <Typography variant="h3" fontWeight="bold">
                           {paymentReport.totalEmployees}
                         </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card>
+                    <Card elevation={3} sx={{ backgroundColor: 'primary.main', color: 'white' }}>
                       <CardContent>
-                        <Typography color="textSecondary" gutterBottom>
-                          Period
+                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
+                          Report Period
                         </Typography>
-                        <Typography variant="body1">
+                        <Typography variant="body1" fontWeight="medium">
                           {format(new Date(paymentReport.periodStartDate), 'MMM dd, yyyy')}
                         </Typography>
-                        <Typography variant="body1">
+                        <Typography variant="body1" fontWeight="medium">
                           to {format(new Date(paymentReport.periodEndDate), 'MMM dd, yyyy')}
                         </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card sx={{ backgroundColor: 'success.light' }}>
+                    <Card elevation={3} sx={{ backgroundColor: 'success.dark', color: 'white' }}>
                       <CardContent>
-                        <Typography color="white" gutterBottom>
-                          Total Payment
+                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
+                          Total Net Payment
                         </Typography>
-                        <Typography variant="h4" color="white">
+                        <Typography variant="h3" fontWeight="bold">
                           ₹{paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}
                         </Typography>
                       </CardContent>
@@ -485,11 +600,13 @@ const Reports: React.FC = () => {
 
                   {/* Employee Payments Table */}
                   <Grid item xs={12}>
-                    <Card>
+                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 3 }}>
+                      Employee Payment Breakdown
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12}>
+                    <Card elevation={3}>
                       <CardContent>
-                        <Typography variant="h6" gutterBottom>
-                          Employee Payment Breakdown
-                        </Typography>
                         <TableContainer>
                           <Table>
                             <TableHead>
@@ -518,7 +635,7 @@ const Reports: React.FC = () => {
                                   <TableRow key={idx}>
                                     <TableCell>
                                       <strong>{payment.employeeName}</strong>
-                                      {payment.voluntaryPfPercentage && payment.voluntaryPfPercentage > 0 && (
+                                      {(payment.voluntaryPfPercentage ?? 0) > 0 && (
                                         <Typography variant="caption" display="block" color="textSecondary">
                                           +{payment.voluntaryPfPercentage}% VPF
                                         </Typography>
@@ -586,8 +703,9 @@ const Reports: React.FC = () => {
               )}
             </Grid>
           </Box>
-        </TabPanel>
-      </Paper>
+          )}
+        </Box>
+      </Box>
     </Box>
   );
 };
