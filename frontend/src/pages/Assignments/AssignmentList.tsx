@@ -36,6 +36,8 @@ import {
   Assessment as AssessmentIcon,
   Delete as DeleteIcon,
   CheckCircle as CheckCircleIcon,
+  Search as SearchIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
@@ -63,6 +65,10 @@ const AssignmentList: React.FC = () => {
   // Pagination
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalEmployees, setTotalEmployees] = useState(0);
+  
+  // Search
+  const [searchTerm, setSearchTerm] = useState<string>('');
   
   // Week navigation
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(
@@ -88,22 +94,20 @@ const AssignmentList: React.FC = () => {
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
+  // Load activities once on mount
+  useEffect(() => {
+    loadActivities();
+  }, []);
+
+  // Load employees and assignments when page, rowsPerPage, week, or search changes
   useEffect(() => {
     loadData();
-  }, [currentWeekStart]);
+  }, [currentWeekStart, page, rowsPerPage, searchTerm]);
 
-  const loadData = async () => {
+  const loadActivities = async () => {
     try {
-      setLoading(true);
-      const [employeesData, activitiesData, assignmentsData] = await Promise.all([
-        employeeApi.getAllEmployees(),
-        workActivityApi.getAllWorkActivities(),
-        assignmentApi.getAllAssignments(),
-      ]);
-      
-      const employeesArray = Array.isArray(employeesData) ? employeesData : [];
+      const activitiesData = await workActivityApi.getAllWorkActivities();
       const activitiesArray = Array.isArray(activitiesData) ? activitiesData : [];
-      const assignmentsArray = Array.isArray(assignmentsData) ? assignmentsData : [];
       
       // Load active completion criteria for ALL activities (including inactive)
       const activitiesWithCriteria: ActivityWithCriteria[] = await Promise.all(
@@ -121,14 +125,57 @@ const AssignmentList: React.FC = () => {
         })
       );
       
-      setEmployees(employeesArray);
       setActivities(activitiesWithCriteria);
-      setAssignments(assignmentsArray);
+    } catch (error) {
+      console.error('Error loading activities:', error);
+      setActivities([]);
+    }
+  };
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      
+      const weekStart = format(currentWeekStart, 'yyyy-MM-dd');
+      const weekEnd = format(addDays(currentWeekStart, 6), 'yyyy-MM-dd');
+      
+      if (searchTerm.trim()) {
+        // When searching, fetch all employees and assignments for filtering
+        const allEmployees = await employeeApi.getAllEmployees();
+        const employeeIds = allEmployees.map(emp => emp.id!);
+        const assignmentsData = await assignmentApi.getAssignmentsByDateRange(
+          weekStart,
+          weekEnd,
+          employeeIds
+        );
+        
+        setEmployees(allEmployees);
+        setTotalEmployees(allEmployees.length);
+        setAssignments(assignmentsData);
+      } else {
+        // When not searching, use server-side pagination
+        const paginatedData = await employeeApi.getEmployeesPaginated(page, rowsPerPage);
+        const employeesArray = paginatedData.content;
+        setTotalEmployees(paginatedData.totalElements);
+        
+        // Get employee IDs from the current page
+        const employeeIds = employeesArray.map(emp => emp.id!);
+        
+        // Fetch assignments only for the current week and current page employees
+        const assignmentsData = await assignmentApi.getAssignmentsByDateRange(
+          weekStart,
+          weekEnd,
+          employeeIds
+        );
+        
+        setEmployees(employeesArray);
+        setAssignments(assignmentsData);
+      }
+      
       setEditingCells(new Map());
     } catch (error) {
       console.error('Error loading data:', error);
       setEmployees([]);
-      setActivities([]);
       setAssignments([]);
     } finally {
       setLoading(false);
@@ -301,6 +348,16 @@ const AssignmentList: React.FC = () => {
     setActualValue(Math.max(0, value));
   };
 
+  const handleCompletionDialogKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSaveCompletion();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      handleCloseCompletionDialog();
+    }
+  };
+
   const handleOpenDeleteDialog = (assignment: WorkAssignment) => {
     setAssignmentToDelete(assignment);
     setDeleteDialogOpen(true);
@@ -349,10 +406,45 @@ const AssignmentList: React.FC = () => {
     setPage(0);
   };
 
-  const paginatedEmployees = employees.slice(
-    page * rowsPerPage,
-    page * rowsPerPage + rowsPerPage
-  );
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+    setPage(0); // Reset to first page when searching
+  };
+
+  const handleClearSearch = () => {
+    setSearchTerm('');
+    setPage(0);
+  };
+
+  // Filter employees based on search term (only when searching)
+  const filteredEmployees = searchTerm.trim() 
+    ? employees.filter((employee) => {
+        const lowerSearchTerm = searchTerm.toLowerCase();
+        
+        // Search by employee name
+        if (employee.name.toLowerCase().includes(lowerSearchTerm)) {
+          return true;
+        }
+        
+        // Search by activity name or status in any assignment for this employee
+        const hasMatchingAssignment = assignments.some((assignment) => {
+          if (assignment.assignedEmployeeId !== employee.id) return false;
+          
+          return (
+            assignment.activityName.toLowerCase().includes(lowerSearchTerm) ||
+            assignment.assignmentStatus?.toLowerCase().includes(lowerSearchTerm)
+          );
+        });
+        
+        return hasMatchingAssignment;
+      })
+    : employees;
+
+  // When searching, do client-side pagination on filtered results
+  // When not searching, employees are already paginated from server
+  const paginatedEmployees = searchTerm.trim()
+    ? filteredEmployees.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
+    : employees;
 
   const renderCell = (employee: Employee, date: Date) => {
     const key = getCellKey(employee.id!, date);
@@ -534,6 +626,35 @@ const AssignmentList: React.FC = () => {
         </Box>
       </Box>
 
+      {/* Search Bar */}
+      <Box sx={{ mb: 2 }}>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Search by employee name, activity name, or status..."
+          value={searchTerm}
+          onChange={handleSearchChange}
+          InputProps={{
+            startAdornment: <SearchIcon sx={{ mr: 1, color: 'action.active' }} />,
+            endAdornment: searchTerm && (
+              <IconButton size="small" onClick={handleClearSearch}>
+                <ClearIcon fontSize="small" />
+              </IconButton>
+            ),
+          }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              backgroundColor: 'background.paper',
+            },
+          }}
+        />
+        {searchTerm && (
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+            Found {filteredEmployees.length} employee{filteredEmployees.length !== 1 ? 's' : ''}
+          </Typography>
+        )}
+      </Box>
+
       <Card>
         <TableContainer>
           <Table stickyHeader>
@@ -590,7 +711,7 @@ const AssignmentList: React.FC = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={employees.length}
+          count={searchTerm.trim() ? filteredEmployees.length : totalEmployees}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -602,6 +723,7 @@ const AssignmentList: React.FC = () => {
       <Dialog 
         open={completionDialogOpen} 
         onClose={handleCloseCompletionDialog}
+        onKeyDown={handleCompletionDialogKeyDown}
         maxWidth="sm"
         fullWidth
       >
@@ -642,11 +764,17 @@ const AssignmentList: React.FC = () => {
                     type="number"
                     value={actualValue}
                     onChange={handleActualValueChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        handleSaveCompletion();
+                      }
+                    }}
                     InputProps={{
                       endAdornment: criteria?.unit || '',
                       inputProps: { min: 0, step: 0.1 }
                     }}
-                    helperText="Enter the actual value of work completed"
+                    helperText="Enter the actual value of work completed (Press Enter to save)"
                     autoFocus
                     sx={{ mb: 3 }}
                   />

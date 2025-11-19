@@ -20,8 +20,10 @@ import {
   Delete as DeleteIcon,
 } from '@mui/icons-material';
 import { employeeApi } from '../../api/employeeApi';
+import { employeeTypeApi } from '../../api/employeeTypeApi';
+import { employeeStatusApi } from '../../api/employeeStatusApi';
 import apiClient from '../../api/apiClient';
-import { Employee } from '../../types';
+import { Employee, EmployeeType, EmployeeStatus } from '../../types';
 
 const EmployeeForm: React.FC = () => {
   const navigate = useNavigate();
@@ -31,19 +33,46 @@ const EmployeeForm: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [employeeTypes, setEmployeeTypes] = useState<EmployeeType[]>([]);
+  const [employeeStatuses, setEmployeeStatuses] = useState<EmployeeStatus[]>([]);
   const [formData, setFormData] = useState<Employee>({
     name: '',
     phone: '',
     pfAccountId: '',
     idCardType: 'AADHAAR',
     idCardValue: '',
+    employeeTypeId: '',
+    employeeStatusId: '',
   });
+
+  useEffect(() => {
+    loadEmployeeTypes();
+    loadEmployeeStatuses();
+  }, []);
 
   useEffect(() => {
     if (isEditMode && id) {
       loadEmployee(id);
     }
   }, [id, isEditMode]);
+
+  const loadEmployeeTypes = async () => {
+    try {
+      const types = await employeeTypeApi.getActive();
+      setEmployeeTypes(types);
+    } catch (error) {
+      console.error('Error loading employee types:', error);
+    }
+  };
+
+  const loadEmployeeStatuses = async () => {
+    try {
+      const statuses = await employeeStatusApi.getActive();
+      setEmployeeStatuses(statuses);
+    } catch (error) {
+      console.error('Error loading employee statuses:', error);
+    }
+  };
 
   const loadEmployee = async (employeeId: string) => {
     try {
@@ -165,9 +194,9 @@ const EmployeeForm: React.FC = () => {
       </Typography>
 
       <Card>
-        <CardContent>
+        <CardContent sx={{ pb: 2 }}>
           <form onSubmit={handleSubmit}>
-            <Grid container spacing={3}>
+            <Grid container spacing={2}>
               <Grid item xs={12} md={6}>
                 <TextField
                   fullWidth
@@ -204,6 +233,48 @@ const EmployeeForm: React.FC = () => {
                 <TextField
                   fullWidth
                   select
+                  label="Employee Type"
+                  name="employeeTypeId"
+                  value={formData.employeeTypeId || ''}
+                  onChange={handleChange}
+                  helperText="Select employee classification"
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {employeeTypes.map((type) => (
+                    <MenuItem key={type.id} value={type.id}>
+                      {type.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Employee Status"
+                  name="employeeStatusId"
+                  value={formData.employeeStatusId || ''}
+                  onChange={handleChange}
+                  helperText="Select employment status"
+                >
+                  <MenuItem value="">
+                    <em>None</em>
+                  </MenuItem>
+                  {employeeStatuses.map((status) => (
+                    <MenuItem key={status.id} value={status.id}>
+                      {status.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  select
                   label="ID Card Type"
                   name="idCardType"
                   value={formData.idCardType || 'AADHAAR'}
@@ -230,7 +301,7 @@ const EmployeeForm: React.FC = () => {
               {/* Photo Upload Section */}
               <Grid item xs={12}>
                 <Box>
-                  <Typography variant="subtitle1" gutterBottom>
+                  <Typography variant="subtitle2" gutterBottom sx={{ mb: 1 }}>
                     ID Card Photo
                   </Typography>
                   
@@ -240,7 +311,7 @@ const EmployeeForm: React.FC = () => {
                         <Avatar
                           src={photoPreview}
                           variant="rounded"
-                          sx={{ width: 200, height: 150, objectFit: 'cover' }}
+                          sx={{ width: 140, height: 105, objectFit: 'cover' }}
                         />
                         <IconButton
                           size="small"
@@ -254,51 +325,53 @@ const EmployeeForm: React.FC = () => {
                             '&:hover': { backgroundColor: 'white' }
                           }}
                         >
-                          <DeleteIcon />
+                          <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Box>
                     ) : (
                       <Box
                         sx={{
-                          width: 200,
-                          height: 150,
+                          width: 140,
+                          height: 105,
                           border: '2px dashed',
                           borderColor: 'grey.400',
-                          borderRadius: 2,
+                          borderRadius: 1,
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
                           backgroundColor: 'grey.50',
                         }}
                       >
-                        <Typography color="textSecondary" variant="body2">
+                        <Typography color="textSecondary" variant="caption">
                           No photo
                         </Typography>
                       </Box>
                     )}
                     
-                    <Button
-                      variant="outlined"
-                      component="label"
-                      startIcon={<UploadIcon />}
-                    >
-                      {photoPreview ? 'Change Photo' : 'Upload Photo'}
-                      <input
-                        type="file"
-                        hidden
-                        accept="image/*"
-                        onChange={handlePhotoChange}
-                      />
-                    </Button>
+                    <Box>
+                      <Button
+                        variant="outlined"
+                        component="label"
+                        startIcon={<UploadIcon />}
+                        size="small"
+                      >
+                        {photoPreview ? 'Change' : 'Upload'}
+                        <input
+                          type="file"
+                          hidden
+                          accept="image/*"
+                          onChange={handlePhotoChange}
+                        />
+                      </Button>
+                      <Typography variant="caption" color="textSecondary" sx={{ mt: 0.5, display: 'block' }}>
+                        JPG, PNG. Max 5MB
+                      </Typography>
+                    </Box>
                   </Box>
-                  
-                  <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
-                    Supported formats: JPG, PNG. Max size: 5MB
-                  </Typography>
                 </Box>
               </Grid>
 
-              <Grid item xs={12}>
+              <Grid item xs={12} sx={{ pt: '12px !important' }}>
                 <Box display="flex" gap={2} justifyContent="flex-end">
                   <Button
                     variant="outlined"

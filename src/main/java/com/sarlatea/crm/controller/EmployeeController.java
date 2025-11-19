@@ -5,6 +5,9 @@ import com.sarlatea.crm.service.EmployeeService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -12,7 +15,9 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * REST controller for Employee operations
@@ -31,6 +36,29 @@ public class EmployeeController {
         log.info("GET request to fetch all employees");
         List<EmployeeDTO> employees = employeeService.getAllEmployees();
         return ResponseEntity.ok(employees);
+    }
+
+    @GetMapping("/paginated")
+    public ResponseEntity<Map<String, Object>> getEmployeesPaginated(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("GET request to fetch paginated employees - page: {}, size: {}", page, size);
+        
+        // Create Pageable object for database-level pagination
+        Pageable pageable = PageRequest.of(page, size);
+        
+        // Fetch page from database using LIMIT/OFFSET
+        Page<EmployeeDTO> employeePage = employeeService.getEmployeesPaginated(pageable);
+        
+        // Build response with Spring Data Page metadata
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", employeePage.getContent());
+        response.put("totalElements", employeePage.getTotalElements());
+        response.put("totalPages", employeePage.getTotalPages());
+        response.put("currentPage", employeePage.getNumber());
+        response.put("pageSize", employeePage.getSize());
+        
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}")
@@ -105,6 +133,30 @@ public class EmployeeController {
         log.info("GET request to search employees with term: {}", term);
         List<EmployeeDTO> employees = employeeService.searchEmployees(term);
         return ResponseEntity.ok(employees);
+    }
+
+    @GetMapping("/search/paginated")
+    public ResponseEntity<Map<String, Object>> searchEmployeesPaginated(
+            @RequestParam String term,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        log.info("GET request to search employees with term: '{}' - page: {}, size: {}", term, page, size);
+        
+        // Create Pageable object for database-level pagination and search
+        Pageable pageable = PageRequest.of(page, size);
+        
+        // Fetch paginated search results from database
+        Page<EmployeeDTO> employeePage = employeeService.searchEmployeesPaginated(term, pageable);
+        
+        // Build response with pagination metadata
+        Map<String, Object> response = new HashMap<>();
+        response.put("content", employeePage.getContent());
+        response.put("totalElements", employeePage.getTotalElements());
+        response.put("totalPages", employeePage.getTotalPages());
+        response.put("currentPage", employeePage.getNumber());
+        response.put("pageSize", employeePage.getSize());
+        
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/{id}/photo")

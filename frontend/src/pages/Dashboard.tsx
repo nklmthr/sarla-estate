@@ -152,7 +152,7 @@ const Dashboard: React.FC = () => {
             title="Total Employees"
             value={stats.totalEmployees}
             icon={<PeopleIcon />}
-            color="#4caf50"
+            color="#1976d2"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -160,7 +160,7 @@ const Dashboard: React.FC = () => {
             title="Today's Assignments"
             value={stats.todayAssignments}
             icon={<AssignmentIcon />}
-            color="#2196f3"
+            color="#9c27b0"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -168,7 +168,7 @@ const Dashboard: React.FC = () => {
             title="Active Work Activities"
             value={stats.totalActivities}
             icon={<WorkIcon />}
-            color="#ff9800"
+            color="#ed6c02"
           />
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
@@ -176,7 +176,7 @@ const Dashboard: React.FC = () => {
             title="Current Month Payment"
             value={`₹${stats.monthlyPayment.toLocaleString()}`}
             icon={<MoneyIcon />}
-            color="#4caf50"
+            color="#2e7d32"
           />
         </Grid>
 
@@ -271,7 +271,7 @@ const Dashboard: React.FC = () => {
                 <Typography variant="body2" color="textSecondary">
                   Total Employees
                 </Typography>
-                <Typography variant="h6" color="success.main">
+                <Typography variant="h6" color="primary.main">
                   {stats.totalEmployees}
                 </Typography>
               </Box>
@@ -289,7 +289,7 @@ const Dashboard: React.FC = () => {
                 <Typography variant="body2" color="textSecondary">
                   Today's Assignments
                 </Typography>
-                <Typography variant="h6" color="info.main">
+                <Typography variant="h6" color="secondary.main">
                   {stats.todayAssignments}
                 </Typography>
               </Box>

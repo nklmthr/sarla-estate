@@ -37,6 +37,14 @@ public class Employee extends BaseEntity {
     @Column(name = "id_card_photo" , columnDefinition = "LONGBLOB")
     private byte[] idCardPhoto;
 
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "employee_type_id", nullable = true)
+    private EmployeeType employeeType;
+
+    @ManyToOne(fetch = FetchType.LAZY, optional = true)
+    @JoinColumn(name = "employee_status_id", nullable = true)
+    private EmployeeStatus employeeStatus;
+
     public enum IdCardType {
         AADHAAR, PAN, PASSPORT, DRIVING_LICENSE
     }

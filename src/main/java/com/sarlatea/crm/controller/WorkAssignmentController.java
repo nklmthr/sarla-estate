@@ -4,10 +4,12 @@ import com.sarlatea.crm.dto.WorkAssignmentDTO;
 import com.sarlatea.crm.service.WorkAssignmentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -40,6 +42,18 @@ public class WorkAssignmentController {
     public ResponseEntity<List<WorkAssignmentDTO>> getAssignmentsByEmployee(@PathVariable String employeeId) {
         log.info("GET request to fetch assignments for employee: {}", employeeId);
         List<WorkAssignmentDTO> assignments = workAssignmentService.getAssignmentsByEmployee(employeeId);
+        return ResponseEntity.ok(assignments);
+    }
+
+    @GetMapping("/by-date-range")
+    public ResponseEntity<List<WorkAssignmentDTO>> getAssignmentsByDateRange(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
+            @RequestParam(required = false) List<String> employeeIds) {
+        log.info("GET request to fetch assignments from {} to {} for {} employees", 
+                startDate, endDate, employeeIds != null ? employeeIds.size() : "all");
+        List<WorkAssignmentDTO> assignments = workAssignmentService.getAssignmentsByDateRangeAndEmployees(
+                startDate, endDate, employeeIds);
         return ResponseEntity.ok(assignments);
     }
 

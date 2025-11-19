@@ -1,5 +1,23 @@
 // Type definitions for Tea Estate CRM
 
+export interface EmployeeType {
+  id?: string;
+  code: string;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+  displayOrder?: number;
+}
+
+export interface EmployeeStatus {
+  id?: string;
+  code: string;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+  displayOrder?: number;
+}
+
 export interface Employee {
   id?: string;
   name: string;
@@ -8,6 +26,10 @@ export interface Employee {
   idCardType?: 'AADHAAR' | 'PAN' | 'PASSPORT' | 'DRIVING_LICENSE';
   idCardValue?: string;
   // idCardPhoto is byte[] on backend, handled separately via file upload
+  employeeTypeId?: string;
+  employeeTypeName?: string;
+  employeeStatusId?: string;
+  employeeStatusName?: string;
 }
 
 export interface WorkActivity {

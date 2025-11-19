@@ -3,9 +3,15 @@ package com.sarlatea.crm.service;
 import com.sarlatea.crm.dto.EmployeeDTO;
 import com.sarlatea.crm.exception.ResourceNotFoundException;
 import com.sarlatea.crm.model.Employee;
+import com.sarlatea.crm.model.EmployeeType;
+import com.sarlatea.crm.model.EmployeeStatus;
 import com.sarlatea.crm.repository.EmployeeRepository;
+import com.sarlatea.crm.repository.EmployeeTypeRepository;
+import com.sarlatea.crm.repository.EmployeeStatusRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +27,8 @@ import java.util.stream.Collectors;
 public class EmployeeService {
 
     private final EmployeeRepository employeeRepository;
+    private final EmployeeTypeRepository employeeTypeRepository;
+    private final EmployeeStatusRepository employeeStatusRepository;
 
     @Transactional(readOnly = true)
     public List<EmployeeDTO> getAllEmployees() {
@@ -28,6 +36,14 @@ public class EmployeeService {
         return employeeRepository.findAllOrderedByName().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<EmployeeDTO> getEmployeesPaginated(Pageable pageable) {
+        log.debug("Fetching paginated employees - page: {}, size: {}", 
+                pageable.getPageNumber(), pageable.getPageSize());
+        Page<Employee> employeePage = employeeRepository.findAllOrderedByNamePageable(pageable);
+        return employeePage.map(this::convertToDTO);
     }
 
     @Transactional(readOnly = true)
@@ -75,6 +91,14 @@ public class EmployeeService {
     }
 
     @Transactional(readOnly = true)
+    public Page<EmployeeDTO> searchEmployeesPaginated(String searchTerm, Pageable pageable) {
+        log.debug("Searching employees with term: '{}' - page: {}, size: {}", 
+                searchTerm, pageable.getPageNumber(), pageable.getPageSize());
+        Page<Employee> employeePage = employeeRepository.searchEmployeesPaginated(searchTerm, pageable);
+        return employeePage.map(this::convertToDTO);
+    }
+
+    @Transactional(readOnly = true)
     public byte[] getEmployeePhoto(String id) {
         log.debug("Fetching photo for employee with id: {}", id);
         Employee employee = employeeRepository.findById(id)
@@ -99,6 +123,19 @@ public class EmployeeService {
         dto.setPfAccountId(employee.getPfAccountId());
         dto.setIdCardType(employee.getIdCardType());
         dto.setIdCardValue(employee.getIdCardValue());
+        
+        // Set employee type if present
+        if (employee.getEmployeeType() != null) {
+            dto.setEmployeeTypeId(employee.getEmployeeType().getId());
+            dto.setEmployeeTypeName(employee.getEmployeeType().getName());
+        }
+        
+        // Set employee status if present
+        if (employee.getEmployeeStatus() != null) {
+            dto.setEmployeeStatusId(employee.getEmployeeStatus().getId());
+            dto.setEmployeeStatusName(employee.getEmployeeStatus().getName());
+        }
+        
         // Note: idCardPhoto (byte[]) not included in DTO for typical list/get operations
         return dto;
     }
@@ -110,6 +147,21 @@ public class EmployeeService {
         employee.setPfAccountId(dto.getPfAccountId());
         employee.setIdCardType(dto.getIdCardType());
         employee.setIdCardValue(dto.getIdCardValue());
+        
+        // Set employee type if provided
+        if (dto.getEmployeeTypeId() != null) {
+            EmployeeType employeeType = employeeTypeRepository.findById(dto.getEmployeeTypeId())
+                    .orElse(null);
+            employee.setEmployeeType(employeeType);
+        }
+        
+        // Set employee status if provided
+        if (dto.getEmployeeStatusId() != null) {
+            EmployeeStatus employeeStatus = employeeStatusRepository.findById(dto.getEmployeeStatusId())
+                    .orElse(null);
+            employee.setEmployeeStatus(employeeStatus);
+        }
+        
         return employee;
     }
 
@@ -119,6 +171,20 @@ public class EmployeeService {
         employee.setPfAccountId(dto.getPfAccountId());
         employee.setIdCardType(dto.getIdCardType());
         employee.setIdCardValue(dto.getIdCardValue());
+        
+        // Update employee type if provided
+        if (dto.getEmployeeTypeId() != null) {
+            EmployeeType employeeType = employeeTypeRepository.findById(dto.getEmployeeTypeId())
+                    .orElse(null);
+            employee.setEmployeeType(employeeType);
+        }
+        
+        // Update employee status if provided
+        if (dto.getEmployeeStatusId() != null) {
+            EmployeeStatus employeeStatus = employeeStatusRepository.findById(dto.getEmployeeStatusId())
+                    .orElse(null);
+            employee.setEmployeeStatus(employeeStatus);
+        }
     }
 }
 

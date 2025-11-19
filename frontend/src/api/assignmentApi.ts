@@ -13,6 +13,21 @@ export const assignmentApi = {
   getAssignmentsByEmployee: async (employeeId: string): Promise<WorkAssignment[]> => {
     return apiClient.get<WorkAssignment[]>(`/work-assignments/by-employee/${employeeId}`);
   },
+
+  getAssignmentsByDateRange: async (
+    startDate: string,
+    endDate: string,
+    employeeIds?: string[]
+  ): Promise<WorkAssignment[]> => {
+    const params = new URLSearchParams({
+      startDate,
+      endDate,
+    });
+    if (employeeIds && employeeIds.length > 0) {
+      employeeIds.forEach(id => params.append('employeeIds', id));
+    }
+    return apiClient.get<WorkAssignment[]>(`/work-assignments/by-date-range?${params.toString()}`);
+  },
   
   getUnassignedAssignments: async (startDate: string): Promise<WorkAssignment[]> => {
     return apiClient.get<WorkAssignment[]>(`/work-assignments/unassigned?startDate=${startDate}`);

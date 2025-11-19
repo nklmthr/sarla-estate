@@ -18,6 +18,13 @@ public class EmployeeDTO {
     private String pfAccountId;
     private Employee.IdCardType idCardType;
     private String idCardValue;
+    
+    // Employee Type and Status
+    private String employeeTypeId;
+    private String employeeTypeName;
+    private String employeeStatusId;
+    private String employeeStatusName;
+    
     // Note: idCardPhoto is byte[] and typically handled separately for file uploads
 }
 

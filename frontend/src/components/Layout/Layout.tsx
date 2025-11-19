@@ -22,6 +22,7 @@ import {
   Work as WorkIcon,
   Assignment as AssignmentIcon,
   Assessment as ReportsIcon,
+  Settings as SettingsIcon,
   LocalFlorist as TeaIcon,
 } from '@mui/icons-material';
 
@@ -43,6 +44,7 @@ const menuItems: MenuItem[] = [
   { text: 'Work Activities', icon: <WorkIcon />, path: '/work-activities' },
   { text: 'Assignments', icon: <AssignmentIcon />, path: '/assignments' },
   { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },
+  { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
 ];
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -64,11 +66,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <Toolbar 
         sx={{ 
           backgroundColor: '#ffffff',
-          borderBottom: '3px solid #66bb6a',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
+          minHeight: 64,
         }}
       >
-        <TeaIcon sx={{ mr: 2, color: '#66bb6a', fontSize: 32 }} />
-        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600, color: '#2e7d32' }}>
+        <TeaIcon sx={{ mr: 2, color: '#1976d2', fontSize: 32 }} />
+        <Typography variant="h6" noWrap component="div" sx={{ fontWeight: 600, color: '#1a1a1a' }}>
           Sarla Tea CRM
         </Typography>
       </Toolbar>
@@ -80,21 +83,29 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               selected={location.pathname === item.path}
               onClick={() => handleNavigation(item.path)}
               sx={{
+                borderRadius: '8px',
+                mx: 1,
+                mb: 0.5,
                 '&.Mui-selected': {
-                  backgroundColor: 'primary.light',
-                  color: 'white',
+                  backgroundColor: '#e3f2fd',
+                  color: '#1976d2',
                   '&:hover': {
-                    backgroundColor: 'primary.main',
+                    backgroundColor: '#bbdefb',
                   },
                   '& .MuiListItemIcon-root': {
-                    color: 'white',
+                    color: '#1976d2',
                   },
+                },
+                '&:hover': {
+                  backgroundColor: '#f5f7fa',
+                  borderRadius: '8px',
                 },
               }}
             >
               <ListItemIcon
                 sx={{
-                  color: location.pathname === item.path ? 'white' : 'inherit',
+                  color: location.pathname === item.path ? '#1976d2' : 'inherit',
+                  minWidth: 40,
                 }}
               >
                 {item.icon}
@@ -111,15 +122,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     <Box sx={{ display: 'flex' }}>
       <AppBar
         position="fixed"
+        elevation={0}
         sx={{
           width: { sm: `calc(100% - ${drawerWidth}px)` },
           ml: { sm: `${drawerWidth}px` },
           backgroundColor: '#ffffff',
-          color: '#2e7d32',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+          color: '#1a1a1a',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
         }}
       >
-        <Toolbar>
+        <Toolbar sx={{ minHeight: 64 }}>
           <IconButton
             aria-label="open drawer"
             edge="start"
@@ -127,7 +139,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             sx={{ 
               mr: 2, 
               display: { sm: 'none' },
-              color: '#66bb6a',
+              color: '#1976d2',
             }}
           >
             <MenuIcon />
@@ -138,9 +150,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               noWrap 
               component="div"
               sx={{ 
-                fontWeight: 500,
-                color: '#ff9800',
-                letterSpacing: '0.3px',
+                fontWeight: 600,
+                color: '#1a1a1a',
               }}
             >
               Operations Dashboard

@@ -11,75 +11,135 @@ import WorkActivityForm from './pages/WorkActivities/WorkActivityForm';
 import AssignmentList from './pages/Assignments/AssignmentList';
 import SalaryManagement from './pages/Salary/SalaryManagement';
 import Reports from './pages/Reports/Reports';
+import AdminSettings from './pages/Admin/AdminSettings';
 
 const theme = createTheme({
   palette: {
+    mode: 'light',
     primary: {
-      main: '#66bb6a', // Soft green
-      light: '#98ee99',
-      dark: '#338a3e',
+      main: '#1976d2',
+      light: '#42a5f5',
+      dark: '#1565c0',
       contrastText: '#ffffff',
     },
     secondary: {
-      main: '#ffb74d', // Light saffron
-      light: '#ffe97d',
-      dark: '#c88719',
-      contrastText: '#000000',
-    },
-    warning: {
-      main: '#ffd54f', // Soft yellow
-      light: '#ffff81',
-      dark: '#c8a415',
-      contrastText: '#000000',
-    },
-    info: {
-      main: '#81c784', // Light green accent
-      light: '#b2fab4',
-      dark: '#519657',
+      main: '#9c27b0',
+      light: '#ba68c8',
+      dark: '#7b1fa2',
       contrastText: '#ffffff',
     },
     success: {
-      main: '#a5d6a7', // Very soft green
-      light: '#d7ffd9',
-      dark: '#75a478',
-      contrastText: '#000000',
+      main: '#2e7d32',
+      light: '#4caf50',
+      dark: '#1b5e20',
+      contrastText: '#ffffff',
+    },
+    error: {
+      main: '#d32f2f',
+      light: '#ef5350',
+      dark: '#c62828',
+      contrastText: '#ffffff',
+    },
+    warning: {
+      main: '#ed6c02',
+      light: '#ff9800',
+      dark: '#e65100',
+      contrastText: '#ffffff',
+    },
+    info: {
+      main: '#0288d1',
+      light: '#03a9f4',
+      dark: '#01579b',
+      contrastText: '#ffffff',
     },
     background: {
-      default: '#fafafa', // Very light gray
+      default: '#f5f7fa',
       paper: '#ffffff',
     },
     text: {
-      primary: '#2e7d32',
-      secondary: '#558b2f',
+      primary: '#1a1a1a',
+      secondary: '#666666',
+      disabled: '#9e9e9e',
     },
+    divider: 'rgba(0, 0, 0, 0.08)',
   },
   typography: {
-    fontFamily: '"Inter", "Roboto", "Helvetica", "Arial", sans-serif',
-    h4: {
+    fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif',
+    h1: {
+      fontSize: '2.5rem',
+      fontWeight: 700,
+      letterSpacing: '-0.02em',
+      color: '#1a1a1a',
+      lineHeight: 1.2,
+    },
+    h2: {
+      fontSize: '2rem',
+      fontWeight: 700,
+      letterSpacing: '-0.01em',
+      color: '#1a1a1a',
+      lineHeight: 1.3,
+    },
+    h3: {
+      fontSize: '1.75rem',
       fontWeight: 600,
-      color: '#2e7d32',
-      letterSpacing: '-0.5px',
+      color: '#1a1a1a',
+      lineHeight: 1.3,
+    },
+    h4: {
+      fontSize: '1.5rem',
+      fontWeight: 600,
+      color: '#1a1a1a',
+      lineHeight: 1.4,
     },
     h5: {
+      fontSize: '1.25rem',
       fontWeight: 600,
-      color: '#388e3c',
-      letterSpacing: '-0.3px',
+      color: '#333333',
+      lineHeight: 1.4,
     },
     h6: {
+      fontSize: '1.125rem',
       fontWeight: 600,
-      color: '#558b2f',
-      letterSpacing: '-0.2px',
+      color: '#333333',
+      lineHeight: 1.4,
     },
     body1: {
-      color: '#424242',
+      fontSize: '1rem',
+      lineHeight: 1.6,
+      color: '#1a1a1a',
     },
     body2: {
-      color: '#616161',
+      fontSize: '0.875rem',
+      lineHeight: 1.5,
+      color: '#666666',
+    },
+    button: {
+      textTransform: 'none',
+      fontWeight: 500,
+      letterSpacing: '0.01em',
+      fontSize: '0.9375rem',
+    },
+    caption: {
+      fontSize: '0.75rem',
+      lineHeight: 1.4,
+      color: '#666666',
     },
   },
   shape: {
-    borderRadius: 12,
+    borderRadius: 8,
   },
+  shadows: [
+    'none',
+    '0px 2px 4px rgba(0,0,0,0.05)',
+    '0px 4px 8px rgba(0,0,0,0.08)',
+    '0px 8px 16px rgba(0,0,0,0.1)',
+    '0px 12px 24px rgba(0,0,0,0.12)',
+    '0px 16px 32px rgba(0,0,0,0.14)',
+    '0px 20px 40px rgba(0,0,0,0.16)',
+    '0px 24px 48px rgba(0,0,0,0.18)',
+    '0px 28px 56px rgba(0,0,0,0.20)',
+    ...Array(16).fill('0px 2px 4px rgba(0,0,0,0.05)'),
+  ] as any,
   components: {
     MuiButton: {
       styleOverrides: {
@@ -131,22 +191,23 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           fontWeight: 500,
-          borderRadius: 8,
+          borderRadius: 6,
+          height: 28,
         },
         colorSuccess: {
-          backgroundColor: '#c8e6c9',
+          backgroundColor: '#e8f5e9',
           color: '#2e7d32',
         },
         colorWarning: {
-          backgroundColor: '#fff9c4',
-          color: '#f57f17',
+          backgroundColor: '#fff3e0',
+          color: '#e65100',
         },
         colorInfo: {
-          backgroundColor: '#b2dfdb',
-          color: '#00695c',
+          backgroundColor: '#e3f2fd',
+          color: '#0277bd',
         },
         colorError: {
-          backgroundColor: '#ffcdd2',
+          backgroundColor: '#ffebee',
           color: '#c62828',
         },
       },
@@ -154,15 +215,17 @@ const theme = createTheme({
     MuiAppBar: {
       styleOverrides: {
         root: {
-          background: 'linear-gradient(135deg, #66bb6a 0%, #81c784 50%, #a5d6a7 100%)',
-          boxShadow: '0 2px 12px rgba(102, 187, 106, 0.2)',
+          backgroundColor: '#ffffff',
+          color: '#1a1a1a',
+          boxShadow: '0 1px 3px rgba(0, 0, 0, 0.08)',
+          borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
         },
       },
     },
     MuiDrawer: {
       styleOverrides: {
         paper: {
-          background: 'linear-gradient(180deg, #ffffff 0%, #f5f5f5 100%)',
+          backgroundColor: '#ffffff',
           borderRight: '1px solid rgba(0, 0, 0, 0.08)',
         },
       },
@@ -171,13 +234,12 @@ const theme = createTheme({
       styleOverrides: {
         root: {
           '& .MuiTableCell-head': {
-            backgroundColor: '#f1f8e9',
-            fontWeight: 700,
-            color: '#2e7d32',
-            textTransform: 'uppercase',
-            fontSize: '0.75rem',
-            letterSpacing: '0.5px',
-            borderBottom: '2px solid #c8e6c9',
+            backgroundColor: '#f8f9fa',
+            fontWeight: 600,
+            color: '#1a1a1a',
+            fontSize: '0.8125rem',
+            letterSpacing: '0.02em',
+            borderBottom: '2px solid #e0e0e0',
           },
         },
       },
@@ -185,12 +247,9 @@ const theme = createTheme({
     MuiTableRow: {
       styleOverrides: {
         root: {
-          '&:nth-of-type(even)': {
-            backgroundColor: '#fafafa',
-          },
           '&:hover': {
-            backgroundColor: '#f1f8e9 !important',
-            transition: 'background-color 0.2s ease',
+            backgroundColor: '#f5f7fa !important',
+            transition: 'background-color 0.15s ease',
           },
         },
       },
@@ -198,8 +257,8 @@ const theme = createTheme({
     MuiTableCell: {
       styleOverrides: {
         root: {
-          borderBottom: '1px solid rgba(0, 0, 0, 0.06)',
-          padding: '16px',
+          borderBottom: '1px solid #e0e0e0',
+          padding: '12px 16px',
         },
       },
     },
@@ -208,14 +267,14 @@ const theme = createTheme({
         root: {
           '& .MuiOutlinedInput-root': {
             '& fieldset': {
-              borderColor: 'rgba(0, 0, 0, 0.12)',
-              borderWidth: 2,
+              borderColor: '#d0d5dd',
             },
             '&:hover fieldset': {
-              borderColor: '#81c784',
+              borderColor: '#98a2b3',
             },
             '&.Mui-focused fieldset': {
-              borderColor: '#66bb6a',
+              borderColor: '#1976d2',
+              borderWidth: 2,
             },
           },
         },
@@ -226,45 +285,67 @@ const theme = createTheme({
         root: {
           backgroundImage: 'none',
         },
+        elevation0: {
+          boxShadow: 'none',
+        },
         elevation1: {
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+          boxShadow: '0px 2px 4px rgba(0,0,0,0.05)',
         },
         elevation2: {
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
+          boxShadow: '0px 4px 8px rgba(0,0,0,0.08)',
         },
         elevation3: {
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
+          boxShadow: '0px 8px 16px rgba(0,0,0,0.1)',
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 12,
+          boxShadow: '0px 2px 8px rgba(0,0,0,0.08)',
+          border: '1px solid rgba(0, 0, 0, 0.05)',
         },
       },
     },
     MuiAutocomplete: {
       styleOverrides: {
         paper: {
-          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
-          borderRadius: 12,
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          borderRadius: 8,
           marginTop: 4,
         },
         listbox: {
           padding: 8,
           '& .MuiAutocomplete-option': {
-            borderRadius: 8,
+            borderRadius: 6,
             margin: '2px 0',
             '&[aria-selected="true"]': {
-              backgroundColor: '#e8f5e9',
+              backgroundColor: '#e3f2fd',
             },
             '&.Mui-focused': {
-              backgroundColor: '#f1f8e9',
+              backgroundColor: '#f5f7fa',
             },
           },
         },
         groupLabel: {
-          backgroundColor: '#66bb6a',
+          backgroundColor: '#1976d2',
           color: 'white',
           fontWeight: 600,
           padding: '8px 16px',
-          borderRadius: 8,
+          borderRadius: 6,
           marginTop: 8,
           marginBottom: 4,
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          borderRadius: 8,
+          '&:hover': {
+            backgroundColor: 'rgba(0, 0, 0, 0.04)',
+          },
         },
       },
     },
@@ -298,6 +379,9 @@ function App() {
             
             {/* Reports Routes */}
             <Route path="/reports" element={<Reports />} />
+            
+            {/* Admin Settings */}
+            <Route path="/admin/settings" element={<AdminSettings />} />
             
             {/* Redirect unknown routes to dashboard */}
             <Route path="*" element={<Navigate to="/" replace />} />

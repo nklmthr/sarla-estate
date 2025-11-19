@@ -46,6 +46,19 @@ public interface WorkAssignmentRepository extends JpaRepository<WorkAssignment, 
     List<WorkAssignment> findByStatusAndDate(@Param("status") WorkAssignment.AssignmentStatus status,
                                                @Param("date") LocalDate date);
     
+    /**
+     * Find assignments in date range for specific employees (database-level filtering)
+     * Uses IN clause for efficient filtering by multiple employee IDs
+     */
+    @Query("SELECT wa FROM WorkAssignment wa " +
+           "WHERE wa.assignedEmployee.id IN :employeeIds " +
+           "AND wa.assignmentDate BETWEEN :startDate AND :endDate " +
+           "AND wa.deleted = false " +
+           "ORDER BY wa.assignedEmployee.name ASC, wa.assignmentDate ASC")
+    List<WorkAssignment> findByEmployeeIdsAndDateRange(@Param("employeeIds") List<String> employeeIds,
+                                                         @Param("startDate") LocalDate startDate,
+                                                         @Param("endDate") LocalDate endDate);
+    
     // Count non-deleted assignments for a specific work activity
     long countByWorkActivityAndDeletedFalse(WorkActivity workActivity);
 }

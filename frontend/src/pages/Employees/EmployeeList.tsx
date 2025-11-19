@@ -23,6 +23,7 @@ import {
   DialogActions,
   Grid,
   MenuItem,
+  TablePagination,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -46,6 +47,11 @@ const EmployeeList: React.FC = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
   
+  // Pagination
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [totalEmployees, setTotalEmployees] = useState(0);
+  
   // Salary management states
   const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -66,7 +72,7 @@ const EmployeeList: React.FC = () => {
 
   useEffect(() => {
     loadEmployees();
-  }, []);
+  }, [page, rowsPerPage, searchTerm]);
 
   useEffect(() => {
     filterEmployees();
@@ -75,39 +81,50 @@ const EmployeeList: React.FC = () => {
   const loadEmployees = async () => {
     try {
       setLoading(true);
-      const data = await employeeApi.getAllEmployees();
-      const employeesArray = Array.isArray(data) ? data : [];
-      setEmployees(employeesArray);
-      setFilteredEmployees(employeesArray);
+      
+      let paginatedData;
+      if (searchTerm.trim()) {
+        // Use backend search with pagination
+        paginatedData = await employeeApi.searchEmployeesPaginated(searchTerm, page, rowsPerPage);
+      } else {
+        // Use regular pagination
+        paginatedData = await employeeApi.getEmployeesPaginated(page, rowsPerPage);
+      }
+      
+      setEmployees(paginatedData.content);
+      setTotalEmployees(paginatedData.totalElements);
+      setFilteredEmployees(paginatedData.content);
     } catch (error) {
       console.error('Error loading employees:', error);
       setEmployees([]);
       setFilteredEmployees([]);
+      setTotalEmployees(0);
     } finally {
       setLoading(false);
     }
   };
 
   const filterEmployees = () => {
+    // Backend handles all filtering, just update filtered list
     if (!Array.isArray(employees)) {
       setFilteredEmployees([]);
       return;
     }
+    setFilteredEmployees(employees);
+  };
 
-    if (!searchTerm.trim()) {
-      setFilteredEmployees(employees);
-      return;
-    }
+  const handleChangePage = (_event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
 
-    const term = searchTerm.toLowerCase();
-    const filtered = employees.filter(
-      (emp) =>
-        emp.name.toLowerCase().includes(term) ||
-        emp.phone?.toLowerCase().includes(term) ||
-        emp.pfAccountId?.toLowerCase().includes(term) ||
-        emp.idCardValue?.toLowerCase().includes(term)
-    );
-    setFilteredEmployees(filtered);
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchTerm(event.target.value);
+    setPage(0); // Reset to first page when searching
   };
 
   const handleDelete = async () => {
@@ -248,7 +265,7 @@ const EmployeeList: React.FC = () => {
             fullWidth
             placeholder="Search by name, phone, PF account, or ID card..."
             value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
+            onChange={handleSearchChange}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -266,6 +283,8 @@ const EmployeeList: React.FC = () => {
                 <TableCell>Name</TableCell>
                 <TableCell>Phone</TableCell>
                 <TableCell>PF Account ID</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Status</TableCell>
                 <TableCell>ID Card Type</TableCell>
                 <TableCell>ID Card Number</TableCell>
                 <TableCell align="right">Actions</TableCell>
@@ -274,7 +293,7 @@ const EmployeeList: React.FC = () => {
             <TableBody>
               {filteredEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={6} align="center">
+                  <TableCell colSpan={8} align="center">
                     <Typography color="textSecondary">
                       {searchTerm ? 'No employees found' : 'No employees yet'}
                     </Typography>
@@ -286,6 +305,30 @@ const EmployeeList: React.FC = () => {
                     <TableCell>{employee.name}</TableCell>
                     <TableCell>{employee.phone || '-'}</TableCell>
                     <TableCell>{employee.pfAccountId || '-'}</TableCell>
+                    <TableCell>
+                      {employee.employeeTypeName ? (
+                        <Chip
+                          label={employee.employeeTypeName}
+                          color="info"
+                          size="small"
+                          variant="outlined"
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {employee.employeeStatusName ? (
+                        <Chip
+                          label={employee.employeeStatusName}
+                          color="success"
+                          size="small"
+                          variant="outlined"
+                        />
+                      ) : (
+                        '-'
+                      )}
+                    </TableCell>
                     <TableCell>
                       <Chip
                         label={getIdCardTypeLabel(employee.idCardType)}
@@ -327,6 +370,15 @@ const EmployeeList: React.FC = () => {
             </TableBody>
           </Table>
         </TableContainer>
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={totalEmployees}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
       </Card>
 
       {/* Delete Confirmation Dialog */}

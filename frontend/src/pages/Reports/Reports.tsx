@@ -328,19 +328,19 @@ const Reports: React.FC = () => {
                 sx={{
                   py: 2,
                   '&.Mui-selected': {
-                    backgroundColor: 'success.light',
-                    color: 'success.contrastText',
+                    backgroundColor: 'primary.light',
+                    color: 'primary.contrastText',
                     '&:hover': {
-                      backgroundColor: 'success.main',
+                      backgroundColor: 'primary.main',
                     },
                     '& .MuiListItemIcon-root': {
-                      color: 'success.contrastText',
+                      color: 'primary.contrastText',
                     },
                   },
                 }}
               >
                 <ListItemIcon>
-                  <MoneyIcon color={selectedReport === 'payments' ? 'inherit' : 'success'} />
+                  <MoneyIcon color={selectedReport === 'payments' ? 'inherit' : 'primary'} />
                 </ListItemIcon>
                 <ListItemText 
                   primary="Payment Report" 
@@ -394,14 +394,14 @@ const Reports: React.FC = () => {
           {/* Assignment Report */}
           {selectedReport === 'assignments' && (
           <Box>
-            <Paper sx={{ mb: 3, p: 3, backgroundColor: 'primary.main', color: 'white' }}>
+            <Paper sx={{ mb: 3, p: 3, backgroundColor: 'primary.light', color: 'primary.contrastText' }}>
               <Box display="flex" alignItems="center">
-                <AssignmentIcon sx={{ mr: 2, fontSize: 40 }} />
+                <AssignmentIcon sx={{ mr: 2, fontSize: 40, color: 'primary.contrastText' }} />
                 <Box>
-                  <Typography variant="h4" gutterBottom>
+                  <Typography variant="h4" gutterBottom sx={{ color: 'primary.contrastText' }}>
                     Assignment Report
                   </Typography>
-                  <Typography variant="body1">
+                  <Typography variant="body1" sx={{ color: 'primary.contrastText', opacity: 0.95 }}>
                     View and analyze daily work assignments and their evaluation status
                   </Typography>
                 </Box>
@@ -471,9 +471,12 @@ const Reports: React.FC = () => {
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card elevation={3} sx={{ backgroundColor: 'info.light', color: 'white' }}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
+                      color: 'white' 
+                    }}>
                       <CardContent>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
+                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
                           Total Assignments
                         </Typography>
                         <Typography variant="h3" fontWeight="bold">
@@ -483,9 +486,12 @@ const Reports: React.FC = () => {
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card elevation={3} sx={{ backgroundColor: 'success.main', color: 'white' }}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #81C784 0%, #66BB6A 100%)', 
+                      color: 'white' 
+                    }}>
                       <CardContent>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
+                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
                           Evaluated
                         </Typography>
                         <Typography variant="h3" fontWeight="bold">
@@ -495,9 +501,13 @@ const Reports: React.FC = () => {
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card elevation={3} sx={{ backgroundColor: 'warning.main', color: 'white' }}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #FFB74D 0%, #FFA726 100%)', 
+                      color: 'white' 
+                    }}>
+
                       <CardContent>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
+                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
                           Pending Evaluation
                         </Typography>
                         <Typography variant="h3" fontWeight="bold">
@@ -600,14 +610,14 @@ const Reports: React.FC = () => {
           {/* Payment Report */}
           {selectedReport === 'payments' && (
           <Box>
-            <Paper sx={{ mb: 3, p: 3, backgroundColor: 'success.main', color: 'white' }}>
+            <Paper sx={{ mb: 3, p: 3, backgroundColor: 'primary.light', color: 'primary.contrastText' }}>
               <Box display="flex" alignItems="center">
-                <MoneyIcon sx={{ mr: 2, fontSize: 40 }} />
+                <MoneyIcon sx={{ mr: 2, fontSize: 40, color: 'primary.contrastText' }} />
                 <Box>
-                  <Typography variant="h4" gutterBottom>
+                  <Typography variant="h4" gutterBottom sx={{ color: 'primary.contrastText' }}>
                     Payment Report
                   </Typography>
-                  <Typography variant="body1">
+                  <Typography variant="body1" sx={{ color: 'primary.contrastText', opacity: 0.95 }}>
                     Calculate and analyze employee payments based on completed assignments
                   </Typography>
                 </Box>
@@ -618,7 +628,7 @@ const Reports: React.FC = () => {
               <Grid item xs={12}>
                 <Card elevation={3}>
                   <CardContent>
-                    <Typography variant="h6" gutterBottom color="success.main">
+                    <Typography variant="h6" gutterBottom color="primary.main">
                       Report Parameters
                     </Typography>
                     <Grid container spacing={2} alignItems="center">
@@ -682,9 +692,12 @@ const Reports: React.FC = () => {
                     </Typography>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card elevation={3} sx={{ backgroundColor: 'info.light', color: 'white' }}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
+                      color: 'white' 
+                    }}>
                       <CardContent>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
+                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
                           Total Employees
                         </Typography>
                         <Typography variant="h3" fontWeight="bold">
@@ -694,9 +707,12 @@ const Reports: React.FC = () => {
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card elevation={3} sx={{ backgroundColor: 'primary.main', color: 'white' }}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
+                      color: 'white' 
+                    }}>
                       <CardContent>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
+                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
                           Report Period
                         </Typography>
                         <Typography variant="body1" fontWeight="medium">
@@ -709,9 +725,12 @@ const Reports: React.FC = () => {
                     </Card>
                   </Grid>
                   <Grid item xs={12} md={4}>
-                    <Card elevation={3} sx={{ backgroundColor: 'success.dark', color: 'white' }}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
+                      color: 'white' 
+                    }}>
                       <CardContent>
-                        <Typography variant="body2" sx={{ opacity: 0.9 }} gutterBottom>
+                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
                           Total Net Payment
                         </Typography>
                         <Typography variant="h3" fontWeight="bold">
@@ -734,7 +753,7 @@ const Reports: React.FC = () => {
                       </Button>
                       <Button
                         variant="contained"
-                        color="success"
+                        color="primary"
                         startIcon={<ExcelIcon />}
                         onClick={exportPaymentReportAsExcel}
                       >
@@ -803,7 +822,7 @@ const Reports: React.FC = () => {
                                       </Typography>
                                     </TableCell>
                                     <TableCell>
-                                      <Typography variant="body2" fontWeight="bold" sx={{ color: '#2e7d32' }}>
+                                      <Typography variant="body2" fontWeight="bold" color="success.main">
                                         +₹{payment.employerPfContribution ? payment.employerPfContribution.toLocaleString() : '0'}
                                       </Typography>
                                     </TableCell>

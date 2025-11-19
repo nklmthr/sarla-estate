@@ -1,9 +1,25 @@
 import apiClient from './apiClient';
 import { Employee } from '../types';
 
+export interface PaginatedEmployees {
+  content: Employee[];
+  totalElements: number;
+  totalPages: number;
+  currentPage: number;
+  pageSize: number;
+}
+
 export const employeeApi = {
   getAllEmployees: async (): Promise<Employee[]> => {
     return apiClient.get<Employee[]>('/employees');
+  },
+
+  getEmployeesPaginated: async (page: number, size: number): Promise<PaginatedEmployees> => {
+    return apiClient.get<PaginatedEmployees>(`/employees/paginated?page=${page}&size=${size}`);
+  },
+
+  searchEmployeesPaginated: async (term: string, page: number, size: number): Promise<PaginatedEmployees> => {
+    return apiClient.get<PaginatedEmployees>(`/employees/search/paginated?term=${encodeURIComponent(term)}&page=${page}&size=${size}`);
   },
   
   getEmployeeById: async (id: string): Promise<Employee> => {

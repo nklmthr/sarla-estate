@@ -59,6 +59,26 @@ public class WorkAssignmentService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
+    public List<WorkAssignmentDTO> getAssignmentsByDateRangeAndEmployees(
+            LocalDate startDate, LocalDate endDate, List<String> employeeIds) {
+        log.debug("Fetching assignments from {} to {} for {} employees", 
+                startDate, endDate, employeeIds != null ? employeeIds.size() : "all");
+        
+        List<WorkAssignment> assignments;
+        if (employeeIds == null || employeeIds.isEmpty()) {
+            // Get all assignments in date range using database query
+            assignments = workAssignmentRepository.findByAssignmentDateBetweenAndDeletedFalse(startDate, endDate);
+        } else {
+            // Get assignments for specific employees in date range using database IN clause
+            assignments = workAssignmentRepository.findByEmployeeIdsAndDateRange(employeeIds, startDate, endDate);
+        }
+        
+        return assignments.stream()
+                .map(this::convertToDTO)
+                .collect(Collectors.toList());
+    }
+
     @Transactional
     public WorkAssignmentDTO createAssignment(WorkAssignmentDTO dto) {
         log.debug("Creating new work assignment for activity: {}", dto.getWorkActivityId());
