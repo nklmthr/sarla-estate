@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -25,6 +26,7 @@ public class WorkAssignmentController {
     private final WorkAssignmentService workAssignmentService;
 
     @GetMapping
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'VIEW')")
     public ResponseEntity<List<WorkAssignmentDTO>> getAllAssignments() {
         log.info("GET request to fetch all work assignments");
         List<WorkAssignmentDTO> assignments = workAssignmentService.getAllAssignments();
@@ -32,6 +34,7 @@ public class WorkAssignmentController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'VIEW')")
     public ResponseEntity<WorkAssignmentDTO> getAssignmentById(@PathVariable String id) {
         log.info("GET request to fetch work assignment with id: {}", id);
         WorkAssignmentDTO assignment = workAssignmentService.getAssignmentById(id);
@@ -39,6 +42,7 @@ public class WorkAssignmentController {
     }
 
     @GetMapping("/by-employee/{employeeId}")
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'VIEW')")
     public ResponseEntity<List<WorkAssignmentDTO>> getAssignmentsByEmployee(@PathVariable String employeeId) {
         log.info("GET request to fetch assignments for employee: {}", employeeId);
         List<WorkAssignmentDTO> assignments = workAssignmentService.getAssignmentsByEmployee(employeeId);
@@ -46,6 +50,7 @@ public class WorkAssignmentController {
     }
 
     @GetMapping("/by-date-range")
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'VIEW')")
     public ResponseEntity<List<WorkAssignmentDTO>> getAssignmentsByDateRange(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate,
@@ -58,6 +63,7 @@ public class WorkAssignmentController {
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'CREATE')")
     public ResponseEntity<WorkAssignmentDTO> createAssignment(@RequestBody WorkAssignmentDTO assignmentDTO) {
         log.info("POST request to create new work assignment for activity: {}", assignmentDTO.getWorkActivityId());
         WorkAssignmentDTO createdAssignment = workAssignmentService.createAssignment(assignmentDTO);
@@ -65,6 +71,7 @@ public class WorkAssignmentController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'EDIT')")
     public ResponseEntity<WorkAssignmentDTO> updateAssignment(
             @PathVariable String id,
             @RequestBody WorkAssignmentDTO assignmentDTO) {
@@ -74,6 +81,7 @@ public class WorkAssignmentController {
     }
 
     @PostMapping("/{id}/assign")
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'EDIT')")
     public ResponseEntity<WorkAssignmentDTO> assignToEmployee(
             @PathVariable String id,
             @RequestBody Map<String, String> request) {
@@ -84,6 +92,7 @@ public class WorkAssignmentController {
     }
 
     @PostMapping("/{id}/complete")
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'EVALUATE')")
     public ResponseEntity<WorkAssignmentDTO> markAsCompleted(
             @PathVariable String id,
             @RequestBody Map<String, Object> request) {
@@ -99,6 +108,7 @@ public class WorkAssignmentController {
     }
 
     @PostMapping("/{id}/update-completion")
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'EVALUATE')")
     public ResponseEntity<WorkAssignmentDTO> updateCompletionPercentage(
             @PathVariable String id,
             @RequestBody Map<String, Object> request) {
@@ -115,6 +125,7 @@ public class WorkAssignmentController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'DELETE')")
     public ResponseEntity<Void> deleteAssignment(@PathVariable String id) {
         log.info("DELETE request to delete work assignment with id: {}", id);
         workAssignmentService.deleteAssignment(id);

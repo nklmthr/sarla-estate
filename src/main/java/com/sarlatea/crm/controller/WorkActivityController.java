@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -33,6 +34,7 @@ public class WorkActivityController {
     }
 
     @GetMapping
+    @PreAuthorize("hasPermission('WORK_ACTIVITY', 'VIEW')")
     public ResponseEntity<List<WorkActivityDTO>> getAllWorkActivities() {
         log.info("GET request to fetch all work activities");
         List<WorkActivityDTO> workActivities = workActivityService.getAllWorkActivities();
@@ -40,6 +42,7 @@ public class WorkActivityController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission('WORK_ACTIVITY', 'VIEW')")
     public ResponseEntity<WorkActivityDTO> getWorkActivityById(@PathVariable String id) {
         log.info("GET request to fetch work activity with id: {}", id);
         WorkActivityDTO workActivity = workActivityService.getWorkActivityById(id);
@@ -47,6 +50,7 @@ public class WorkActivityController {
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission('WORK_ACTIVITY', 'CREATE')")
     public ResponseEntity<WorkActivityDTO> createWorkActivity(@RequestBody WorkActivityDTO workActivityDTO) {
         log.info("POST request to create new work activity: {}", workActivityDTO.getName());
         WorkActivityDTO createdWorkActivity = workActivityService.createWorkActivity(workActivityDTO);
@@ -54,6 +58,7 @@ public class WorkActivityController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission('WORK_ACTIVITY', 'EDIT')")
     public ResponseEntity<WorkActivityDTO> updateWorkActivity(
             @PathVariable String id,
             @RequestBody WorkActivityDTO workActivityDTO) {
@@ -63,6 +68,7 @@ public class WorkActivityController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission('WORK_ACTIVITY', 'DELETE')")
     public ResponseEntity<Void> deleteWorkActivity(@PathVariable String id) {
         log.info("DELETE request to delete work activity with id: {}", id);
         workActivityService.deleteWorkActivity(id);
@@ -70,6 +76,7 @@ public class WorkActivityController {
     }
 
     @GetMapping("/search")
+    @PreAuthorize("hasPermission('WORK_ACTIVITY', 'VIEW')")
     public ResponseEntity<List<WorkActivityDTO>> searchWorkActivities(@RequestParam String term) {
         log.info("GET request to search work activities with term: {}", term);
         List<WorkActivityDTO> workActivities = workActivityService.searchWorkActivities(term);
@@ -77,6 +84,7 @@ public class WorkActivityController {
     }
 
     @GetMapping("/by-status/{status}")
+    @PreAuthorize("hasPermission('WORK_ACTIVITY', 'VIEW')")
     public ResponseEntity<List<WorkActivityDTO>> getWorkActivitiesByStatus(
             @PathVariable WorkActivity.Status status) {
         log.info("GET request to fetch work activities by status: {}", status);

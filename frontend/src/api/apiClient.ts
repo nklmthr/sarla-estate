@@ -10,14 +10,13 @@ const axiosInstance = axios.create({
   },
 });
 
-// Request interceptor for adding auth token if needed
+// Request interceptor for adding auth token
 axiosInstance.interceptors.request.use(
   (config) => {
-    // Add auth token here if implementing authentication
-    // const token = localStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => {
