@@ -87,15 +87,16 @@ public class WorkAssignmentController {
     @PostMapping("/{id}/update-completion")
     public ResponseEntity<WorkAssignmentDTO> updateCompletionPercentage(
             @PathVariable String id,
-            @RequestBody Map<String, Integer> request) {
-        Integer completionPercentage = request.get("completionPercentage");
+            @RequestBody Map<String, Object> request) {
+        Double actualValue = request.get("actualValue") != null ?
+            ((Number) request.get("actualValue")).doubleValue() : null;
         
-        if (completionPercentage == null) {
-            throw new IllegalArgumentException("completionPercentage is required");
+        if (actualValue == null) {
+            throw new IllegalArgumentException("actualValue is required");
         }
         
-        log.info("POST request to update completion percentage for assignment {} to {}%", id, completionPercentage);
-        WorkAssignmentDTO assignment = workAssignmentService.updateCompletionPercentage(id, completionPercentage);
+        log.info("POST request to update completion for assignment {} with actual value: {}", id, actualValue);
+        WorkAssignmentDTO assignment = workAssignmentService.updateCompletionPercentage(id, actualValue);
         return ResponseEntity.ok(assignment);
     }
 

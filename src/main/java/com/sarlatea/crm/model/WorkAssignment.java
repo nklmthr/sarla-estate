@@ -63,6 +63,9 @@ public class WorkAssignment extends BaseEntity {
     @Column(name = "completion_percentage")
     private Integer completionPercentage;
 
+    @Column(name = "actual_value")
+    private Double actualValue;
+
     @Column(name = "completion_notes", length = 1000)
     private String completionNotes;
 

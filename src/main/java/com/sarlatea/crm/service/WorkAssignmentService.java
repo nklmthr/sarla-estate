@@ -1,5 +1,6 @@
 package com.sarlatea.crm.service;
 
+import com.sarlatea.crm.dto.WorkActivityCompletionCriteriaDTO;
 import com.sarlatea.crm.dto.WorkAssignmentDTO;
 import com.sarlatea.crm.exception.DataIntegrityException;
 import com.sarlatea.crm.exception.ResourceNotFoundException;
@@ -32,6 +33,7 @@ public class WorkAssignmentService {
     private final EmployeeRepository employeeRepository;
     private final WorkActivityRepository workActivityRepository;
     private final EmployeeSalaryRepository employeeSalaryRepository;
+    private final WorkActivityCompletionCriteriaService completionCriteriaService;
 
     @Transactional(readOnly = true)
     public List<WorkAssignmentDTO> getAllAssignments() {
@@ -168,14 +170,28 @@ public class WorkAssignmentService {
     }
 
     @Transactional
-    public WorkAssignmentDTO updateCompletionPercentage(String assignmentId, Integer completionPercentage) {
-        log.info("Updating completion percentage for assignment {} to {}%", assignmentId, completionPercentage);
+    public WorkAssignmentDTO updateCompletionPercentage(String assignmentId, Double actualValue) {
+        log.info("Updating completion for assignment {} with actual value: {}", assignmentId, actualValue);
         
         WorkAssignment assignment = workAssignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkAssignment not found with id: " + assignmentId));
         
-        // Validate percentage is between 0 and 100
-        int validPercentage = Math.min(100, Math.max(0, completionPercentage));
+        // Get the active completion criteria for this work activity
+        String workActivityId = assignment.getWorkActivity().getId();
+        WorkActivityCompletionCriteriaDTO activeCriteria = completionCriteriaService.getActiveCriteriaByWorkActivityId(workActivityId);
+        
+        if (activeCriteria == null) {
+            throw new DataIntegrityException(
+                "Cannot evaluate assignment: No active completion criteria found for activity " + assignment.getActivityName()
+            );
+        }
+        
+        // Calculate completion percentage: (actualValue / criteriaValue) * 100
+        double criteriaValue = activeCriteria.getValue().doubleValue();
+        double calculatedPercentage = (actualValue / criteriaValue) * 100.0;
+        int validPercentage = (int) Math.round(Math.min(100, Math.max(0, calculatedPercentage)));
+        
+        assignment.setActualValue(actualValue);
         assignment.setCompletionPercentage(validPercentage);
         
         // Track evaluation time and count for audit
@@ -190,8 +206,8 @@ public class WorkAssignmentService {
         }
         
         WorkAssignment updatedAssignment = workAssignmentRepository.save(assignment);
-        log.info("Assignment {} evaluated to {}% (Evaluation #{}) at {}", 
-                assignmentId, validPercentage, assignment.getEvaluationCount(), assignment.getLastEvaluatedAt());
+        log.info("Assignment {} evaluated: actual value={}, calculated percentage={}% (Evaluation #{}) at {}", 
+                assignmentId, actualValue, validPercentage, assignment.getEvaluationCount(), assignment.getLastEvaluatedAt());
         return convertToDTO(updatedAssignment);
     }
 
@@ -219,6 +235,7 @@ public class WorkAssignmentService {
         dto.setAssignmentStatus(assignment.getAssignmentStatus());
         dto.setActualDurationHours(assignment.getActualDurationHours());
         dto.setCompletionPercentage(assignment.getCompletionPercentage());
+        dto.setActualValue(assignment.getActualValue());
         dto.setCompletionNotes(assignment.getCompletionNotes());
         dto.setCompletedDate(assignment.getCompletedDate());
         // Audit fields

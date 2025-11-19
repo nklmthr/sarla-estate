@@ -25,7 +25,7 @@ import {
   LocalFlorist as TeaIcon,
 } from '@mui/icons-material';
 
-const drawerWidth = 240;
+const drawerWidth = 200;
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -196,7 +196,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         }}
       >
         <Toolbar />
-        <Container maxWidth="xl" sx={{ mt: 2 }}>
+        <Container maxWidth="xl" sx={{ mt: 2, px: { xs: 2, sm: 2, md: 3 } }}>
           {children}
         </Container>
       </Box>

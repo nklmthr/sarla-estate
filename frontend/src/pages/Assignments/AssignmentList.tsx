@@ -22,7 +22,6 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-  Slider,
   TextField,
   Tooltip,
   Snackbar,
@@ -73,10 +72,10 @@ const AssignmentList: React.FC = () => {
   // Cell editing state - key is "employeeId-dateString"
   const [editingCells, setEditingCells] = useState<Map<string, AssignmentCell>>(new Map());
   
-  // Completion percentage dialog
+  // Completion dialog
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<WorkAssignment | null>(null);
-  const [completionPercentage, setCompletionPercentage] = useState<number>(0);
+  const [actualValue, setActualValue] = useState<number>(0);
   const completionInputRef = useRef<HTMLInputElement>(null);
 
   // Delete confirmation dialog
@@ -224,16 +223,19 @@ const AssignmentList: React.FC = () => {
 
   const handleOpenCompletionDialog = (assignment: WorkAssignment) => {
     setSelectedAssignment(assignment);
-    setCompletionPercentage(assignment.completionPercentage || 0);
+    setActualValue(assignment.actualValue || 0);
     setCompletionDialogOpen(true);
-    // Focus input after dialog opens
-    setTimeout(() => completionInputRef.current?.focus(), 100);
+    // Focus and select input after dialog opens so typing replaces the value
+    setTimeout(() => {
+      completionInputRef.current?.focus();
+      completionInputRef.current?.select();
+    }, 100);
   };
 
   const handleCloseCompletionDialog = () => {
     setCompletionDialogOpen(false);
     setSelectedAssignment(null);
-    setCompletionPercentage(0);
+    setActualValue(0);
   };
 
   const handleSaveCompletion = async () => {
@@ -242,7 +244,7 @@ const AssignmentList: React.FC = () => {
     try {
       const updatedAssignment = await assignmentApi.updateCompletionPercentage(
         selectedAssignment.id,
-        { completionPercentage }
+        { actualValue }
       );
 
       // Update the assignment in state
@@ -252,10 +254,10 @@ const AssignmentList: React.FC = () => {
 
       handleCloseCompletionDialog();
     } catch (error: any) {
-      console.error('Error updating completion percentage:', error);
+      console.error('Error updating completion:', error);
       const message = error?.response?.data?.message || 
                      error?.message || 
-                     'Failed to update completion percentage. Please try again.';
+                     'Failed to update completion. Please try again.';
       setErrorMessage(message);
       setErrorOpen(true);
     }
@@ -264,10 +266,14 @@ const AssignmentList: React.FC = () => {
   const handleMarkComplete = async () => {
     if (!selectedAssignment?.id) return;
 
+    // Get the activity's completion criteria to set actualValue = criteriaValue
+    const activity = activities.find(a => a.id === selectedAssignment.workActivityId);
+    const criteriaValue = activity?.activeCriteria?.value || 100;
+
     try {
       const updatedAssignment = await assignmentApi.updateCompletionPercentage(
         selectedAssignment.id,
-        { completionPercentage: 100 }
+        { actualValue: criteriaValue }
       );
 
       // Update the assignment in state
@@ -290,13 +296,9 @@ const AssignmentList: React.FC = () => {
     setErrorOpen(false);
   };
 
-  const handleCompletionSliderChange = (_event: Event, newValue: number | number[]) => {
-    setCompletionPercentage(newValue as number);
-  };
-
-  const handleCompletionInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleActualValueChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value === '' ? 0 : Number(event.target.value);
-    setCompletionPercentage(Math.min(100, Math.max(0, value)));
+    setActualValue(Math.max(0, value));
   };
 
   const handleOpenDeleteDialog = (assignment: WorkAssignment) => {
@@ -360,7 +362,7 @@ const AssignmentList: React.FC = () => {
     // If editing
     if (editingCell?.isEditing) {
       return (
-        <TableCell key={key} sx={{ minWidth: 180, p: 1 }}>
+        <TableCell key={key} sx={{ minWidth: 140, p: 0.5 }}>
           <Box>
             <FormControl fullWidth size="small">
               <Select
@@ -434,44 +436,45 @@ const AssignmentList: React.FC = () => {
     if (assignment) {
       const activity = activities.find((a) => a.id === assignment.workActivityId);
       return (
-        <TableCell key={key} sx={{ minWidth: 180, p: 1 }}>
-          <Paper elevation={1} sx={{ p: 1, bgcolor: 'action.hover' }}>
+        <TableCell key={key} sx={{ minWidth: 140, p: 0.5 }}>
+          <Paper elevation={1} sx={{ p: 0.75, bgcolor: 'action.hover' }}>
             <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-              <Typography variant="body2" fontWeight="bold">
+              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8125rem', lineHeight: 1.3 }}>
                 {assignment.activityName}
               </Typography>
-              <Box display="flex" gap={0.5}>
-                <Tooltip title="Evaluate work against criteria" arrow>
+              <Box display="flex" gap={0.25}>
+                <Tooltip title="Evaluate" arrow>
                   <IconButton
                     size="small"
                     onClick={() => handleOpenCompletionDialog(assignment)}
                     color="primary"
-                    sx={{ mt: -0.5 }}
+                    sx={{ mt: -0.5, p: 0.25 }}
                   >
-                    <AssessmentIcon fontSize="small" />
+                    <AssessmentIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title="Delete assignment" arrow>
+                <Tooltip title="Delete" arrow>
                   <IconButton
                     size="small"
                     onClick={() => handleOpenDeleteDialog(assignment)}
                     color="error"
-                    sx={{ mt: -0.5, mr: -0.5 }}
+                    sx={{ mt: -0.5, mr: -0.5, p: 0.25 }}
                   >
-                    <DeleteIcon fontSize="small" />
+                    <DeleteIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
               </Box>
             </Box>
             {activity?.activeCriteria && (
-              <Typography variant="caption" color="text.secondary" display="block">
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem' }}>
                 Target: {activity.activeCriteria.value} {activity.activeCriteria.unit}
               </Typography>
             )}
-            <Box sx={{ mt: 0.5 }}>
+            <Box sx={{ mt: 0.25 }}>
               <Chip
                 label={assignment.assignmentStatus?.replace('_', ' ')}
                 size="small"
+                sx={{ height: 20, fontSize: '0.7rem' }}
                 color={
                   assignment.assignmentStatus === 'COMPLETED'
                     ? 'success'
@@ -479,9 +482,9 @@ const AssignmentList: React.FC = () => {
                 }
               />
             </Box>
-            {assignment.completionPercentage !== undefined && (
-              <Typography variant="caption" display="block" sx={{ mt: 0.5 }}>
-                Evaluated: {assignment.completionPercentage}%
+            {assignment.actualValue !== undefined && assignment.actualValue !== null && (
+              <Typography variant="caption" display="block" sx={{ mt: 0.25, fontSize: '0.7rem' }}>
+                Done: {assignment.actualValue} {activity?.activeCriteria?.unit || ''} ({assignment.completionPercentage}%)
               </Typography>
             )}
           </Paper>
@@ -491,13 +494,14 @@ const AssignmentList: React.FC = () => {
 
     // Empty cell - reduced width to fit more on screen
     return (
-      <TableCell key={key} sx={{ minWidth: 100, maxWidth: 100, p: 1 }}>
+      <TableCell key={key} sx={{ minWidth: 140, p: 0.5 }}>
         <Button
           variant="outlined"
           size="small"
-          startIcon={<AddIcon />}
+          startIcon={<AddIcon sx={{ fontSize: 16 }} />}
           onClick={() => handleAddAssignment(employee.id!, date)}
           fullWidth
+          sx={{ fontSize: '0.75rem', py: 0.5 }}
         >
           Add
         </Button>
@@ -514,17 +518,17 @@ const AssignmentList: React.FC = () => {
   }
 
   return (
-    <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+    <Box sx={{ mx: -1 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h4">All Assignments</Typography>
-        <Box display="flex" alignItems="center" gap={2}>
-          <IconButton onClick={handlePreviousWeek} color="primary">
+        <Box display="flex" alignItems="center" gap={1}>
+          <IconButton onClick={handlePreviousWeek} color="primary" size="small">
             <PrevIcon />
           </IconButton>
-          <Typography variant="h6">
+          <Typography variant="h6" sx={{ minWidth: 200, textAlign: 'center' }}>
             Week of {format(currentWeekStart, 'MMM dd, yyyy')}
           </Typography>
-          <IconButton onClick={handleNextWeek} color="primary">
+          <IconButton onClick={handleNextWeek} color="primary" size="small">
             <NextIcon />
           </IconButton>
         </Box>
@@ -535,14 +539,14 @@ const AssignmentList: React.FC = () => {
           <Table stickyHeader>
             <TableHead>
               <TableRow>
-                <TableCell sx={{ fontWeight: 'bold', minWidth: 150, position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 2 }}>
+                <TableCell sx={{ fontWeight: 'bold', width: 100, maxWidth: 100, position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 2, p: 1 }}>
                   Employee
                 </TableCell>
                 {weekDays.map((day) => (
-                  <TableCell key={day.toISOString()} align="center" sx={{ fontWeight: 'bold' }}>
+                  <TableCell key={day.toISOString()} align="center" sx={{ fontWeight: 'bold', minWidth: 140, p: 1 }}>
                     <Box>
-                      <Typography variant="body2">{format(day, 'EEE')}</Typography>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{format(day, 'EEE')}</Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
                         {format(day, 'MMM dd')}
                       </Typography>
                     </Box>
@@ -560,7 +564,20 @@ const AssignmentList: React.FC = () => {
               ) : (
                 paginatedEmployees.map((employee) => (
                   <TableRow key={employee.id} hover>
-                    <TableCell sx={{ fontWeight: 'bold', position: 'sticky', left: 0, bgcolor: 'background.paper', zIndex: 1 }}>
+                    <TableCell sx={{ 
+                      fontWeight: 'bold', 
+                      position: 'sticky', 
+                      left: 0, 
+                      bgcolor: 'background.paper', 
+                      zIndex: 1,
+                      width: 100,
+                      maxWidth: 100,
+                      p: 1,
+                      wordWrap: 'break-word',
+                      whiteSpace: 'normal',
+                      lineHeight: 1.2,
+                      fontSize: '0.875rem'
+                    }}>
                       {employee.name}
                     </TableCell>
                     {weekDays.map((day) => renderCell(employee, day))}
@@ -598,37 +615,58 @@ const AssignmentList: React.FC = () => {
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Rate how much of the completion criteria has been achieved
-            </Typography>
-            <Typography gutterBottom fontWeight="medium">
-              Achievement Level: {completionPercentage}%
-            </Typography>
-            <Slider
-              value={completionPercentage}
-              onChange={handleCompletionSliderChange}
-              aria-labelledby="evaluation-slider"
-              valueLabelDisplay="auto"
-              step={5}
-              marks
-              min={0}
-              max={100}
-              sx={{ mb: 3 }}
-            />
-            <TextField
-              inputRef={completionInputRef}
-              fullWidth
-              label="Achievement Percentage"
-              type="number"
-              value={completionPercentage}
-              onChange={handleCompletionInputChange}
-              InputProps={{
-                endAdornment: '%',
-                inputProps: { min: 0, max: 100, step: 1 }
-              }}
-              helperText="Evaluate work completed against the defined criteria (0-100%)"
-              autoFocus
-            />
+            {(() => {
+              const activity = activities.find(a => a.id === selectedAssignment?.workActivityId);
+              const criteria = activity?.activeCriteria;
+              const calculatedPercentage = criteria?.value 
+                ? Math.round((actualValue / criteria.value) * 100)
+                : 0;
+              
+              return (
+                <>
+                  {criteria && (
+                    <Box sx={{ mb: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                      <Typography variant="body2" fontWeight="medium" gutterBottom>
+                        Completion Criteria:
+                      </Typography>
+                      <Typography variant="h6" color="primary">
+                        {criteria.value} {criteria.unit}
+                      </Typography>
+                    </Box>
+                  )}
+                  
+                  <TextField
+                    inputRef={completionInputRef}
+                    fullWidth
+                    label="Actual Value Achieved"
+                    type="number"
+                    value={actualValue}
+                    onChange={handleActualValueChange}
+                    InputProps={{
+                      endAdornment: criteria?.unit || '',
+                      inputProps: { min: 0, step: 0.1 }
+                    }}
+                    helperText="Enter the actual value of work completed"
+                    autoFocus
+                    sx={{ mb: 3 }}
+                  />
+                  
+                  {criteria && (
+                    <Box sx={{ p: 2, bgcolor: 'info.lighter', borderRadius: 1 }}>
+                      <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Calculated Completion Percentage:
+                      </Typography>
+                      <Typography variant="h5" color="info.main" fontWeight="bold">
+                        {calculatedPercentage}%
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        ({actualValue} / {criteria.value} {criteria.unit})
+                      </Typography>
+                    </Box>
+                  )}
+                </>
+              );
+            })()}
           </Box>
         </DialogContent>
         <DialogActions>
@@ -642,7 +680,7 @@ const AssignmentList: React.FC = () => {
             color="success"
             startIcon={<CheckCircleIcon />}
           >
-            Mark Complete (100%)
+            Mark 100% Complete
           </Button>
           <Button 
             onClick={handleSaveCompletion} 

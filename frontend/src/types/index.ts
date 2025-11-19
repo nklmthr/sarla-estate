@@ -41,6 +41,7 @@ export interface WorkAssignment {
   assignmentStatus?: 'ASSIGNED' | 'COMPLETED';
   actualDurationHours?: number;
   completionPercentage?: number;
+  actualValue?: number;
   completionNotes?: string;
   completedDate?: string;
   // Audit fields for tracking assignment and evaluation times

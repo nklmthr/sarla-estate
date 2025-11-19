@@ -38,7 +38,7 @@ export const assignmentApi = {
     return apiClient.post<WorkAssignment>(`/work-assignments/${id}/complete`, data);
   },
   
-  updateCompletionPercentage: async (id: string, data: { completionPercentage: number }): Promise<WorkAssignment> => {
+  updateCompletionPercentage: async (id: string, data: { actualValue: number }): Promise<WorkAssignment> => {
     return apiClient.post<WorkAssignment>(`/work-assignments/${id}/update-completion`, data);
   },
   

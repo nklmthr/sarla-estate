@@ -30,6 +30,7 @@ public class WorkAssignmentDTO {
     private WorkAssignment.AssignmentStatus assignmentStatus;
     private Double actualDurationHours;
     private Integer completionPercentage;
+    private Double actualValue;
     private String completionNotes;
     private LocalDate completedDate;
     
