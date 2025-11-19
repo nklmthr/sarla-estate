@@ -26,15 +26,15 @@ public class WorkActivityCompletionCriteriaService {
 
     @Transactional(readOnly = true)
     public List<WorkActivityCompletionCriteriaDTO> getCriteriaByWorkActivityId(String workActivityId) {
-        log.debug("Fetching completion criteria for work activity: {}", workActivityId);
-        return criteriaRepository.findByWorkActivityId(workActivityId).stream()
+        log.debug("Fetching non-deleted completion criteria for work activity: {}", workActivityId);
+        return criteriaRepository.findByWorkActivityIdAndDeletedFalse(workActivityId).stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public WorkActivityCompletionCriteriaDTO getActiveCriteriaByWorkActivityId(String workActivityId) {
-        log.debug("Fetching active completion criteria for work activity: {}", workActivityId);
+        log.debug("Fetching active non-deleted completion criteria for work activity: {}", workActivityId);
         return criteriaRepository.findActiveByWorkActivityId(workActivityId)
                 .map(this::convertToDTO)
                 .orElse(null);
@@ -44,7 +44,7 @@ public class WorkActivityCompletionCriteriaService {
     public WorkActivityCompletionCriteriaDTO createCriteria(String workActivityId, WorkActivityCompletionCriteriaDTO criteriaDTO) {
         log.debug("Creating completion criteria for work activity: {}", workActivityId);
         
-        WorkActivity workActivity = workActivityRepository.findById(workActivityId)
+        WorkActivity workActivity = workActivityRepository.findByIdAndDeletedFalse(workActivityId)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkActivity not found with id: " + workActivityId));
 
         // Validate no overlapping date ranges
@@ -61,7 +61,7 @@ public class WorkActivityCompletionCriteriaService {
     public WorkActivityCompletionCriteriaDTO updateCriteria(String id, WorkActivityCompletionCriteriaDTO criteriaDTO) {
         log.debug("Updating completion criteria with id: {}", id);
         
-        WorkActivityCompletionCriteria criteria = criteriaRepository.findById(id)
+        WorkActivityCompletionCriteria criteria = criteriaRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Completion criteria not found with id: " + id));
 
         // Validate no overlapping date ranges (excluding current criteria)
@@ -79,15 +79,16 @@ public class WorkActivityCompletionCriteriaService {
 
     @Transactional
     public void deleteCriteria(String id) {
-        log.debug("Deleting completion criteria with id: {}", id);
+        log.info("Soft deleting completion criteria with id: {}", id);
         
-        // Verify criteria exists before deleting
-        if (!criteriaRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Completion criteria not found with id: " + id);
-        }
+        // Verify criteria exists before soft deleting
+        WorkActivityCompletionCriteria criteria = criteriaRepository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Completion criteria not found with id: " + id));
 
-        criteriaRepository.deleteById(id);
-        log.info("Deleted completion criteria with id: {}", id);
+        // Soft delete - set deleted flag instead of removing from database
+        criteria.setDeleted(true);
+        criteriaRepository.save(criteria);
+        log.info("Completion criteria {} marked as deleted for audit purposes", id);
     }
 
     /**

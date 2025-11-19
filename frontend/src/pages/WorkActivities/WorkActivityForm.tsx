@@ -9,8 +9,7 @@ import {
   Typography,
   Grid,
   CircularProgress,
-  FormControlLabel,
-  Checkbox,
+  Chip,
 } from '@mui/material';
 import { Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material';
 import { workActivityApi } from '../../api/workActivityApi';
@@ -25,7 +24,6 @@ const WorkActivityForm: React.FC = () => {
   const [formData, setFormData] = useState<WorkActivity>({
     name: '',
     description: '',
-    status: 'ACTIVE',
     notes: '',
   });
 
@@ -52,14 +50,6 @@ const WorkActivityForm: React.FC = () => {
     setFormData((prev) => ({
       ...prev,
       [name]: value,
-    }));
-  };
-
-  const handleStatusChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const isActive = e.target.checked;
-    setFormData((prev) => ({
-      ...prev,
-      status: isActive ? 'ACTIVE' : 'INACTIVE',
     }));
   };
 
@@ -123,22 +113,25 @@ const WorkActivityForm: React.FC = () => {
                 />
               </Grid>
 
-              <Grid item xs={12}>
-                <FormControlLabel
-                  control={
-                    <Checkbox
-                      checked={formData.status === 'ACTIVE'}
-                      onChange={handleStatusChange}
-                      name="status"
-                      color="primary"
+              {isEditMode && formData.status && (
+                <Grid item xs={12}>
+                  <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                      Status (Calculated)
+                    </Typography>
+                    <Chip
+                      label={formData.status}
+                      color={formData.status === 'ACTIVE' ? 'success' : 'default'}
+                      size="medium"
                     />
-                  }
-                  label="Active"
-                />
-                <Typography variant="caption" display="block" color="text.secondary" sx={{ ml: 4, mt: -0.5 }}>
-                  {formData.status === 'ACTIVE' ? 'This activity is currently active' : 'This activity is inactive'}
-                </Typography>
-              </Grid>
+                    <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                      {formData.status === 'ACTIVE' 
+                        ? 'This activity is active because it has active completion criteria' 
+                        : 'This activity is inactive. Add completion criteria with valid date ranges to activate it.'}
+                    </Typography>
+                  </Box>
+                </Grid>
+              )}
 
               <Grid item xs={12}>
                 <TextField

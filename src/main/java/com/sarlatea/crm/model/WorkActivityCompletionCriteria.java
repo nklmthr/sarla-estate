@@ -45,6 +45,9 @@ public class WorkActivityCompletionCriteria extends BaseEntity {
     @Column(name = "notes", length = 1000)
     private String notes;
 
+    @Column(name = "deleted", nullable = false)
+    private Boolean deleted = false;
+
     /**
      * Calculates if this criteria is active based on date range
      * Active if:

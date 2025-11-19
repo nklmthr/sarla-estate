@@ -15,12 +15,17 @@ import java.util.Optional;
 @Repository
 public interface WorkActivityRepository extends JpaRepository<WorkActivity, String> {
 
-    Optional<WorkActivity> findByName(String name);
+    Optional<WorkActivity> findByNameAndDeletedFalse(String name);
 
-    List<WorkActivity> findByStatus(WorkActivity.Status status);
+    @Query("SELECT DISTINCT w FROM WorkActivity w LEFT JOIN FETCH w.completionCriteria WHERE w.deleted = false")
+    List<WorkActivity> findAllActive();
 
-    @Query("SELECT w FROM WorkActivity w WHERE LOWER(w.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
-           "OR LOWER(w.description) LIKE LOWER(CONCAT('%', :searchTerm, '%'))")
+    @Query("SELECT DISTINCT w FROM WorkActivity w LEFT JOIN FETCH w.completionCriteria WHERE w.deleted = false AND " +
+           "(LOWER(w.name) LIKE LOWER(CONCAT('%', :searchTerm, '%')) " +
+           "OR LOWER(w.description) LIKE LOWER(CONCAT('%', :searchTerm, '%')))")
     List<WorkActivity> searchWorkActivities(@Param("searchTerm") String searchTerm);
+
+    @Query("SELECT w FROM WorkActivity w LEFT JOIN FETCH w.completionCriteria WHERE w.id = :id AND w.deleted = false")
+    Optional<WorkActivity> findByIdAndDeletedFalse(@Param("id") String id);
 }
 

@@ -32,16 +32,16 @@ public class WorkActivityService {
 
     @Transactional(readOnly = true)
     public List<WorkActivityDTO> getAllWorkActivities() {
-        log.debug("Fetching all work activities");
-        return workActivityRepository.findAll().stream()
+        log.debug("Fetching all non-deleted work activities");
+        return workActivityRepository.findAllActive().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public WorkActivityDTO getWorkActivityById(String id) {
-        log.debug("Fetching work activity with id: {}", id);
-        WorkActivity workActivity = workActivityRepository.findById(id)
+        log.debug("Fetching non-deleted work activity with id: {}", id);
+        WorkActivity workActivity = workActivityRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkActivity not found with id: " + id));
         return convertToDTO(workActivity);
     }
@@ -57,7 +57,7 @@ public class WorkActivityService {
     @Transactional
     public WorkActivityDTO updateWorkActivity(String id, WorkActivityDTO workActivityDTO) {
         log.debug("Updating work activity with id: {}", id);
-        WorkActivity workActivity = workActivityRepository.findById(id)
+        WorkActivity workActivity = workActivityRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkActivity not found with id: " + id));
         
         updateWorkActivityFields(workActivity, workActivityDTO);
@@ -67,32 +67,23 @@ public class WorkActivityService {
 
     @Transactional
     public void deleteWorkActivity(String id) {
-        log.debug("Deleting work activity with id: {}", id);
+        log.info("Soft deleting work activity with id: {}", id);
         
         // Check if activity exists
-        WorkActivity workActivity = workActivityRepository.findById(id)
+        WorkActivity workActivity = workActivityRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkActivity not found with id: " + id));
         
-        // Check if there are any non-deleted work assignments referencing this activity
-        long assignmentCount = workAssignmentRepository.countByWorkActivityAndDeletedFalse(workActivity);
-        if (assignmentCount > 0) {
-            throw new DataIntegrityException(
-                "Cannot delete work activity '" + workActivity.getName() + 
-                "' because it has " + assignmentCount + " active work assignment(s). " +
-                "Please delete or reassign the work assignments first, or set the activity status to INACTIVE instead."
-            );
-        }
+        // Soft delete - set deleted flag instead of removing from database
+        workActivity.setDeleted(true);
         
-        try {
-            workActivityRepository.deleteById(id);
-            log.info("Successfully deleted work activity: {}", workActivity.getName());
-        } catch (DataIntegrityViolationException e) {
-            log.error("Data integrity violation when deleting work activity: {}", id, e);
-            throw new DataIntegrityException(
-                "Cannot delete work activity due to existing references. " +
-                "Consider setting the status to INACTIVE instead.", e
-            );
-        }
+        // Also soft delete all completion criteria for this activity
+        List<WorkActivityCompletionCriteria> criteria = completionCriteriaRepository.findByWorkActivityIdAndDeletedFalse(workActivity.getId());
+        criteria.forEach(c -> c.setDeleted(true));
+        completionCriteriaRepository.saveAll(criteria);
+        
+        workActivityRepository.save(workActivity);
+        log.info("Work activity {} and its {} completion criteria marked as deleted for audit purposes", 
+                workActivity.getName(), criteria.size());
     }
 
     @Transactional(readOnly = true)
@@ -105,8 +96,10 @@ public class WorkActivityService {
 
     @Transactional(readOnly = true)
     public List<WorkActivityDTO> getWorkActivitiesByStatus(WorkActivity.Status status) {
-        log.debug("Fetching work activities by status: {}", status);
-        return workActivityRepository.findByStatus(status).stream()
+        log.debug("Fetching work activities by calculated status: {}", status);
+        // Since status is now calculated, filter after fetching
+        return workActivityRepository.findAllActive().stream()
+                .filter(wa -> wa.getStatus() == status)
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -117,11 +110,12 @@ public class WorkActivityService {
         dto.setId(workActivity.getId());
         dto.setName(workActivity.getName());
         dto.setDescription(workActivity.getDescription());
-        dto.setStatus(workActivity.getStatus());
+        dto.setStatus(workActivity.getStatus()); // Status is now calculated
         dto.setNotes(workActivity.getNotes());
         
-        // Convert completion criteria
+        // Convert non-deleted completion criteria only
         List<WorkActivityCompletionCriteriaDTO> criteriaList = workActivity.getCompletionCriteria().stream()
+                .filter(c -> !c.getDeleted()) // Filter out deleted criteria
                 .map(this::convertCriteriaToDTO)
                 .collect(Collectors.toList());
         dto.setCompletionCriteria(criteriaList);
@@ -133,7 +127,7 @@ public class WorkActivityService {
         WorkActivity workActivity = new WorkActivity();
         workActivity.setName(dto.getName());
         workActivity.setDescription(dto.getDescription());
-        workActivity.setStatus(dto.getStatus() != null ? dto.getStatus() : WorkActivity.Status.ACTIVE);
+        // Status is removed - it's now calculated based on completion criteria
         workActivity.setNotes(dto.getNotes());
         return workActivity;
     }
@@ -141,7 +135,7 @@ public class WorkActivityService {
     private void updateWorkActivityFields(WorkActivity workActivity, WorkActivityDTO dto) {
         workActivity.setName(dto.getName());
         workActivity.setDescription(dto.getDescription());
-        workActivity.setStatus(dto.getStatus());
+        // Status is removed - it's now calculated based on completion criteria
         workActivity.setNotes(dto.getNotes());
     }
 
