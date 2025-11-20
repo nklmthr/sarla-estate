@@ -24,8 +24,6 @@ import {
   DialogActions,
   TextField,
   Tooltip,
-  Snackbar,
-  Alert,
 } from '@mui/material';
 import {
   ChevronLeft as PrevIcon,
@@ -45,6 +43,7 @@ import { workActivityApi } from '../../api/workActivityApi';
 import { completionCriteriaApi } from '../../api/completionCriteriaApi';
 import { WorkAssignment, Employee, WorkActivity, WorkActivityCompletionCriteria } from '../../types';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
+import { useError } from '../../contexts/ErrorContext';
 
 interface ActivityWithCriteria extends WorkActivity {
   activeCriteria?: WorkActivityCompletionCriteria | null;
@@ -57,6 +56,7 @@ interface AssignmentCell {
 }
 
 const AssignmentList: React.FC = () => {
+  const { showError, showSuccess, showWarning } = useError();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [activities, setActivities] = useState<ActivityWithCriteria[]>([]);
   const [assignments, setAssignments] = useState<WorkAssignment[]>([]);
@@ -87,10 +87,6 @@ const AssignmentList: React.FC = () => {
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState<WorkAssignment | null>(null);
-
-  // Error handling
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [errorOpen, setErrorOpen] = useState(false);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
@@ -224,11 +220,10 @@ const AssignmentList: React.FC = () => {
       
       // Validate that activity has active completion criteria before saving
       if (!activity.activeCriteria) {
-        setErrorMessage(
+        showWarning(
           `Cannot create assignment: "${activity.name}" does not have active completion criteria. ` +
           'Please define completion criteria for this activity before creating assignments.'
         );
-        setErrorOpen(true);
         return;
       }
 
@@ -251,13 +246,8 @@ const AssignmentList: React.FC = () => {
       const newMap = new Map(editingCells);
       newMap.delete(key);
       setEditingCells(newMap);
-    } catch (error: any) {
-      console.error('Error saving assignment:', error);
-      const message = error?.response?.data?.message || 
-                     error?.message || 
-                     'Failed to save assignment. Please try again.';
-      setErrorMessage(message);
-      setErrorOpen(true);
+    } catch (error) {
+      // Error handled by global interceptor
     }
   };
 
@@ -300,13 +290,8 @@ const AssignmentList: React.FC = () => {
       ));
 
       handleCloseCompletionDialog();
-    } catch (error: any) {
-      console.error('Error updating completion:', error);
-      const message = error?.response?.data?.message || 
-                     error?.message || 
-                     'Failed to update completion. Please try again.';
-      setErrorMessage(message);
-      setErrorOpen(true);
+    } catch (error) {
+      // Error handled by global interceptor
     }
   };
 
@@ -329,18 +314,9 @@ const AssignmentList: React.FC = () => {
       ));
 
       handleCloseCompletionDialog();
-    } catch (error: any) {
-      console.error('Error marking assignment as complete:', error);
-      const message = error?.response?.data?.message || 
-                     error?.message || 
-                     'Failed to mark assignment as complete. Please try again.';
-      setErrorMessage(message);
-      setErrorOpen(true);
+    } catch (error) {
+      // Error handled by global interceptor
     }
-  };
-
-  const handleCloseError = () => {
-    setErrorOpen(false);
   };
 
   const handleActualValueChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -377,14 +353,10 @@ const AssignmentList: React.FC = () => {
       // Remove the assignment from state
       setAssignments(assignments.filter(a => a.id !== assignmentToDelete.id));
 
+      showSuccess('Assignment deleted successfully!');
       handleCloseDeleteDialog();
-    } catch (error: any) {
-      console.error('Error deleting assignment:', error);
-      const message = error?.response?.data?.message || 
-                     error?.message || 
-                     'Failed to delete assignment. Please try again.';
-      setErrorMessage(message);
-      setErrorOpen(true);
+    } catch (error) {
+      // Error handled by global interceptor
       handleCloseDeleteDialog();
     }
   };
@@ -454,7 +426,7 @@ const AssignmentList: React.FC = () => {
     // If editing
     if (editingCell?.isEditing) {
       return (
-        <TableCell key={key} sx={{ minWidth: 140, p: 0.5 }}>
+        <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
           <Box>
             <FormControl fullWidth size="small">
               <Select
@@ -528,10 +500,23 @@ const AssignmentList: React.FC = () => {
     if (assignment) {
       const activity = activities.find((a) => a.id === assignment.workActivityId);
       return (
-        <TableCell key={key} sx={{ minWidth: 140, p: 0.5 }}>
-          <Paper elevation={1} sx={{ p: 0.75, bgcolor: 'action.hover' }}>
+        <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
+          <Paper elevation={1} sx={{ p: 0.75, bgcolor: 'action.hover', overflow: 'hidden' }}>
             <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-              <Typography variant="body2" fontWeight="bold" sx={{ fontSize: '0.8125rem', lineHeight: 1.3 }}>
+              <Typography 
+                variant="body2" 
+                fontWeight="bold" 
+                sx={{ 
+                  fontSize: '0.8125rem', 
+                  lineHeight: 1.3,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  flex: 1,
+                  mr: 0.5
+                }}
+                title={assignment.activityName}
+              >
                 {assignment.activityName}
               </Typography>
               <Box display="flex" gap={0.25}>
@@ -584,9 +569,9 @@ const AssignmentList: React.FC = () => {
       );
     }
 
-    // Empty cell - reduced width to fit more on screen
+    // Empty cell - fixed width for consistency
     return (
-      <TableCell key={key} sx={{ minWidth: 140, p: 0.5 }}>
+      <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
         <Button
           variant="outlined"
           size="small"
@@ -664,7 +649,7 @@ const AssignmentList: React.FC = () => {
                   Employee
                 </TableCell>
                 {weekDays.map((day) => (
-                  <TableCell key={day.toISOString()} align="center" sx={{ fontWeight: 'bold', minWidth: 140, p: 1 }}>
+                  <TableCell key={day.toISOString()} align="center" sx={{ fontWeight: 'bold', width: 140, minWidth: 140, maxWidth: 140, p: 1 }}>
                     <Box>
                       <Typography variant="body2" sx={{ fontSize: '0.875rem' }}>{format(day, 'EEE')}</Typography>
                       <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.75rem' }}>
@@ -870,17 +855,6 @@ const AssignmentList: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Error Snackbar */}
-      <Snackbar 
-        open={errorOpen} 
-        autoHideDuration={8000} 
-        onClose={handleCloseError}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
-          {errorMessage}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 };

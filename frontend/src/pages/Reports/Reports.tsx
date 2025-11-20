@@ -28,7 +28,6 @@ import {
   Divider,
 } from '@mui/material';
 import {
-  Assessment as ReportIcon,
   Assignment as AssignmentIcon,
   AttachMoney as MoneyIcon,
   PictureAsPdf as PdfIcon,
@@ -40,8 +39,10 @@ import { format, startOfMonth, endOfMonth } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
+import { useError } from '../../contexts/ErrorContext';
 
 const Reports: React.FC = () => {
+  const { showSuccess } = useError();
   const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments'>('payments');
   const [loading, setLoading] = useState(false);
   
@@ -62,7 +63,7 @@ const Reports: React.FC = () => {
       const data = await reportApi.getUpcomingAssignments(reportDate, reportDate);
       setAssignmentsReport(data);
     } catch (error) {
-      console.error('Error loading assignments report:', error);
+      // Error handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -74,7 +75,7 @@ const Reports: React.FC = () => {
       const data = await reportApi.getPaymentReport(paymentStartDate, paymentEndDate);
       setPaymentReport(data);
     } catch (error) {
-      console.error('Error loading payment report:', error);
+      // Error handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -90,7 +91,7 @@ const Reports: React.FC = () => {
       const data = await reportApi.getPaymentReport(startDate, endDate);
       setPaymentReport(data);
     } catch (error) {
-      console.error('Error loading payment report:', error);
+      // Error handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -298,11 +299,6 @@ const Reports: React.FC = () => {
 
   return (
     <Box>
-      <Box display="flex" alignItems="center" mb={3}>
-        <ReportIcon sx={{ mr: 2, fontSize: 32 }} />
-        <Typography variant="h4">Reports</Typography>
-      </Box>
-
       <Box sx={{ display: 'flex', gap: 3 }}>
         {/* Left Sidebar Navigation */}
         <Paper 

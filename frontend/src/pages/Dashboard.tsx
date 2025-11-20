@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   Grid,
   Card,
@@ -26,6 +27,7 @@ import { employeeApi } from '../api/employeeApi';
 import { workActivityApi } from '../api/workActivityApi';
 import { reportApi } from '../api/reportApi';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { useError } from '../contexts/ErrorContext';
 
 interface StatCardProps {
   title: string;
@@ -64,6 +66,7 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, icon, color }) => (
 );
 
 const Dashboard: React.FC = () => {
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     totalEmployees: 0,
@@ -75,9 +78,10 @@ const Dashboard: React.FC = () => {
   const [todayAssignments, setTodayAssignments] = useState<any[]>([]);
   const [inactiveActivitiesList, setInactiveActivitiesList] = useState<any[]>([]);
 
+  // Reload dashboard data whenever navigating to this page
   useEffect(() => {
     loadDashboardData();
-  }, []);
+  }, [location.pathname]);
 
   const loadDashboardData = async () => {
     try {
@@ -134,7 +138,7 @@ const Dashboard: React.FC = () => {
       // Get today's assignments (first 10)
       setTodayAssignments(sortedAssignments.slice(0, 10));
     } catch (error) {
-      console.error('Error loading dashboard data:', error);
+      // Error handled by global interceptor
       setTodayAssignments([]);
     } finally {
       setLoading(false);

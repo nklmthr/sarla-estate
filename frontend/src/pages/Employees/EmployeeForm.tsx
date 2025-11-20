@@ -24,11 +24,13 @@ import { employeeTypeApi } from '../../api/employeeTypeApi';
 import { employeeStatusApi } from '../../api/employeeStatusApi';
 import apiClient from '../../api/apiClient';
 import { Employee, EmployeeType, EmployeeStatus } from '../../types';
+import { useError } from '../../contexts/ErrorContext';
 
 const EmployeeForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
+  const { showError, showSuccess, showWarning } = useError();
 
   const [loading, setLoading] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -61,7 +63,7 @@ const EmployeeForm: React.FC = () => {
       const types = await employeeTypeApi.getActive();
       setEmployeeTypes(types);
     } catch (error) {
-      console.error('Error loading employee types:', error);
+      // Error handled by global interceptor
     }
   };
 
@@ -70,7 +72,7 @@ const EmployeeForm: React.FC = () => {
       const statuses = await employeeStatusApi.getActive();
       setEmployeeStatuses(statuses);
     } catch (error) {
-      console.error('Error loading employee statuses:', error);
+      // Error handled by global interceptor
     }
   };
 
@@ -94,12 +96,10 @@ const EmployeeForm: React.FC = () => {
         }
       } catch (photoError: any) {
         // Photo not found or error loading photo - that's okay, just no preview
-        if (photoError?.response?.status !== 404) {
-          console.error('Error loading employee photo:', photoError);
-        }
+        // 404 is expected if no photo uploaded, other errors handled by global interceptor
       }
     } catch (error) {
-      console.error('Error loading employee:', error);
+      // Error handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -115,13 +115,13 @@ const EmployeeForm: React.FC = () => {
     if (file) {
       // Validate file type
       if (!file.type.startsWith('image/')) {
-        alert('Please select an image file');
+        showWarning('Please select an image file (JPG, PNG, GIF, etc.)');
         return;
       }
       
       // Validate file size (max 5MB)
       if (file.size > 5 * 1024 * 1024) {
-        alert('File size must be less than 5MB');
+        showWarning('File size must be less than 5MB. Please choose a smaller image.');
         return;
       }
 
@@ -170,10 +170,10 @@ const EmployeeForm: React.FC = () => {
         }
       }
       
+      showSuccess(`Employee ${isEditMode ? 'updated' : 'created'} successfully!`);
       navigate('/employees');
     } catch (error) {
-      console.error('Error saving employee:', error);
-      alert('Error saving employee. Please try again.');
+      // Error handled by global interceptor
     } finally {
       setLoading(false);
     }
