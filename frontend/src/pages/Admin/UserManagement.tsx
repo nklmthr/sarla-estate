@@ -30,8 +30,10 @@ import {
 import { userApi, User } from '../../api/userApi';
 import { roleApi, Role } from '../../api/roleApi';
 import { format } from 'date-fns';
+import { useAuth } from '../../contexts/AuthContext';
 
 const UserManagement: React.FC = () => {
+  const { hasPermission } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -47,7 +49,10 @@ const UserManagement: React.FC = () => {
 
   useEffect(() => {
     loadUsers();
-    loadRoles();
+    // Only load roles if user has permission to view them
+    if (hasPermission('VIEW_ROLES')) {
+      loadRoles();
+    }
   }, []);
 
   const loadUsers = async () => {
@@ -55,7 +60,7 @@ const UserManagement: React.FC = () => {
       const data = await userApi.getAllUsers();
       setUsers(data);
     } catch (error) {
-      console.error('Error loading users:', error);
+      // Error handled by global interceptor
     }
   };
 
@@ -64,7 +69,9 @@ const UserManagement: React.FC = () => {
       const data = await roleApi.getActiveRoles();
       setRoles(data);
     } catch (error) {
-      console.error('Error loading roles:', error);
+      // Silently fail if user doesn't have permission to view roles
+      // They can still view/edit users, just can't change roles
+      setRoles([]);
     }
   };
 
@@ -113,8 +120,7 @@ const UserManagement: React.FC = () => {
       await loadUsers();
       handleCloseDialog();
     } catch (error: any) {
-      console.error('Error saving user:', error);
-      alert(error.response?.data?.message || 'Error saving user');
+      // Error handled by global interceptor
     }
   };
 
@@ -124,8 +130,7 @@ const UserManagement: React.FC = () => {
         await userApi.deleteUser(id);
         await loadUsers();
       } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('Error deleting user');
+        // Error handled by global interceptor
       }
     }
   };
@@ -138,6 +143,8 @@ const UserManagement: React.FC = () => {
           variant="contained"
           startIcon={<AddIcon />}
           onClick={() => handleOpenDialog()}
+          disabled={!hasPermission('VIEW_ROLES')}
+          title={!hasPermission('VIEW_ROLES') ? 'You need VIEW_ROLES permission to create users' : ''}
         >
           Add User
         </Button>
@@ -251,22 +258,33 @@ const UserManagement: React.FC = () => {
               onChange={handleChange}
               margin="normal"
             />
-            <TextField
-              fullWidth
-              required
-              select
-              label="Role"
-              name="roleId"
-              value={formData.roleId || ''}
-              onChange={handleChange}
-              margin="normal"
-            >
-              {roles.map((role) => (
-                <MenuItem key={role.id} value={role.id}>
-                  {role.name}
-                </MenuItem>
-              ))}
-            </TextField>
+            {roles.length > 0 ? (
+              <TextField
+                fullWidth
+                required
+                select
+                label="Role"
+                name="roleId"
+                value={formData.roleId || ''}
+                onChange={handleChange}
+                margin="normal"
+              >
+                {roles.map((role) => (
+                  <MenuItem key={role.id} value={role.id}>
+                    {role.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            ) : (
+              <TextField
+                fullWidth
+                label="Role"
+                value={editingUser?.role || 'N/A (Insufficient permissions to view roles)'}
+                margin="normal"
+                disabled
+                helperText="You don't have permission to view or change roles"
+              />
+            )}
             <FormControlLabel
               control={
                 <Switch

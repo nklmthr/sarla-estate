@@ -352,7 +352,7 @@ const theme = createTheme({
 });
 
 // Component to initialize error handlers
-const AppContent: React.FC = () => {
+const ErrorHandlerInitializer: React.FC = () => {
   const { showHttpError, showNetworkError } = useError();
 
   // Initialize global error handlers once
@@ -360,40 +360,7 @@ const AppContent: React.FC = () => {
     setGlobalErrorHandler(showHttpError, showNetworkError);
   }, [showHttpError, showNetworkError]);
 
-  return (
-    <Router>
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Dashboard />} />
-          
-          {/* Employee Routes */}
-          <Route path="/employees" element={<EmployeeList />} />
-          <Route path="/employees/new" element={<EmployeeForm />} />
-          <Route path="/employees/:id/edit" element={<EmployeeForm />} />
-          
-          {/* Work Activity Routes */}
-          <Route path="/work-activities" element={<WorkActivityList />} />
-          <Route path="/work-activities/new" element={<WorkActivityForm />} />
-          <Route path="/work-activities/:id/edit" element={<WorkActivityForm />} />
-          
-          {/* Assignment Routes */}
-          <Route path="/assignments" element={<AssignmentList />} />
-          
-          {/* Salary Routes */}
-          <Route path="/salary" element={<SalaryManagement />} />
-          
-          {/* Reports Routes */}
-          <Route path="/reports" element={<Reports />} />
-          
-          {/* Admin Settings */}
-          <Route path="/admin/settings" element={<AdminSettings />} />
-          
-          {/* Redirect unknown routes to dashboard */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </Layout>
-    </Router>
-  );
+  return null; // This component only initializes, doesn't render anything
 };
 
 function App() {
@@ -401,135 +368,134 @@ function App() {
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <ErrorProvider>
-        <AppContent />
+        <ErrorHandlerInitializer />
+        <AuthProvider>
+          <Router>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
+              
+              {/* Protected Routes */}
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Dashboard />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              {/* Employee Routes */}
+              <Route path="/employees" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <EmployeeList />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/employees/new" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <EmployeeForm />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/employees/:id/edit" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <EmployeeForm />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              {/* Work Activity Routes */}
+              <Route path="/work-activities" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <WorkActivityList />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/work-activities/new" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <WorkActivityForm />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/work-activities/:id/edit" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <WorkActivityForm />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              {/* Assignment Routes */}
+              <Route path="/assignments" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AssignmentList />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              {/* Salary Routes */}
+              <Route path="/salary" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <SalaryManagement />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              {/* Reports Routes */}
+              <Route path="/reports" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Reports />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              
+              {/* Admin Routes */}
+              <Route path="/admin/settings" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AdminSettings />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/users" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <UserManagement />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/roles" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <RoleManagement />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/permission-configs" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PermissionConfigManagement />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+            
+              {/* Redirect unknown routes to dashboard */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Router>
+        </AuthProvider>
       </ErrorProvider>
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <AuthProvider>
-        <Router>
-          <Routes>
-            {/* Public Routes */}
-            <Route path="/login" element={<Login />} />
-            
-            {/* Protected Routes */}
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Dashboard />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            {/* Employee Routes */}
-            <Route path="/employees" element={
-              <ProtectedRoute>
-                <Layout>
-                  <EmployeeList />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/employees/new" element={
-              <ProtectedRoute>
-                <Layout>
-                  <EmployeeForm />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/employees/:id/edit" element={
-              <ProtectedRoute>
-                <Layout>
-                  <EmployeeForm />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            {/* Work Activity Routes */}
-            <Route path="/work-activities" element={
-              <ProtectedRoute>
-                <Layout>
-                  <WorkActivityList />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/work-activities/new" element={
-              <ProtectedRoute>
-                <Layout>
-                  <WorkActivityForm />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/work-activities/:id/edit" element={
-              <ProtectedRoute>
-                <Layout>
-                  <WorkActivityForm />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            {/* Assignment Routes */}
-            <Route path="/assignments" element={
-              <ProtectedRoute>
-                <Layout>
-                  <AssignmentList />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            {/* Salary Routes */}
-            <Route path="/salary" element={
-              <ProtectedRoute>
-                <Layout>
-                  <SalaryManagement />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            {/* Reports Routes */}
-            <Route path="/reports" element={
-              <ProtectedRoute>
-                <Layout>
-                  <Reports />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            {/* Admin Routes */}
-            <Route path="/admin/settings" element={
-              <ProtectedRoute>
-                <Layout>
-                  <AdminSettings />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/users" element={
-              <ProtectedRoute>
-                <Layout>
-                  <UserManagement />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/roles" element={
-              <ProtectedRoute>
-                <Layout>
-                  <RoleManagement />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            <Route path="/admin/permission-configs" element={
-              <ProtectedRoute>
-                <Layout>
-                  <PermissionConfigManagement />
-                </Layout>
-              </ProtectedRoute>
-            } />
-            
-            {/* Redirect unknown routes to dashboard */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Router>
-      </AuthProvider>
     </ThemeProvider>
   );
-}
+};
+
 
 export default App;

@@ -63,7 +63,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { logout, user } = useAuth();
+  const { logout, user, hasPermission } = useAuth();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -73,6 +73,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     navigate(path);
     setMobileOpen(false);
   };
+
+  // Filter security menu items based on permissions
+  const visibleSecurityMenuItems = securityMenuItems.filter((item) => {
+    if (item.path === '/admin/users') {
+      return hasPermission('VIEW_USERS');
+    }
+    if (item.path === '/admin/roles') {
+      return hasPermission('VIEW_ROLES');
+    }
+    if (item.path === '/admin/permission-configs') {
+      // Only Super Admins (with SYSTEM_ADMIN permission) can see Permissions
+      return hasPermission('SYSTEM_ADMIN');
+    }
+    return false;
+  });
 
   const drawer = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -129,15 +144,17 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         ))}
       </List>
       
-      <Divider sx={{ borderColor: 'rgba(0, 0, 0, 0.08)', my: 1 }} />
-      
-      <List>
-        <ListItem>
-          <Typography variant="caption" sx={{ pl: 2, color: 'text.secondary', fontWeight: 600 }}>
-            SECURITY
-          </Typography>
-        </ListItem>
-        {securityMenuItems.map((item) => (
+      {visibleSecurityMenuItems.length > 0 && (
+        <>
+          <Divider sx={{ borderColor: 'rgba(0, 0, 0, 0.08)', my: 1 }} />
+          
+          <List>
+            <ListItem>
+              <Typography variant="caption" sx={{ pl: 2, color: 'text.secondary', fontWeight: 600 }}>
+                SECURITY
+              </Typography>
+            </ListItem>
+            {visibleSecurityMenuItems.map((item) => (
           <ListItem key={item.text} disablePadding>
             <ListItemButton
               selected={location.pathname === item.path}
@@ -174,7 +191,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             </ListItemButton>
           </ListItem>
         ))}
-      </List>
+          </List>
+        </>
+      )}
       
       <Box sx={{ flexGrow: 1 }} />
       

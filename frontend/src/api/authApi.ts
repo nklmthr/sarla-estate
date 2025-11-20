@@ -11,6 +11,7 @@ export interface LoginResponse {
   fullName: string | null;
   email: string | null;
   role: string;
+  permissions?: string[]; // Array of permission names
 }
 
 export const authApi = {

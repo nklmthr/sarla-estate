@@ -60,7 +60,8 @@ public class AuthService {
                 user.getUsername(),
                 user.getFullName(),
                 user.getEmail(),
-                roleName
+                roleName,
+                new java.util.ArrayList<>(permissions)
         );
     }
 }
