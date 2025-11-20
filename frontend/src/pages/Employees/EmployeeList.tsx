@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -37,9 +37,12 @@ import { employeeApi } from '../../api/employeeApi';
 import { salaryApi } from '../../api/salaryApi';
 import { Employee, EmployeeSalary } from '../../types';
 import { format } from 'date-fns';
+import { useError } from '../../contexts/ErrorContext';
 
 const EmployeeList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { showSuccess } = useError();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
@@ -70,9 +73,10 @@ const EmployeeList: React.FC = () => {
     notes: '',
   });
 
+  // Reload employees whenever page changes or when navigating to this route
   useEffect(() => {
     loadEmployees();
-  }, [page, rowsPerPage, searchTerm]);
+  }, [page, rowsPerPage, searchTerm, location.pathname]);
 
   useEffect(() => {
     filterEmployees();
@@ -95,7 +99,7 @@ const EmployeeList: React.FC = () => {
       setTotalEmployees(paginatedData.totalElements);
       setFilteredEmployees(paginatedData.content);
     } catch (error) {
-      console.error('Error loading employees:', error);
+      // Error handled by global interceptor
       setEmployees([]);
       setFilteredEmployees([]);
       setTotalEmployees(0);
@@ -134,9 +138,10 @@ const EmployeeList: React.FC = () => {
       await employeeApi.deleteEmployee(employeeToDelete.id!);
       setEmployees(employees.filter((e) => e.id !== employeeToDelete.id));
       setDeleteDialogOpen(false);
+      showSuccess('Employee deleted successfully!');
       setEmployeeToDelete(null);
     } catch (error) {
-      console.error('Error deleting employee:', error);
+      // Error handled by global interceptor
     }
   };
 
@@ -166,7 +171,7 @@ const EmployeeList: React.FC = () => {
       const historyArray = Array.isArray(history) ? history : [];
       setSalaryHistory(historyArray);
     } catch (error) {
-      console.error('Error loading salary data:', error);
+      // Error handled by global interceptor
       setCurrentSalary(null);
       setSalaryHistory([]);
     } finally {
@@ -216,10 +221,10 @@ const EmployeeList: React.FC = () => {
         await salaryApi.update(selectedEmployee.id, salaryFormData);
       }
       await loadEmployeeSalary(selectedEmployee.id);
+      showSuccess('Salary saved successfully!');
       setSalaryFormDialogOpen(false);
     } catch (error) {
-      console.error('Error saving salary:', error);
-      alert('Error saving salary. Please try again.');
+      // Error handled by global interceptor
     }
   };
 

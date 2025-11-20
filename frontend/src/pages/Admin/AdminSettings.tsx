@@ -32,6 +32,7 @@ import {
 import { EmployeeType, EmployeeStatus } from '../../types';
 import { employeeTypeApi } from '../../api/employeeTypeApi';
 import { employeeStatusApi } from '../../api/employeeStatusApi';
+import { useError } from '../../contexts/ErrorContext';
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -55,6 +56,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 export default function AdminSettings() {
+  const { showSuccess, showWarning } = useError();
   const [tabValue, setTabValue] = useState(0);
   const [employeeTypes, setEmployeeTypes] = useState<EmployeeType[]>([]);
   const [employeeStatuses, setEmployeeStatuses] = useState<EmployeeStatus[]>([]);
@@ -62,8 +64,6 @@ export default function AdminSettings() {
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
   const [editingType, setEditingType] = useState<EmployeeType | null>(null);
   const [editingStatus, setEditingStatus] = useState<EmployeeStatus | null>(null);
-  const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
 
   // Form states for Type
   const [typeForm, setTypeForm] = useState({
@@ -93,8 +93,8 @@ export default function AdminSettings() {
       const data = await employeeTypeApi.getAll();
       setEmployeeTypes(data);
     } catch (err) {
-      setError('Failed to load employee types');
-      console.error('Error loading employee types:', err);
+      // Error handled by global interceptor
+      // Error handled by global interceptor
     }
   };
 
@@ -103,15 +103,13 @@ export default function AdminSettings() {
       const data = await employeeStatusApi.getAll();
       setEmployeeStatuses(data);
     } catch (err) {
-      setError('Failed to load employee statuses');
-      console.error('Error loading employee statuses:', err);
+      // Error handled by global interceptor
+      // Error handled by global interceptor
     }
   };
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
-    setError('');
-    setSuccess('');
   };
 
   // Employee Type Handlers
@@ -138,7 +136,7 @@ export default function AdminSettings() {
       });
     }
     setOpenTypeDialog(true);
-    setError('');
+    // Error handled by global interceptor
   };
 
   const handleCloseTypeDialog = () => {
@@ -148,26 +146,23 @@ export default function AdminSettings() {
 
   const handleSaveType = async () => {
     try {
-      setError('');
       if (!typeForm.code || !typeForm.name) {
-        setError('Code and Name are required');
+        showWarning('Code and Name are required');
         return;
       }
 
       if (editingType) {
         await employeeTypeApi.update(editingType.id!, typeForm);
-        setSuccess('Employee type updated successfully');
+        showSuccess('Employee type updated successfully');
       } else {
         await employeeTypeApi.create(typeForm);
-        setSuccess('Employee type created successfully');
+        showSuccess('Employee type created successfully');
       }
       
       handleCloseTypeDialog();
       loadEmployeeTypes();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save employee type');
-      console.error('Error saving employee type:', err);
+    } catch (err) {
+      // Error handled by global interceptor
     }
   };
 
@@ -178,12 +173,10 @@ export default function AdminSettings() {
 
     try {
       await employeeTypeApi.delete(id);
-      setSuccess('Employee type deleted successfully');
+      showSuccess('Employee type deleted successfully');
       loadEmployeeTypes();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete employee type');
-      console.error('Error deleting employee type:', err);
+    } catch (err) {
+      // Error handled by global interceptor
     }
   };
 
@@ -192,8 +185,8 @@ export default function AdminSettings() {
       await employeeTypeApi.toggleActive(id);
       loadEmployeeTypes();
     } catch (err) {
-      setError('Failed to toggle employee type status');
-      console.error('Error toggling employee type:', err);
+      // Error handled by global interceptor
+      // Error handled by global interceptor
     }
   };
 
@@ -221,7 +214,7 @@ export default function AdminSettings() {
       });
     }
     setOpenStatusDialog(true);
-    setError('');
+    // Error handled by global interceptor
   };
 
   const handleCloseStatusDialog = () => {
@@ -231,26 +224,23 @@ export default function AdminSettings() {
 
   const handleSaveStatus = async () => {
     try {
-      setError('');
       if (!statusForm.code || !statusForm.name) {
-        setError('Code and Name are required');
+        showWarning('Code and Name are required');
         return;
       }
 
       if (editingStatus) {
         await employeeStatusApi.update(editingStatus.id!, statusForm);
-        setSuccess('Employee status updated successfully');
+        showSuccess('Employee status updated successfully');
       } else {
         await employeeStatusApi.create(statusForm);
-        setSuccess('Employee status created successfully');
+        showSuccess('Employee status created successfully');
       }
       
       handleCloseStatusDialog();
       loadEmployeeStatuses();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to save employee status');
-      console.error('Error saving employee status:', err);
+    } catch (err) {
+      // Error handled by global interceptor
     }
   };
 
@@ -261,12 +251,10 @@ export default function AdminSettings() {
 
     try {
       await employeeStatusApi.delete(id);
-      setSuccess('Employee status deleted successfully');
+      showSuccess('Employee status deleted successfully');
       loadEmployeeStatuses();
-      setTimeout(() => setSuccess(''), 3000);
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to delete employee status');
-      console.error('Error deleting employee status:', err);
+    } catch (err) {
+      // Error handled by global interceptor
     }
   };
 
@@ -275,8 +263,8 @@ export default function AdminSettings() {
       await employeeStatusApi.toggleActive(id);
       loadEmployeeStatuses();
     } catch (err) {
-      setError('Failed to toggle employee status');
-      console.error('Error toggling employee status:', err);
+      // Error handled by global interceptor
+      // Error handled by global interceptor
     }
   };
 
@@ -290,18 +278,6 @@ export default function AdminSettings() {
           </Typography>
         </Box>
       </Box>
-
-      {error && (
-        <Alert severity="error" onClose={() => setError('')} sx={{ mb: 2 }}>
-          {error}
-        </Alert>
-      )}
-
-      {success && (
-        <Alert severity="success" onClose={() => setSuccess('')} sx={{ mb: 2 }}>
-          {success}
-        </Alert>
-      )}
 
       <Paper elevation={2}>
         <Tabs

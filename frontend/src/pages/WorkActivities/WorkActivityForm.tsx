@@ -14,11 +14,13 @@ import {
 import { Save as SaveIcon, Cancel as CancelIcon } from '@mui/icons-material';
 import { workActivityApi } from '../../api/workActivityApi';
 import { WorkActivity } from '../../types';
+import { useError } from '../../contexts/ErrorContext';
 
 const WorkActivityForm: React.FC = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isEditMode = Boolean(id);
+  const { showSuccess } = useError();
 
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState<WorkActivity>({
@@ -39,7 +41,7 @@ const WorkActivityForm: React.FC = () => {
       const data = await workActivityApi.getWorkActivityById(activityId);
       setFormData(data);
     } catch (error) {
-      console.error('Error loading work activity:', error);
+      // Error handled by global interceptor
     } finally {
       setLoading(false);
     }
@@ -61,10 +63,11 @@ const WorkActivityForm: React.FC = () => {
         await workActivityApi.updateWorkActivity(id, formData);
       } else {
         await workActivityApi.createWorkActivity(formData);
-      }
+      }      
+      showSuccess(`Work activity ${isEditMode ? 'updated' : 'created'} successfully!`);
       navigate('/work-activities');
     } catch (error) {
-      console.error('Error saving work activity:', error);
+      // Error handled by global interceptor
     } finally {
       setLoading(false);
     }

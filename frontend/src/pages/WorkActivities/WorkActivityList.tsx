@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -25,8 +25,6 @@ import {
   FormControl,
   InputLabel,
   Grid,
-  Snackbar,
-  Alert,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -34,13 +32,17 @@ import {
   Delete as DeleteIcon,
   Search as SearchIcon,
   Rule as RuleIcon,
+  Clear as ClearIcon,
 } from '@mui/icons-material';
 import { workActivityApi } from '../../api/workActivityApi';
 import { completionCriteriaApi } from '../../api/completionCriteriaApi';
 import { WorkActivity, WorkActivityCompletionCriteria } from '../../types';
+import { useError } from '../../contexts/ErrorContext';
 
 const WorkActivityList: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { showSuccess } = useError();
   const [activities, setActivities] = useState<WorkActivity[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<WorkActivity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,12 +62,14 @@ const WorkActivityList: React.FC = () => {
     endDate: '',
     notes: '',
   });
-  const [errorMessage, setErrorMessage] = useState<string>('');
-  const [errorOpen, setErrorOpen] = useState(false);
+  const [successDialogOpen, setSuccessDialogOpen] = useState(false);
+  const [deleteCriteriaDialogOpen, setDeleteCriteriaDialogOpen] = useState(false);
+  const [criteriaToDelete, setCriteriaToDelete] = useState<WorkActivityCompletionCriteria | null>(null);
 
+  // Reload activities whenever the page is navigated to
   useEffect(() => {
     loadActivities();
-  }, []);
+  }, [location.pathname]); // Reload when route changes
 
   useEffect(() => {
     filterActivities();
@@ -81,11 +85,23 @@ const WorkActivityList: React.FC = () => {
       setActivities(activitiesArray);
       setFilteredActivities(activitiesArray);
     } catch (error) {
-      console.error('Error loading work activities:', error);
+      // Error handled by global interceptor
       setActivities([]);
       setFilteredActivities([]);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Reload activities in background without showing loading spinner
+  const reloadActivitiesInBackground = async () => {
+    try {
+      const data = await workActivityApi.getAllWorkActivities();
+      const activitiesArray = Array.isArray(data) ? data : [];
+      setActivities(activitiesArray);
+      setFilteredActivities(activitiesArray);
+    } catch (error) {
+      // Error handled by global interceptor
     }
   };
 
@@ -122,15 +138,11 @@ const WorkActivityList: React.FC = () => {
     try {
       await workActivityApi.deleteWorkActivity(activityToDelete.id!);
       setActivities(activities.filter((a) => a.id !== activityToDelete.id));
+      showSuccess('Work activity deleted successfully!');
       setDeleteDialogOpen(false);
       setActivityToDelete(null);
-    } catch (error: any) {
-      console.error('Error deleting work activity:', error);
-      const message = error?.response?.data?.message || 
-                     error?.message || 
-                     'Failed to delete work activity. Please try again.';
-      setErrorMessage(message);
-      setErrorOpen(true);
+    } catch (error) {
+      // Error handled by global interceptor
       setDeleteDialogOpen(false);
     }
   };
@@ -156,14 +168,9 @@ const WorkActivityList: React.FC = () => {
     try {
       const data = await completionCriteriaApi.getAllByActivity(activity.id!);
       setCompletionCriteria(Array.isArray(data) ? data : []);
-    } catch (error: any) {
-      console.error('Error loading completion criteria:', error);
+    } catch (error) {
+      // Error handled by global interceptor
       setCompletionCriteria([]);
-      const message = error?.response?.data?.message || 
-                     error?.message || 
-                     'Failed to load completion criteria.';
-      setErrorMessage(message);
-      setErrorOpen(true);
     }
     setCriteriaDialogOpen(true);
   };
@@ -210,35 +217,68 @@ const WorkActivityList: React.FC = () => {
   const handleSaveCriteria = async () => {
     if (!selectedActivity?.id) return;
 
+    // Capture activity ID before async operations
+    const activityId = selectedActivity.id;
+
     try {
       if (editingCriteria?.id) {
         // Update existing criteria
-        await completionCriteriaApi.update(selectedActivity.id, editingCriteria.id, criteriaFormData);
+        await completionCriteriaApi.update(activityId, editingCriteria.id, criteriaFormData);
       } else {
         // Create new criteria
-        await completionCriteriaApi.create(selectedActivity.id, criteriaFormData);
+        await completionCriteriaApi.create(activityId, criteriaFormData);
       }
       
-      // Reload criteria
-      const data = await completionCriteriaApi.getAllByActivity(selectedActivity.id);
-      setCompletionCriteria(Array.isArray(data) ? data : []);
-      
-      // Close form
+      // Close form and show success dialog (blocking)
       setShowCriteriaForm(false);
       setEditingCriteria(null);
       resetCriteriaForm();
-    } catch (error: any) {
-      console.error('Error saving completion criteria:', error);
-      const message = error?.response?.data?.message || 
-                     error?.message || 
-                     'Failed to save completion criteria. Please try again.';
-      setErrorMessage(message);
-      setErrorOpen(true);
+      setSuccessDialogOpen(true);
+    } catch (error) {
+      // Error handled by global interceptor
     }
   };
 
-  const handleCloseError = () => {
-    setErrorOpen(false);
+  const handleSuccessDialogClose = async () => {
+    setSuccessDialogOpen(false);
+    
+    // Now reload the criteria list after user acknowledges success
+    if (selectedActivity?.id) {
+      const data = await completionCriteriaApi.getAllByActivity(selectedActivity.id);
+      setCompletionCriteria(Array.isArray(data) ? data : []);
+      
+      // ✨ Reload activities list in background to update ACTIVE/INACTIVE status
+      reloadActivitiesInBackground();
+    }
+  };
+
+  const handleDeleteCriteria = async () => {
+    if (!selectedActivity?.id || !criteriaToDelete?.id) return;
+
+    try {
+      await completionCriteriaApi.delete(selectedActivity.id, criteriaToDelete.id);
+      
+      // Close delete dialog
+      setDeleteCriteriaDialogOpen(false);
+      setCriteriaToDelete(null);
+      
+      // Reload criteria list
+      const data = await completionCriteriaApi.getAllByActivity(selectedActivity.id);
+      setCompletionCriteria(Array.isArray(data) ? data : []);
+      
+
+      // Reload activities list in background to update ACTIVE/INACTIVE status
+      reloadActivitiesInBackground();
+      
+      showSuccess('Completion criteria deleted successfully!');
+    } catch (error) {
+      // Error handled by global interceptor
+    }
+  };
+
+  const openDeleteCriteriaDialog = (criteria: WorkActivityCompletionCriteria) => {
+    setCriteriaToDelete(criteria);
+    setDeleteCriteriaDialogOpen(true);
   };
 
   const handleCancelCriteriaForm = () => {
@@ -391,12 +431,17 @@ const WorkActivityList: React.FC = () => {
       >
         <DialogTitle>
           <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">
-              {showCriteriaForm 
-                ? (editingCriteria ? 'Edit Completion Criteria' : 'Add Completion Criteria')
-                : `Completion Criteria - ${selectedActivity?.name}`
-              }
-            </Typography>
+            <Box>
+              <Typography variant="h6">
+                {showCriteriaForm 
+                  ? (editingCriteria ? 'Edit Completion Criteria' : 'Add Completion Criteria')
+                  : 'Completion Criteria'
+                }
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Activity: {selectedActivity?.name}
+              </Typography>
+            </Box>
             {!showCriteriaForm && (
               <Button
                 variant="contained"
@@ -454,16 +499,36 @@ const WorkActivityList: React.FC = () => {
                 />
               </Grid>
               <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  type="date"
-                  label="End Date"
-                  name="endDate"
-                  value={criteriaFormData.endDate || ''}
-                  onChange={handleCriteriaFormChange}
-                  InputLabelProps={{ shrink: true }}
-                  helperText="Leave empty for ongoing criteria"
-                />
+                <Box sx={{ position: 'relative' }}>
+                  <TextField
+                    fullWidth
+                    type="date"
+                    label="End Date"
+                    name="endDate"
+                    value={criteriaFormData.endDate || ''}
+                    onChange={handleCriteriaFormChange}
+                    InputLabelProps={{ shrink: true }}
+                    helperText="Leave empty for ongoing criteria"
+                  />
+                  {criteriaFormData.endDate && (
+                    <IconButton
+                      size="small"
+                      onClick={() => setCriteriaFormData(prev => ({ ...prev, endDate: '' }))}
+                      title="Clear end date (ongoing criteria)"
+                      sx={{
+                        position: 'absolute',
+                        right: 35,
+                        top: 14,
+                        bgcolor: 'background.paper',
+                        '&:hover': {
+                          bgcolor: 'action.hover',
+                        },
+                      }}
+                    >
+                      <ClearIcon fontSize="small" />
+                    </IconButton>
+                  )}
+                </Box>
               </Grid>
               <Grid item xs={12}>
                 <TextField
@@ -516,8 +581,17 @@ const WorkActivityList: React.FC = () => {
                           size="small"
                           onClick={() => handleEditCriteria(criteria)}
                           color="primary"
+                          title="Edit Criteria"
                         >
                           <EditIcon />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => openDeleteCriteriaDialog(criteria)}
+                          color="error"
+                          title="Delete Criteria"
+                        >
+                          <DeleteIcon />
                         </IconButton>
                       </TableCell>
                     </TableRow>
@@ -541,17 +615,45 @@ const WorkActivityList: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Error Snackbar */}
-      <Snackbar 
-        open={errorOpen} 
-        autoHideDuration={6000} 
-        onClose={handleCloseError}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-      >
-        <Alert onClose={handleCloseError} severity="error" sx={{ width: '100%' }}>
-          {errorMessage}
-        </Alert>
-      </Snackbar>
+      {/* Success Confirmation Dialog */}
+      <Dialog open={successDialogOpen} onClose={handleSuccessDialogClose}>
+        <DialogTitle>Success</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Completion criteria saved successfully!
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleSuccessDialogClose} variant="contained" color="primary">
+            OK
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Criteria Confirmation Dialog */}
+      <Dialog open={deleteCriteriaDialogOpen} onClose={() => setDeleteCriteriaDialogOpen(false)}>
+        <DialogTitle>Confirm Delete</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Are you sure you want to delete this completion criteria?
+          </Typography>
+          {criteriaToDelete && (
+            <Box sx={{ mt: 2, p: 2, bgcolor: 'background.paper', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+              <Typography variant="body2"><strong>Unit:</strong> {criteriaToDelete.unit}</Typography>
+              <Typography variant="body2"><strong>Value:</strong> {criteriaToDelete.value}</Typography>
+              <Typography variant="body2"><strong>Start Date:</strong> {criteriaToDelete.startDate}</Typography>
+              <Typography variant="body2"><strong>End Date:</strong> {criteriaToDelete.endDate || 'Ongoing'}</Typography>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteCriteriaDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleDeleteCriteria} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 };

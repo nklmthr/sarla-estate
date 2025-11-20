@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
@@ -12,6 +12,8 @@ import AssignmentList from './pages/Assignments/AssignmentList';
 import SalaryManagement from './pages/Salary/SalaryManagement';
 import Reports from './pages/Reports/Reports';
 import AdminSettings from './pages/Admin/AdminSettings';
+import { ErrorProvider, useError } from './contexts/ErrorContext';
+import { setGlobalErrorHandler } from './api/apiClient';
 
 const theme = createTheme({
   palette: {
@@ -299,15 +301,6 @@ const theme = createTheme({
         },
       },
     },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 12,
-          boxShadow: '0px 2px 8px rgba(0,0,0,0.08)',
-          border: '1px solid rgba(0, 0, 0, 0.05)',
-        },
-      },
-    },
     MuiAutocomplete: {
       styleOverrides: {
         paper: {
@@ -352,42 +345,58 @@ const theme = createTheme({
   },
 });
 
+// Component to initialize error handlers
+const AppContent: React.FC = () => {
+  const { showHttpError, showNetworkError } = useError();
+
+  // Initialize global error handlers once
+  useEffect(() => {
+    setGlobalErrorHandler(showHttpError, showNetworkError);
+  }, [showHttpError, showNetworkError]);
+
+  return (
+    <Router>
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          
+          {/* Employee Routes */}
+          <Route path="/employees" element={<EmployeeList />} />
+          <Route path="/employees/new" element={<EmployeeForm />} />
+          <Route path="/employees/:id/edit" element={<EmployeeForm />} />
+          
+          {/* Work Activity Routes */}
+          <Route path="/work-activities" element={<WorkActivityList />} />
+          <Route path="/work-activities/new" element={<WorkActivityForm />} />
+          <Route path="/work-activities/:id/edit" element={<WorkActivityForm />} />
+          
+          {/* Assignment Routes */}
+          <Route path="/assignments" element={<AssignmentList />} />
+          
+          {/* Salary Routes */}
+          <Route path="/salary" element={<SalaryManagement />} />
+          
+          {/* Reports Routes */}
+          <Route path="/reports" element={<Reports />} />
+          
+          {/* Admin Settings */}
+          <Route path="/admin/settings" element={<AdminSettings />} />
+          
+          {/* Redirect unknown routes to dashboard */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Layout>
+    </Router>
+  );
+};
+
 function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Router>
-        <Layout>
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-            
-            {/* Employee Routes */}
-            <Route path="/employees" element={<EmployeeList />} />
-            <Route path="/employees/new" element={<EmployeeForm />} />
-            <Route path="/employees/:id/edit" element={<EmployeeForm />} />
-            
-            {/* Work Activity Routes */}
-            <Route path="/work-activities" element={<WorkActivityList />} />
-            <Route path="/work-activities/new" element={<WorkActivityForm />} />
-            <Route path="/work-activities/:id/edit" element={<WorkActivityForm />} />
-            
-            {/* Assignment Routes */}
-            <Route path="/assignments" element={<AssignmentList />} />
-            
-            {/* Salary Routes */}
-            <Route path="/salary" element={<SalaryManagement />} />
-            
-            {/* Reports Routes */}
-            <Route path="/reports" element={<Reports />} />
-            
-            {/* Admin Settings */}
-            <Route path="/admin/settings" element={<AdminSettings />} />
-            
-            {/* Redirect unknown routes to dashboard */}
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Layout>
-      </Router>
+      <ErrorProvider>
+        <AppContent />
+      </ErrorProvider>
     </ThemeProvider>
   );
 }
