@@ -5,7 +5,7 @@
     "buildCommand": "mvn clean package -DskipTests"
   },
   "deploy": {
-    "startCommand": "java -Dspring.profiles.active=prod -jar target/sarla-tea-estates-crm-1.0.0.jar",
+    "startCommand": "java -Dspring.profiles.active=prod -jar target/sarla-tea-estates-crm-1.0.0.jar --server.port=$PORT",
     "healthcheckPath": "/api/health",
     "healthcheckTimeout": 300,
     "restartPolicyType": "ON_FAILURE",
