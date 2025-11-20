@@ -51,7 +51,12 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:3001"));
+        // Allow both localhost (dev) and Railway production URLs
+        configuration.setAllowedOriginPatterns(List.of(
+            "http://localhost:*",           // Local development
+            "https://*.railway.app",         // Railway production
+            "https://*.up.railway.app"       // Railway production (alternative domain)
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setAllowCredentials(true);
