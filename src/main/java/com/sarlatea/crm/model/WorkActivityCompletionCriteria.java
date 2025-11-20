@@ -30,7 +30,7 @@ public class WorkActivityCompletionCriteria extends BaseEntity {
     @Enumerated(EnumType.STRING)
     private Unit unit;
 
-    @Column(name = "value", nullable = false, precision = 15, scale = 2)
+    @Column(name = "`value`", nullable = false, precision = 15, scale = 2)
     private BigDecimal value;
 
     @Column(name = "start_date", nullable = false)
