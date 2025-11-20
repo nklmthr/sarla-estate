@@ -11,6 +11,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,6 +33,7 @@ public class EmployeeController {
     private final ObjectMapper objectMapper;
 
     @GetMapping
+    @PreAuthorize("hasPermission('EMPLOYEE', 'VIEW')")
     public ResponseEntity<List<EmployeeDTO>> getAllEmployees() {
         log.info("GET request to fetch all employees");
         List<EmployeeDTO> employees = employeeService.getAllEmployees();
@@ -39,6 +41,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/paginated")
+    @PreAuthorize("hasPermission('EMPLOYEE', 'VIEW')")
     public ResponseEntity<Map<String, Object>> getEmployeesPaginated(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
@@ -62,6 +65,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/{id}")
+    @PreAuthorize("hasPermission('EMPLOYEE', 'VIEW')")
     public ResponseEntity<EmployeeDTO> getEmployeeById(@PathVariable String id) {
         log.info("GET request to fetch employee with id: {}", id);
         EmployeeDTO employee = employeeService.getEmployeeById(id);
@@ -69,6 +73,7 @@ public class EmployeeController {
     }
 
     @PostMapping
+    @PreAuthorize("hasPermission('EMPLOYEE', 'CREATE')")
     public ResponseEntity<EmployeeDTO> createEmployee(@RequestBody EmployeeDTO employeeDTO) {
         log.info("POST request to create new employee: {}", employeeDTO.getName());
         EmployeeDTO createdEmployee = employeeService.createEmployee(employeeDTO);
@@ -76,6 +81,7 @@ public class EmployeeController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasPermission('EMPLOYEE', 'CREATE')")
     public ResponseEntity<EmployeeDTO> createEmployeeWithPhoto(
             @RequestPart("employee") String employeeJson,
             @RequestPart(value = "idCardPhoto", required = false) MultipartFile photo) throws IOException {
@@ -94,6 +100,7 @@ public class EmployeeController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasPermission('EMPLOYEE', 'EDIT')")
     public ResponseEntity<EmployeeDTO> updateEmployee(
             @PathVariable String id, 
             @RequestBody EmployeeDTO employeeDTO) {
@@ -103,6 +110,7 @@ public class EmployeeController {
     }
 
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasPermission('EMPLOYEE', 'EDIT')")
     public ResponseEntity<EmployeeDTO> updateEmployeeWithPhoto(
             @PathVariable String id,
             @RequestPart("employee") String employeeJson,
@@ -122,6 +130,7 @@ public class EmployeeController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission('EMPLOYEE', 'DELETE')")
     public ResponseEntity<Void> deleteEmployee(@PathVariable String id) {
         log.info("DELETE request to delete employee with id: {}", id);
         employeeService.deleteEmployee(id);
@@ -129,6 +138,7 @@ public class EmployeeController {
     }
 
     @GetMapping("/search")
+    @PreAuthorize("hasPermission('EMPLOYEE', 'VIEW')")
     public ResponseEntity<List<EmployeeDTO>> searchEmployees(@RequestParam String term) {
         log.info("GET request to search employees with term: {}", term);
         List<EmployeeDTO> employees = employeeService.searchEmployees(term);

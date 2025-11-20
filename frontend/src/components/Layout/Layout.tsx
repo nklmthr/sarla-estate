@@ -14,6 +14,7 @@ import {
   ListItemIcon,
   ListItemText,
   Container,
+  Button,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -24,7 +25,12 @@ import {
   Assessment as ReportsIcon,
   Settings as SettingsIcon,
   LocalFlorist as TeaIcon,
+  Security as SecurityIcon,
+  Logout as LogoutIcon,
+  AdminPanelSettings as AdminIcon,
+  VpnKey as KeyIcon,
 } from '@mui/icons-material';
+import { useAuth } from '../../contexts/AuthContext';
 
 const drawerWidth = 200;
 
@@ -47,10 +53,17 @@ const menuItems: MenuItem[] = [
   { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
 ];
 
+const securityMenuItems: MenuItem[] = [
+  { text: 'Users', icon: <SecurityIcon />, path: '/admin/users' },
+  { text: 'Roles', icon: <AdminIcon />, path: '/admin/roles' },
+  { text: 'Permissions', icon: <KeyIcon />, path: '/admin/permission-configs' },
+];
+
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { logout, user, hasPermission } = useAuth();
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -61,8 +74,23 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     setMobileOpen(false);
   };
 
+  // Filter security menu items based on permissions
+  const visibleSecurityMenuItems = securityMenuItems.filter((item) => {
+    if (item.path === '/admin/users') {
+      return hasPermission('VIEW_USERS');
+    }
+    if (item.path === '/admin/roles') {
+      return hasPermission('VIEW_ROLES');
+    }
+    if (item.path === '/admin/permission-configs') {
+      // Only Super Admins (with SYSTEM_ADMIN permission) can see Permissions
+      return hasPermission('SYSTEM_ADMIN');
+    }
+    return false;
+  });
+
   const drawer = (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <Toolbar 
         sx={{ 
           backgroundColor: '#ffffff',
@@ -115,6 +143,78 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </ListItem>
         ))}
       </List>
+      
+      {visibleSecurityMenuItems.length > 0 && (
+        <>
+          <Divider sx={{ borderColor: 'rgba(0, 0, 0, 0.08)', my: 1 }} />
+          
+          <List>
+            <ListItem>
+              <Typography variant="caption" sx={{ pl: 2, color: 'text.secondary', fontWeight: 600 }}>
+                SECURITY
+              </Typography>
+            </ListItem>
+            {visibleSecurityMenuItems.map((item) => (
+          <ListItem key={item.text} disablePadding>
+            <ListItemButton
+              selected={location.pathname === item.path}
+              onClick={() => handleNavigation(item.path)}
+              sx={{
+                borderRadius: '8px',
+                mx: 1,
+                mb: 0.5,
+                '&.Mui-selected': {
+                  backgroundColor: '#e3f2fd',
+                  color: '#1976d2',
+                  '&:hover': {
+                    backgroundColor: '#bbdefb',
+                  },
+                  '& .MuiListItemIcon-root': {
+                    color: '#1976d2',
+                  },
+                },
+                '&:hover': {
+                  backgroundColor: '#f5f7fa',
+                  borderRadius: '8px',
+                },
+              }}
+            >
+              <ListItemIcon
+                sx={{
+                  color: location.pathname === item.path ? '#1976d2' : 'inherit',
+                  minWidth: 40,
+                }}
+              >
+                {item.icon}
+              </ListItemIcon>
+              <ListItemText primary={item.text} />
+            </ListItemButton>
+          </ListItem>
+        ))}
+          </List>
+        </>
+      )}
+      
+      <Box sx={{ flexGrow: 1 }} />
+      
+      <Divider sx={{ borderColor: 'rgba(0, 0, 0, 0.08)' }} />
+      <Box sx={{ p: 2 }}>
+        <Typography variant="caption" display="block" sx={{ mb: 1, color: 'text.secondary' }}>
+          Logged in as: {user?.username || 'User'}
+        </Typography>
+        <Button
+          fullWidth
+          variant="outlined"
+          startIcon={<LogoutIcon />}
+          onClick={() => {
+            logout();
+            navigate('/login');
+          }}
+          sx={{ justifyContent: 'flex-start' }}
+        >
+          Logout
+        </Button>
+      </Box>
     </div>
   );
 

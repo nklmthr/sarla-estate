@@ -7,6 +7,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -23,6 +24,7 @@ public class ReportController {
     private final ReportService reportService;
 
     @GetMapping("/upcoming-assignments")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_ASSIGNMENT')")
     public ResponseEntity<UpcomingAssignmentsReportDTO> getUpcomingAssignmentsReport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -33,6 +35,7 @@ public class ReportController {
     }
 
     @GetMapping("/upcoming-assignments/next-week")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_ASSIGNMENT')")
     public ResponseEntity<UpcomingAssignmentsReportDTO> getNextWeekAssignments() {
         LocalDate today = LocalDate.now();
         LocalDate nextWeek = today.plusWeeks(1);
@@ -43,6 +46,7 @@ public class ReportController {
     }
 
     @GetMapping("/upcoming-assignments/next-month")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_ASSIGNMENT')")
     public ResponseEntity<UpcomingAssignmentsReportDTO> getNextMonthAssignments() {
         LocalDate today = LocalDate.now();
         LocalDate nextMonth = today.plusMonths(1);
@@ -53,6 +57,7 @@ public class ReportController {
     }
 
     @GetMapping("/payments")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_PAYMENT')")
     public ResponseEntity<PaymentReportDTO> getPaymentReport(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
@@ -63,6 +68,7 @@ public class ReportController {
     }
 
     @GetMapping("/payments/current-month")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_PAYMENT')")
     public ResponseEntity<PaymentReportDTO> getCurrentMonthPaymentReport() {
         LocalDate today = LocalDate.now();
         LocalDate startOfMonth = today.withDayOfMonth(1);
@@ -74,6 +80,7 @@ public class ReportController {
     }
 
     @GetMapping("/payments/last-month")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_PAYMENT')")
     public ResponseEntity<PaymentReportDTO> getLastMonthPaymentReport() {
         LocalDate today = LocalDate.now();
         LocalDate startOfLastMonth = today.minusMonths(1).withDayOfMonth(1);
@@ -86,6 +93,7 @@ public class ReportController {
     }
 
     @GetMapping("/payments/last-week")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_PAYMENT')")
     public ResponseEntity<PaymentReportDTO> getLastWeekPaymentReport() {
         LocalDate today = LocalDate.now();
         LocalDate lastWeekStart = today.minusWeeks(1);
