@@ -804,7 +804,6 @@ const Reports: React.FC = () => {
                                 <TableCell><strong>Last Eval</strong></TableCell>
                                 <TableCell><strong>Min Eval Time</strong></TableCell>
                                 <TableCell><strong>Max Eval Time</strong></TableCell>
-                                <TableCell><strong>Status</strong></TableCell>
                                 <TableCell><strong>Completion %</strong></TableCell>
                                 <TableCell><strong>Deleted</strong></TableCell>
                               </TableRow>
@@ -818,15 +817,17 @@ const Reports: React.FC = () => {
                                   <TableCell>{assignment.assignedAt ? format(new Date(assignment.assignedAt), 'dd-MMM HH:mm') : '-'}</TableCell>
                                   <TableCell>{assignment.firstEvaluatedAt ? format(new Date(assignment.firstEvaluatedAt), 'dd-MMM HH:mm') : '-'}</TableCell>
                                   <TableCell>
-                                    {assignment.evaluationCount > 1 && assignment.lastEvaluatedAt ? (
+                                    {assignment.lastEvaluatedAt ? (
                                       <Box>
                                         <Typography variant="body2">{format(new Date(assignment.lastEvaluatedAt), 'dd-MMM HH:mm')}</Typography>
-                                        <Chip 
-                                          label={`${assignment.evaluationCount}x`}
-                                          size="small" 
-                                          color="warning"
-                                          sx={{ mt: 0.5 }}
-                                        />
+                                        {assignment.evaluationCount > 1 && (
+                                          <Chip 
+                                            label={`${assignment.evaluationCount}x`}
+                                            size="small" 
+                                            color="warning"
+                                            sx={{ mt: 0.5 }}
+                                          />
+                                        )}
                                       </Box>
                                     ) : (
                                       <Typography variant="body2" color="text.secondary">-</Typography>
@@ -846,13 +847,6 @@ const Reports: React.FC = () => {
                                       size="small"
                                       variant="outlined"
                                       color={assignment.evaluationCount > 1 ? 'warning' : 'success'}
-                                    />
-                                  </TableCell>
-                                  <TableCell>
-                                    <Chip
-                                      label={assignment.status}
-                                      size="small"
-                                      color={assignment.status === 'COMPLETED' ? 'success' : 'default'}
                                     />
                                   </TableCell>
                                   <TableCell align="center">{assignment.completionPercentage ?? '-'}</TableCell>
