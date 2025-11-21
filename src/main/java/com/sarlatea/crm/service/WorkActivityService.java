@@ -15,6 +15,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -33,9 +34,15 @@ public class WorkActivityService {
     @Transactional(readOnly = true)
     public List<WorkActivityDTO> getAllWorkActivities() {
         log.debug("Fetching all non-deleted work activities");
-        return workActivityRepository.findAllActive().stream()
+        List<WorkActivity> activities = workActivityRepository.findAllActive();
+        log.info("Found {} work activities from database", activities.size());
+        
+        List<WorkActivityDTO> dtoList = activities.stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
+        
+        log.info("Converted to {} DTOs", dtoList.size());
+        return dtoList;
     }
 
     @Transactional(readOnly = true)
@@ -76,14 +83,19 @@ public class WorkActivityService {
         // Soft delete - set deleted flag instead of removing from database
         workActivity.setDeleted(true);
         
+        // Modify name to free up the unique constraint for future use
+        // Append timestamp to original name to make it unique
+        String originalName = workActivity.getName();
+        workActivity.setName(originalName + "_DELETED_" + System.currentTimeMillis());
+        
         // Also soft delete all completion criteria for this activity
         List<WorkActivityCompletionCriteria> criteria = completionCriteriaRepository.findByWorkActivityIdAndDeletedFalse(workActivity.getId());
         criteria.forEach(c -> c.setDeleted(true));
         completionCriteriaRepository.saveAll(criteria);
         
         workActivityRepository.save(workActivity);
-        log.info("Work activity {} and its {} completion criteria marked as deleted for audit purposes", 
-                workActivity.getName(), criteria.size());
+        log.info("Work activity '{}' and its {} completion criteria marked as deleted for audit purposes", 
+                originalName, criteria.size());
     }
 
     @Transactional(readOnly = true)
@@ -106,27 +118,44 @@ public class WorkActivityService {
 
 
     private WorkActivityDTO convertToDTO(WorkActivity workActivity) {
-        WorkActivityDTO dto = new WorkActivityDTO();
-        dto.setId(workActivity.getId());
-        dto.setName(workActivity.getName());
-        dto.setDescription(workActivity.getDescription());
-        dto.setStatus(workActivity.getStatus()); // Status is now calculated
-        dto.setNotes(workActivity.getNotes());
-        
-        // Convert non-deleted completion criteria only
-        List<WorkActivityCompletionCriteriaDTO> criteriaList = workActivity.getCompletionCriteria().stream()
-                .filter(c -> !c.getDeleted()) // Filter out deleted criteria
-                .map(this::convertCriteriaToDTO)
-                .collect(Collectors.toList());
-        dto.setCompletionCriteria(criteriaList);
-        
-        return dto;
+        try {
+            WorkActivityDTO dto = new WorkActivityDTO();
+            dto.setId(workActivity.getId());
+            dto.setName(workActivity.getName());
+            dto.setDescription(workActivity.getDescription());
+            
+            // Safely get status with fallback
+            try {
+                dto.setStatus(workActivity.getStatus());
+            } catch (Exception e) {
+                log.warn("Error getting status for activity {}: {}", workActivity.getName(), e.getMessage());
+                dto.setStatus(WorkActivity.Status.INACTIVE); // Default to inactive on error
+            }
+            
+            dto.setNotes(workActivity.getNotes());
+            
+            // Convert non-deleted completion criteria only (handle null list)
+            List<WorkActivityCompletionCriteriaDTO> criteriaList = new ArrayList<>();
+            if (workActivity.getCompletionCriteria() != null) {
+                criteriaList = workActivity.getCompletionCriteria().stream()
+                        .filter(c -> c != null && !c.getDeleted()) // Also check for null criteria
+                        .map(this::convertCriteriaToDTO)
+                        .collect(Collectors.toList());
+            }
+            dto.setCompletionCriteria(criteriaList);
+            
+            return dto;
+        } catch (Exception e) {
+            log.error("Error converting WorkActivity to DTO: {}", e.getMessage(), e);
+            throw new RuntimeException("Failed to convert WorkActivity: " + workActivity.getId(), e);
+        }
     }
 
     private WorkActivity convertToEntity(WorkActivityDTO dto) {
         WorkActivity workActivity = new WorkActivity();
         workActivity.setName(dto.getName());
         workActivity.setDescription(dto.getDescription());
+        workActivity.setDeleted(false); // Explicitly set deleted to false for new activities
         // Status is removed - it's now calculated based on completion criteria
         workActivity.setNotes(dto.getNotes());
         return workActivity;

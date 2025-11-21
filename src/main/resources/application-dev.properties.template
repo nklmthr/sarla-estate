@@ -1,10 +1,12 @@
-# Development Profile
+# Development Profile Template
+# Copy this file to application-dev.properties and fill in your actual credentials
+# NEVER commit application-dev.properties to Git!
 
-# MySQL Database (Aiven Cloud)
-spring.datasource.url=jdbc:mysql://mysql-sarla-estate-sarla-estates-crm.g.aivencloud.com:21359/dev_sarla-estate?ssl-mode=REQUIRED
+# MySQL Database
+spring.datasource.url=jdbc:mysql://YOUR_DATABASE_HOST:PORT/DATABASE_NAME?ssl-mode=REQUIRED
 spring.datasource.driverClassName=com.mysql.cj.jdbc.Driver
-spring.datasource.username=avnadmin
-spring.datasource.password=AVNS_bLF-_8fOziBe5RVvmqJ
+spring.datasource.username=YOUR_USERNAME
+spring.datasource.password=YOUR_PASSWORD
 
 # Disable strict primary key requirement for schema creation (Hikari property)
 spring.datasource.hikari.connection-init-sql=SET SESSION sql_require_primary_key=0
@@ -32,5 +34,13 @@ logging.level.org.hibernate.type.descriptor.sql.BasicBinder=TRACE
 spring.devtools.restart.enabled=true
 
 # Security
-jwt.secret=UpJVR48UQttKFiFelk/bTIXAayU1/FdVUoRaGOtnQPg=
+# Generate a secure key with: openssl rand -base64 32
+jwt.secret=YOUR_JWT_SECRET_HERE
 jwt.expiration=86400000
+
+# Audit Log Configuration
+# Enable/disable IP geolocation lookup (default: true)
+audit.geolocation.enabled=true
+# API URL for geolocation service (default: ip-api.com)
+audit.geolocation.api-url=http://ip-api.com/json
+

@@ -29,6 +29,8 @@ import {
   Logout as LogoutIcon,
   AdminPanelSettings as AdminIcon,
   VpnKey as KeyIcon,
+  History as HistoryIcon,
+  AccountCircle as AccountCircleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -57,6 +59,7 @@ const securityMenuItems: MenuItem[] = [
   { text: 'Users', icon: <SecurityIcon />, path: '/admin/users' },
   { text: 'Roles', icon: <AdminIcon />, path: '/admin/roles' },
   { text: 'Permissions', icon: <KeyIcon />, path: '/admin/permission-configs' },
+  { text: 'Audit Logs', icon: <HistoryIcon />, path: '/admin/audit-logs' },
 ];
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
@@ -85,6 +88,9 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     if (item.path === '/admin/permission-configs') {
       // Only Super Admins (with SYSTEM_ADMIN permission) can see Permissions
       return hasPermission('SYSTEM_ADMIN');
+    }
+    if (item.path === '/admin/audit-logs') {
+      return hasPermission('VIEW_AUDIT_LOGS');
     }
     return false;
   });
@@ -196,25 +202,6 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       )}
       
       <Box sx={{ flexGrow: 1 }} />
-      
-      <Divider sx={{ borderColor: 'rgba(0, 0, 0, 0.08)' }} />
-      <Box sx={{ p: 2 }}>
-        <Typography variant="caption" display="block" sx={{ mb: 1, color: 'text.secondary' }}>
-          Logged in as: {user?.username || 'User'}
-        </Typography>
-        <Button
-          fullWidth
-          variant="outlined"
-          startIcon={<LogoutIcon />}
-          onClick={() => {
-            logout();
-            navigate('/login');
-          }}
-          sx={{ justifyContent: 'flex-start' }}
-        >
-          Logout
-        </Button>
-      </Box>
     </div>
   );
 
@@ -256,6 +243,43 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             >
               Operations Dashboard
             </Typography>
+          </Box>
+          
+          {/* Spacer to push user info to the right */}
+          <Box sx={{ flexGrow: 1 }} />
+          
+          {/* User Profile and Logout in Top Right */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+              <AccountCircleIcon sx={{ color: '#1976d2' }} />
+              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+                <Typography variant="body2" sx={{ fontWeight: 500, color: '#1a1a1a' }}>
+                  {user?.fullName || user?.username || 'User'}
+                </Typography>
+                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
+                  {user?.role || 'User'}
+                </Typography>
+              </Box>
+            </Box>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={<LogoutIcon />}
+              onClick={() => {
+                logout();
+                navigate('/login');
+              }}
+              sx={{
+                borderColor: '#d32f2f',
+                color: '#d32f2f',
+                '&:hover': {
+                  borderColor: '#b71c1c',
+                  backgroundColor: 'rgba(211, 47, 47, 0.04)',
+                },
+              }}
+            >
+              Logout
+            </Button>
           </Box>
         </Toolbar>
       </AppBar>

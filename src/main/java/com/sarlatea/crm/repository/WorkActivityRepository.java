@@ -17,7 +17,7 @@ public interface WorkActivityRepository extends JpaRepository<WorkActivity, Stri
 
     Optional<WorkActivity> findByNameAndDeletedFalse(String name);
 
-    @Query("SELECT DISTINCT w FROM WorkActivity w LEFT JOIN FETCH w.completionCriteria WHERE w.deleted = false")
+    @Query("SELECT DISTINCT w FROM WorkActivity w LEFT JOIN FETCH w.completionCriteria c WHERE w.deleted = false AND (c IS NULL OR c.deleted = false)")
     List<WorkActivity> findAllActive();
 
     @Query("SELECT DISTINCT w FROM WorkActivity w LEFT JOIN FETCH w.completionCriteria WHERE w.deleted = false AND " +

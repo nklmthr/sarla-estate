@@ -119,6 +119,11 @@ local.properties
 # Spring Boot
 spring-boot-devtools.properties
 
+# SECURITY: Never commit environment-specific configs with credentials
+# application-dev.properties contains real DB credentials - NEVER commit
+src/main/resources/application-dev.properties
+# application-prod.properties uses env vars - safe to commit, DO NOT ADD HERE
+
 # Database
 *.db
 *.sqlite

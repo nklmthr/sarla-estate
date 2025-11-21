@@ -20,6 +20,7 @@ import { setGlobalErrorHandler } from './api/apiClient';
 import UserManagement from './pages/Admin/UserManagement';
 import RoleManagement from './pages/Admin/RoleManagement';
 import PermissionConfigManagement from './pages/Admin/PermissionConfigManagement';
+import AuditLogPage from './pages/AuditLogs/AuditLogPage';
 
 const theme = createTheme({
   palette: {
@@ -483,6 +484,13 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <PermissionConfigManagement />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/admin/audit-logs" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <AuditLogPage />
                   </Layout>
                 </ProtectedRoute>
               } />

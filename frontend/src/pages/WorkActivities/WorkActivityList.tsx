@@ -47,7 +47,7 @@ const WorkActivityList: React.FC = () => {
   const [filteredActivities, setFilteredActivities] = useState<WorkActivity[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('ACTIVE');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL'); // Changed default to ALL
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [activityToDelete, setActivityToDelete] = useState<WorkActivity | null>(null);
   const [criteriaDialogOpen, setCriteriaDialogOpen] = useState(false);

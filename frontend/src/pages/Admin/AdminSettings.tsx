@@ -32,6 +32,7 @@ import {
 import { EmployeeType, EmployeeStatus } from '../../types';
 import { employeeTypeApi } from '../../api/employeeTypeApi';
 import { employeeStatusApi } from '../../api/employeeStatusApi';
+import { unitOfMeasureApi, UnitOfMeasure } from '../../api/unitOfMeasureApi';
 import { useError } from '../../contexts/ErrorContext';
 
 interface TabPanelProps {
@@ -60,10 +61,13 @@ export default function AdminSettings() {
   const [tabValue, setTabValue] = useState(0);
   const [employeeTypes, setEmployeeTypes] = useState<EmployeeType[]>([]);
   const [employeeStatuses, setEmployeeStatuses] = useState<EmployeeStatus[]>([]);
+  const [unitsOfMeasure, setUnitsOfMeasure] = useState<UnitOfMeasure[]>([]);
   const [openTypeDialog, setOpenTypeDialog] = useState(false);
   const [openStatusDialog, setOpenStatusDialog] = useState(false);
+  const [openUnitDialog, setOpenUnitDialog] = useState(false);
   const [editingType, setEditingType] = useState<EmployeeType | null>(null);
   const [editingStatus, setEditingStatus] = useState<EmployeeStatus | null>(null);
+  const [editingUnit, setEditingUnit] = useState<UnitOfMeasure | null>(null);
 
   // Form states for Type
   const [typeForm, setTypeForm] = useState({
@@ -83,9 +87,19 @@ export default function AdminSettings() {
     displayOrder: 0,
   });
 
+  // Form states for Unit
+  const [unitForm, setUnitForm] = useState({
+    code: '',
+    name: '',
+    description: '',
+    isActive: true,
+    displayOrder: 0,
+  });
+
   useEffect(() => {
     loadEmployeeTypes();
     loadEmployeeStatuses();
+    loadUnitsOfMeasure();
   }, []);
 
   const loadEmployeeTypes = async () => {
@@ -104,6 +118,15 @@ export default function AdminSettings() {
       setEmployeeStatuses(data);
     } catch (err) {
       // Error handled by global interceptor
+      // Error handled by global interceptor
+    }
+  };
+
+  const loadUnitsOfMeasure = async () => {
+    try {
+      const data = await unitOfMeasureApi.getAllUnits();
+      setUnitsOfMeasure(data);
+    } catch (err) {
       // Error handled by global interceptor
     }
   };
@@ -268,6 +291,73 @@ export default function AdminSettings() {
     }
   };
 
+  // Unit of Measure Handlers
+  const handleOpenUnitDialog = (unit?: UnitOfMeasure) => {
+    if (unit) {
+      setEditingUnit(unit);
+      setUnitForm({
+        code: unit.code,
+        name: unit.name,
+        description: unit.description || '',
+        isActive: unit.isActive ?? true,
+        displayOrder: unit.displayOrder || 0,
+      });
+    } else {
+      setEditingUnit(null);
+      setUnitForm({
+        code: '',
+        name: '',
+        description: '',
+        isActive: true,
+        displayOrder: unitsOfMeasure.length > 0 
+          ? Math.max(...unitsOfMeasure.map(u => u.displayOrder || 0)) + 1 
+          : 1,
+      });
+    }
+    setOpenUnitDialog(true);
+  };
+
+  const handleCloseUnitDialog = () => {
+    setOpenUnitDialog(false);
+    setEditingUnit(null);
+  };
+
+  const handleSaveUnit = async () => {
+    try {
+      if (!unitForm.code || !unitForm.name) {
+        showWarning('Code and Name are required');
+        return;
+      }
+
+      if (editingUnit) {
+        await unitOfMeasureApi.updateUnit(editingUnit.id!, unitForm);
+        showSuccess('Unit of measure updated successfully');
+      } else {
+        await unitOfMeasureApi.createUnit(unitForm);
+        showSuccess('Unit of measure created successfully');
+      }
+      
+      handleCloseUnitDialog();
+      loadUnitsOfMeasure();
+    } catch (err) {
+      // Error handled by global interceptor
+    }
+  };
+
+  const handleDeleteUnit = async (id: string) => {
+    if (!window.confirm('Are you sure you want to delete this unit of measure?')) {
+      return;
+    }
+
+    try {
+      await unitOfMeasureApi.deleteUnit(id);
+      showSuccess('Unit of measure deleted successfully');
+      loadUnitsOfMeasure();
+    } catch (err) {
+      // Error handled by global interceptor
+    }
+  };
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
@@ -291,6 +381,7 @@ export default function AdminSettings() {
         >
           <Tab label="Employee Types" />
           <Tab label="Employee Statuses" />
+          <Tab label="Units of Measure" />
         </Tabs>
 
         <TabPanel value={tabValue} index={0}>
@@ -430,6 +521,73 @@ export default function AdminSettings() {
             </TableContainer>
           </Box>
         </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
+          <Box px={3} pb={3}>
+            <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+              <Typography variant="h6">Units of Measure</Typography>
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={() => handleOpenUnitDialog()}
+              >
+                Add Unit
+              </Button>
+            </Box>
+
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Code</TableCell>
+                    <TableCell>Name</TableCell>
+                    <TableCell>Description</TableCell>
+                    <TableCell>Display Order</TableCell>
+                    <TableCell>Status</TableCell>
+                    <TableCell align="right">Actions</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {unitsOfMeasure.map((unit) => (
+                    <TableRow key={unit.id}>
+                      <TableCell>
+                        <Typography variant="body2" fontFamily="monospace">
+                          {unit.code}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>{unit.name}</TableCell>
+                      <TableCell>{unit.description || '-'}</TableCell>
+                      <TableCell>{unit.displayOrder || 0}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={unit.isActive ? 'Active' : 'Inactive'}
+                          color={unit.isActive ? 'success' : 'default'}
+                          size="small"
+                        />
+                      </TableCell>
+                      <TableCell align="right">
+                        <IconButton
+                          size="small"
+                          onClick={() => handleOpenUnitDialog(unit)}
+                          color="primary"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteUnit(unit.id!)}
+                          color="error"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+        </TabPanel>
       </Paper>
 
       {/* Employee Type Dialog */}
@@ -543,6 +701,64 @@ export default function AdminSettings() {
         <DialogActions>
           <Button onClick={handleCloseStatusDialog}>Cancel</Button>
           <Button onClick={handleSaveStatus} variant="contained">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Unit of Measure Dialog */}
+      <Dialog open={openUnitDialog} onClose={handleCloseUnitDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          {editingUnit ? 'Edit Unit of Measure' : 'Add Unit of Measure'}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <TextField
+              label="Code"
+              value={unitForm.code}
+              onChange={(e) => setUnitForm({ ...unitForm, code: e.target.value.toUpperCase() })}
+              required
+              fullWidth
+              helperText="Unique identifier (e.g., KG, LITER, AREA)"
+            />
+            <TextField
+              label="Name"
+              value={unitForm.name}
+              onChange={(e) => setUnitForm({ ...unitForm, name: e.target.value })}
+              required
+              fullWidth
+              helperText="Display name (e.g., Kilograms, Liters, Square Meters)"
+            />
+            <TextField
+              label="Description"
+              value={unitForm.description}
+              onChange={(e) => setUnitForm({ ...unitForm, description: e.target.value })}
+              multiline
+              rows={3}
+              fullWidth
+            />
+            <TextField
+              label="Display Order"
+              type="number"
+              value={unitForm.displayOrder}
+              onChange={(e) => setUnitForm({ ...unitForm, displayOrder: parseInt(e.target.value) || 0 })}
+              fullWidth
+              helperText="Lower numbers appear first"
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={unitForm.isActive}
+                  onChange={(e) => setUnitForm({ ...unitForm, isActive: e.target.checked })}
+                />
+              }
+              label="Active"
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseUnitDialog}>Cancel</Button>
+          <Button onClick={handleSaveUnit} variant="contained">
             Save
           </Button>
         </DialogActions>

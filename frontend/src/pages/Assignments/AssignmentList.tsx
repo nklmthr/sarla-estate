@@ -501,7 +501,7 @@ const AssignmentList: React.FC = () => {
       const activity = activities.find((a) => a.id === assignment.workActivityId);
       return (
         <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
-          <Paper elevation={1} sx={{ p: 0.75, bgcolor: 'action.hover', overflow: 'hidden' }}>
+          <Paper elevation={1} sx={{ p: 0.75, bgcolor: 'action.hover', overflow: 'hidden', position: 'relative' }}>
             <Box display="flex" justifyContent="space-between" alignItems="flex-start">
               <Typography 
                 variant="body2" 
@@ -519,7 +519,7 @@ const AssignmentList: React.FC = () => {
               >
                 {assignment.activityName}
               </Typography>
-              <Box display="flex" gap={0.25}>
+              <Box display="flex" gap={0.25} sx={{ position: 'relative', zIndex: 10 }}>
                 <Tooltip title="Evaluate" arrow>
                   <IconButton
                     size="small"

@@ -52,6 +52,10 @@ public enum Permission {
     VIEW_SETTINGS("View Settings", "Access to settings section"),
     MANAGE_EMPLOYEE_TYPES("Manage Employee Types", "Manage employee type master data"),
     MANAGE_EMPLOYEE_STATUSES("Manage Employee Statuses", "Manage employee status master data"),
+    MANAGE_UNITS_OF_MEASURE("Manage Units of Measure", "Manage unit of measure master data"),
+    
+    // Audit Log
+    VIEW_AUDIT_LOGS("View Audit Logs", "View system audit logs and activity history"),
     
     // System Administration
     SYSTEM_ADMIN("System Administration", "Full system administration access");

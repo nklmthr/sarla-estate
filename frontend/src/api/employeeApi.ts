@@ -27,7 +27,10 @@ export const employeeApi = {
   },
   
   getEmployeePhoto: (id: string) => 
-    apiClient.get(`/employees/${id}/photo`, { responseType: 'blob' }),
+    apiClient.get(`/employees/${id}/photo`, { 
+      responseType: 'blob',
+      silentError: true  // Don't show error dialog for missing photos (404 is expected)
+    } as any),
   
   createEmployee: async (employee: Employee): Promise<Employee> => {
     return apiClient.post<Employee>('/employees', employee);

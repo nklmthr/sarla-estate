@@ -41,11 +41,15 @@ axiosInstance.interceptors.request.use(
 axiosInstance.interceptors.response.use(
   (response) => response.data, // Extract data from response
   (error: AxiosError) => {
+    // Check if this error should be silently handled (config has silentError flag)
+    const config = error.config as any;
+    const silentError = config?.silentError === true;
+    
     // Handle network errors (server not reachable)
     if (!error.response) {
-      if (globalNetworkErrorHandler) {
+      if (!silentError && globalNetworkErrorHandler) {
         globalNetworkErrorHandler();
-      } else {
+      } else if (!silentError) {
         console.error('Network error:', error.message);
       }
       return Promise.reject(error);
@@ -66,14 +70,14 @@ axiosInstance.interceptors.response.use(
       timestamp: new Date().toISOString(),
     }, null, 2);
 
-    // Show error dialog if handler is set
-    if (globalErrorHandler) {
+    // Show error dialog if handler is set (unless silent)
+    if (!silentError && globalErrorHandler) {
       globalErrorHandler(statusCode, errorMessage, technicalDetails);
-    } else {
+    } else if (!silentError) {
       console.error(`HTTP ${statusCode} error:`, errorMessage);
     }
 
-    // Special handling for 401 - redirect to login
+    // Special handling for 401 - redirect to login (even if silent)
     if (statusCode === 401) {
       // Clear auth data
       localStorage.removeItem('token');

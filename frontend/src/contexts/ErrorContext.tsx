@@ -17,6 +17,7 @@ import {
   Info as InfoIcon,
   CheckCircle as SuccessIcon,
   Close as CloseIcon,
+  ExitToApp as LogoutIcon,
 } from '@mui/icons-material';
 
 export type ErrorSeverity = 'error' | 'warning' | 'info' | 'success';
@@ -29,6 +30,7 @@ interface ErrorDetails {
   technicalInfo?: string;
   canRetry?: boolean;
   onRetry?: () => void;
+  requiresLogout?: boolean; // New flag for session expiration
 }
 
 interface ErrorContextType {
@@ -68,6 +70,7 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
     let title = 'Error';
     let defaultMessage = 'An unexpected error occurred';
     let severity: ErrorSeverity = 'error';
+    let requiresLogout = false;
 
     switch (statusCode) {
       case 400:
@@ -76,14 +79,22 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
         severity = 'warning';
         break;
       case 401:
-        title = 'Authentication Required';
-        defaultMessage = 'Your session has expired. Please log in again to continue.';
+        title = 'Session Expired';
+        defaultMessage = 'Your session has expired or is invalid. Please log in again to continue.';
         severity = 'warning';
+        requiresLogout = true; // Force logout and redirect
         break;
       case 403:
         title = 'Access Denied';
-        defaultMessage = 'You do not have permission to perform this action. Please contact your administrator if you believe this is an error.';
-        severity = 'error';
+        // Check if it's a permission issue vs invalid session
+        if (message && (message.toLowerCase().includes('session') || message.toLowerCase().includes('invalid token') || message.toLowerCase().includes('expired'))) {
+          title = 'Session Expired';
+          defaultMessage = 'Your session is no longer valid. Please log in again to continue.';
+          requiresLogout = true;
+        } else {
+          defaultMessage = 'You do not have permission to perform this action. Please contact your administrator if you believe this is an error.';
+        }
+        severity = 'warning';
         break;
       case 404:
         title = 'Not Found';
@@ -132,6 +143,7 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
       severity,
       technicalInfo: technicalDetails,
       canRetry: [500, 502, 503, 504].includes(statusCode),
+      requiresLogout,
     });
   };
 
@@ -174,6 +186,20 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
     setShowTechnical(false);
   };
 
+  const handleClose = () => {
+    if (errorDetails?.requiresLogout) {
+      // Clear auth token and redirect to login
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      sessionStorage.clear();
+      clearError();
+      // Use window.location instead of navigate since ErrorProvider is outside Router
+      window.location.href = '/login';
+    } else {
+      clearError();
+    }
+  };
+
   const handleRetry = () => {
     if (errorDetails?.onRetry) {
       errorDetails.onRetry();
@@ -211,9 +237,10 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
       {/* Error Dialog */}
       <Dialog
         open={!!errorDetails}
-        onClose={clearError}
+        onClose={errorDetails?.requiresLogout ? undefined : handleClose} // Prevent closing if logout required
         maxWidth="sm"
         fullWidth
+        disableEscapeKeyDown={errorDetails?.requiresLogout} // Prevent ESC key if logout required
         PaperProps={{
           sx: {
             borderTop: 4,
@@ -230,15 +257,17 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
             <Typography variant="h6" component="div" flex={1}>
               {errorDetails?.title}
             </Typography>
-            <IconButton
-              edge="end"
-              color="inherit"
-              onClick={clearError}
-              aria-label="close"
-              size="small"
-            >
-              <CloseIcon />
-            </IconButton>
+            {!errorDetails?.requiresLogout && (
+              <IconButton
+                edge="end"
+                color="inherit"
+                onClick={handleClose}
+                aria-label="close"
+                size="small"
+              >
+                <CloseIcon />
+              </IconButton>
+            )}
           </Box>
         </DialogTitle>
 
@@ -288,9 +317,21 @@ export const ErrorProvider: React.FC<ErrorProviderProps> = ({ children }) => {
               Retry
             </Button>
           )}
-          <Button onClick={clearError} color="primary" variant="contained" autoFocus>
-            {errorDetails?.severity === 'success' ? 'OK' : 'Close'}
-          </Button>
+          {errorDetails?.requiresLogout ? (
+            <Button 
+              onClick={handleClose} 
+              color="warning" 
+              variant="contained" 
+              autoFocus
+              startIcon={<LogoutIcon />}
+            >
+              Log In Again
+            </Button>
+          ) : (
+            <Button onClick={handleClose} color="primary" variant="contained" autoFocus>
+              {errorDetails?.severity === 'success' ? 'OK' : 'Close'}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </ErrorContext.Provider>

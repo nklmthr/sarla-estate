@@ -25,7 +25,7 @@ public class PermissionConfig extends BaseEntity {
     @Column(name = "operation_type", nullable = false, length = 50)
     private String operationType; // e.g., "VIEW", "CREATE", "EDIT", "DELETE"
 
-    @Column(name = "required_permission", nullable = false, length = 100)
+    @Column(name = "required_permission", nullable = false, length = 255)
     @Enumerated(EnumType.STRING)
     private Permission requiredPermission; // The actual permission enum value
 

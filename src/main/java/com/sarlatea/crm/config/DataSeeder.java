@@ -5,6 +5,7 @@ import com.sarlatea.crm.repository.EmployeeStatusRepository;
 import com.sarlatea.crm.repository.EmployeeTypeRepository;
 import com.sarlatea.crm.repository.PermissionConfigRepository;
 import com.sarlatea.crm.repository.RoleRepository;
+import com.sarlatea.crm.repository.UnitOfMeasureRepository;
 import com.sarlatea.crm.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +30,7 @@ public class DataSeeder implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PermissionConfigRepository permissionConfigRepository;
+    private final UnitOfMeasureRepository unitOfMeasureRepository;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -39,6 +41,7 @@ public class DataSeeder implements CommandLineRunner {
         seedTestUser(); // Create a test limited user
         seedEmployeeTypes();
         seedEmployeeStatuses();
+        seedUnitsOfMeasure(); // Seed units of measure
     }
 
     private void seedRoles() {
@@ -88,7 +91,9 @@ public class DataSeeder implements CommandLineRunner {
                 Permission.EDIT_USER,
                 Permission.VIEW_SETTINGS,
                 Permission.MANAGE_EMPLOYEE_TYPES,
-                Permission.MANAGE_EMPLOYEE_STATUSES
+                Permission.MANAGE_EMPLOYEE_STATUSES,
+                Permission.MANAGE_UNITS_OF_MEASURE,
+                Permission.VIEW_AUDIT_LOGS
         )));
         adminRole.setIsSystemRole(false); // Can be modified/deleted
         adminRole.setIsActive(true);
@@ -157,6 +162,15 @@ public class DataSeeder implements CommandLineRunner {
         createPermissionConfig("ROLE", "CREATE", Permission.CREATE_ROLE, "Create new roles");
         createPermissionConfig("ROLE", "EDIT", Permission.EDIT_ROLE, "Edit existing roles");
         createPermissionConfig("ROLE", "DELETE", Permission.DELETE_ROLE, "Delete roles from system");
+
+        // UNIT_OF_MEASURE resource configurations
+        createPermissionConfig("UNIT_OF_MEASURE", "VIEW", Permission.MANAGE_UNITS_OF_MEASURE, "View units of measure");
+        createPermissionConfig("UNIT_OF_MEASURE", "CREATE", Permission.MANAGE_UNITS_OF_MEASURE, "Create new units of measure");
+        createPermissionConfig("UNIT_OF_MEASURE", "EDIT", Permission.MANAGE_UNITS_OF_MEASURE, "Edit existing units of measure");
+        createPermissionConfig("UNIT_OF_MEASURE", "DELETE", Permission.MANAGE_UNITS_OF_MEASURE, "Delete units of measure");
+
+        // AUDIT_LOG resource configurations
+        createPermissionConfig("AUDIT_LOG", "VIEW", Permission.VIEW_AUDIT_LOGS, "View system audit logs");
 
         log.info("Permission configurations seeded successfully");
     }
@@ -300,6 +314,53 @@ public class DataSeeder implements CommandLineRunner {
         status.setDisplayOrder(displayOrder);
         employeeStatusRepository.save(status);
         log.debug("Created employee status: {}", code);
+    }
+
+    private void seedUnitsOfMeasure() {
+        if (unitOfMeasureRepository.count() > 0) {
+            log.info("Units of measure already exist, skipping seed data");
+            return;
+        }
+
+        log.info("Seeding default units of measure...");
+
+        createUnitOfMeasure("KG", "Kilograms (KG)", 
+            "Weight measurement in kilograms", 1);
+        
+        createUnitOfMeasure("AREA", "Area", 
+            "Area measurement (hectares, acres, etc.)", 2);
+        
+        createUnitOfMeasure("PLANTS", "Plants", 
+            "Number of plants", 3);
+        
+        createUnitOfMeasure("LITERS", "Liters", 
+            "Volume measurement in liters", 4);
+        
+        createUnitOfMeasure("BAGS", "Bags", 
+            "Number of bags", 5);
+        
+        createUnitOfMeasure("HOURS", "Hours", 
+            "Time measurement in hours", 6);
+        
+        createUnitOfMeasure("DAYS", "Days", 
+            "Time measurement in days", 7);
+        
+        createUnitOfMeasure("ROWS", "Rows", 
+            "Number of rows", 8);
+
+        log.info("Units of measure seeded successfully");
+    }
+
+    private void createUnitOfMeasure(String code, String name, String description, int displayOrder) {
+        UnitOfMeasure unit = new UnitOfMeasure();
+        unit.setCode(code);
+        unit.setName(name);
+        unit.setDescription(description);
+        unit.setIsActive(true);
+        unit.setDisplayOrder(displayOrder);
+        unit.setDeleted(false);
+        unitOfMeasureRepository.save(unit);
+        log.debug("Created unit of measure: {}", code);
     }
 }
 
