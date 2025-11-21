@@ -35,15 +35,13 @@ import {
 } from '@mui/icons-material';
 import { reportApi } from '../../api/reportApi';
 import { UpcomingAssignmentsReport, PaymentReport, WorkAssignment, AssignmentAuditReport } from '../../types';
-import { format, startOfMonth, endOfMonth, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
-import { useError } from '../../contexts/ErrorContext';
 import HistoryIcon from '@mui/icons-material/History';
 
 const Reports: React.FC = () => {
-  const { showSuccess } = useError();
   const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments' | 'evaluation'>('payments');
   const [loading, setLoading] = useState(false);
   
@@ -99,24 +97,22 @@ const Reports: React.FC = () => {
     }
   };
 
-  const calculateTimeDifference = (createdAt: string | undefined, evaluatedAt: string | undefined): string => {
-    if (!createdAt || !evaluatedAt) return '-';
+  // Format minutes into readable time duration
+  const formatMinutesToDuration = (minutes: number | undefined): string => {
+    if (minutes === undefined || minutes === null) return '-';
     
-    const created = new Date(createdAt);
-    const evaluated = new Date(evaluatedAt);
+    if (minutes === 0) return '0m';
     
-    const minutes = differenceInMinutes(evaluated, created);
-    const hours = differenceInHours(evaluated, created);
-    const days = differenceInDays(evaluated, created);
+    const days = Math.floor(minutes / (24 * 60));
+    const hours = Math.floor((minutes % (24 * 60)) / 60);
+    const mins = Math.floor(minutes % 60);
     
     if (days > 0) {
-      const remainingHours = hours % 24;
-      return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
+      return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
     } else if (hours > 0) {
-      const remainingMinutes = minutes % 60;
-      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+      return mins > 0 ? `${hours}h ${mins}m` : `${hours}h`;
     } else {
-      return `${minutes}m`;
+      return `${mins}m`;
     }
   };
 
@@ -732,43 +728,31 @@ const Reports: React.FC = () => {
                       Summary
                     </Typography>
                   </Grid>
-                  <Grid item xs={12} md={3}>
+                  <Grid item xs={12} md={4}>
                     <Card elevation={3} sx={{ background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', color: 'white' }}>
                       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                         <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                          Total Assignments
+                          Total Evaluated
                         </Typography>
                         <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
-                          {auditReport.totalAssignments}
+                          {auditReport.totalEvaluatedAssignments}
                         </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
-                  <Grid item xs={12} md={3}>
-                    <Card elevation={3} sx={{ background: 'linear-gradient(135deg, #81C784 0%, #66BB6A 100%)', color: 'white' }}>
+                  <Grid item xs={12} md={4}>
+                    <Card elevation={3} sx={{ background: 'linear-gradient(135deg, #FFB74D 0%, #FFA726 100%)', color: 'white' }}>
                       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                         <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                          Evaluated
+                          Re-Evaluated
                         </Typography>
                         <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
-                          {auditReport.evaluatedAssignments}
+                          {auditReport.reEvaluatedAssignments}
                         </Typography>
                       </CardContent>
                     </Card>
                   </Grid>
-                  <Grid item xs={12} md={3}>
-                    <Card elevation={3} sx={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFC107 100%)', color: 'white' }}>
-                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
-                          Pending
-                        </Typography>
-                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
-                          {auditReport.pendingAssignments}
-                        </Typography>
-                      </CardContent>
-                    </Card>
-                  </Grid>
-                  <Grid item xs={12} md={3}>
+                  <Grid item xs={12} md={4}>
                     <Card elevation={3} sx={{ background: 'linear-gradient(135deg, #E57373 0%, #EF5350 100%)', color: 'white' }}>
                       <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
                         <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
@@ -816,9 +800,10 @@ const Reports: React.FC = () => {
                                 <TableCell><strong>Employee</strong></TableCell>
                                 <TableCell><strong>Date</strong></TableCell>
                                 <TableCell><strong>Created</strong></TableCell>
-                                <TableCell><strong>Evaluated</strong></TableCell>
-                                <TableCell><strong>Time to Eval</strong></TableCell>
-                                <TableCell><strong>Re-evals</strong></TableCell>
+                                <TableCell><strong>First Eval</strong></TableCell>
+                                <TableCell><strong>Last Eval</strong></TableCell>
+                                <TableCell><strong>Min Eval Time</strong></TableCell>
+                                <TableCell><strong>Max Eval Time</strong></TableCell>
                                 <TableCell><strong>Status</strong></TableCell>
                                 <TableCell><strong>Completion %</strong></TableCell>
                                 <TableCell><strong>Deleted</strong></TableCell>
@@ -831,26 +816,37 @@ const Reports: React.FC = () => {
                                   <TableCell>{assignment.employeeName}</TableCell>
                                   <TableCell>{format(new Date(assignment.assignmentDate), 'dd-MMM')}</TableCell>
                                   <TableCell>{assignment.assignedAt ? format(new Date(assignment.assignedAt), 'dd-MMM HH:mm') : '-'}</TableCell>
-                                  <TableCell>{assignment.lastEvaluatedAt ? format(new Date(assignment.lastEvaluatedAt), 'dd-MMM HH:mm') : '-'}</TableCell>
+                                  <TableCell>{assignment.firstEvaluatedAt ? format(new Date(assignment.firstEvaluatedAt), 'dd-MMM HH:mm') : '-'}</TableCell>
                                   <TableCell>
-                                    <Chip 
-                                      label={calculateTimeDifference(assignment.assignedAt, assignment.lastEvaluatedAt)}
-                                      size="small"
-                                      variant="outlined"
-                                      color={assignment.lastEvaluatedAt ? 'primary' : 'default'}
-                                    />
-                                  </TableCell>
-                                  <TableCell align="center">
-                                    {assignment.evaluationCount > 1 ? (
-                                      <Chip 
-                                        label={assignment.evaluationCount - 1} 
-                                        size="small" 
-                                        color="warning"
-                                        title={`Re-evaluated ${assignment.evaluationCount - 1} time(s)`}
-                                      />
+                                    {assignment.evaluationCount > 1 && assignment.lastEvaluatedAt ? (
+                                      <Box>
+                                        <Typography variant="body2">{format(new Date(assignment.lastEvaluatedAt), 'dd-MMM HH:mm')}</Typography>
+                                        <Chip 
+                                          label={`${assignment.evaluationCount}x`}
+                                          size="small" 
+                                          color="warning"
+                                          sx={{ mt: 0.5 }}
+                                        />
+                                      </Box>
                                     ) : (
                                       <Typography variant="body2" color="text.secondary">-</Typography>
                                     )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Chip 
+                                      label={formatMinutesToDuration(assignment.minEvalTimeMinutes)}
+                                      size="small"
+                                      variant="outlined"
+                                      color="success"
+                                    />
+                                  </TableCell>
+                                  <TableCell>
+                                    <Chip 
+                                      label={formatMinutesToDuration(assignment.maxEvalTimeMinutes)}
+                                      size="small"
+                                      variant="outlined"
+                                      color={assignment.evaluationCount > 1 ? 'warning' : 'success'}
+                                    />
                                   </TableCell>
                                   <TableCell>
                                     <Chip

@@ -323,41 +323,38 @@ public class ReportService {
     @Transactional(readOnly = true)
     public AssignmentAuditReportDTO generateAssignmentAuditReport(LocalDate startDate, LocalDate endDate) {
         
-        log.info("Generating assignment audit report from {} to {} (including deleted)", startDate, endDate);
+        log.info("Generating assignment evaluation report from {} to {} (only evaluated assignments)", startDate, endDate);
 
-        // Fetch all assignments including deleted ones
-        List<WorkAssignment> assignments = workAssignmentRepository
-                .findAllByAssignmentDateBetweenIncludingDeleted(startDate, endDate);
+        // Fetch only evaluated assignments (filtered at database level) including deleted ones
+        List<WorkAssignment> evaluatedAssignments = workAssignmentRepository
+                .findEvaluatedAssignmentsByDateRange(startDate, endDate);
 
         AssignmentAuditReportDTO report = new AssignmentAuditReportDTO();
         report.setReportGeneratedDate(LocalDate.now());
         report.setStartDate(startDate);
         report.setEndDate(endDate);
-        report.setTotalAssignments(assignments.size());
+        report.setTotalEvaluatedAssignments(evaluatedAssignments.size());
 
-        // Count assignments by various criteria
-        long evaluatedCount = assignments.stream()
-                .filter(a -> a.getLastEvaluatedAt() != null)
+        // Count re-evaluated assignments (evaluation count > 1)
+        long reEvaluatedCount = evaluatedAssignments.stream()
+                .filter(a -> a.getEvaluationCount() != null && a.getEvaluationCount() > 1)
                 .count();
-        long pendingCount = assignments.stream()
-                .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.ASSIGNED)
-                .count();
-        long deletedCount = assignments.stream()
+        
+        long deletedCount = evaluatedAssignments.stream()
                 .filter(a -> Boolean.TRUE.equals(a.getDeleted()))
                 .count();
 
-        report.setEvaluatedAssignments((int) evaluatedCount);
-        report.setPendingAssignments((int) pendingCount);
+        report.setReEvaluatedAssignments((int) reEvaluatedCount);
         report.setDeletedAssignments((int) deletedCount);
 
-        List<AssignmentAuditReportDTO.AssignmentAuditDetail> auditDetails = assignments.stream()
+        List<AssignmentAuditReportDTO.AssignmentAuditDetail> auditDetails = evaluatedAssignments.stream()
                 .map(this::convertToAuditDetail)
                 .collect(Collectors.toList());
 
         report.setAssignments(auditDetails);
 
-        log.info("Audit report generated with {} assignments ({} evaluated, {} pending, {} deleted)", 
-                assignments.size(), evaluatedCount, pendingCount, deletedCount);
+        log.info("Evaluation report generated with {} evaluated assignments ({} re-evaluated, {} deleted)", 
+                evaluatedAssignments.size(), reEvaluatedCount, deletedCount);
 
         return report;
     }
@@ -370,8 +367,29 @@ public class ReportService {
                 assignment.getAssignedEmployee().getName() : "Unassigned");
         detail.setAssignmentDate(assignment.getAssignmentDate());
         detail.setAssignedAt(assignment.getAssignedAt());
+        detail.setFirstEvaluatedAt(assignment.getFirstEvaluatedAt());
         detail.setLastEvaluatedAt(assignment.getLastEvaluatedAt());
         detail.setEvaluationCount(assignment.getEvaluationCount() != null ? assignment.getEvaluationCount() : 0);
+        
+        // Calculate Min Eval Time: time from assignment to first evaluation
+        if (assignment.getAssignedAt() != null && assignment.getFirstEvaluatedAt() != null) {
+            long minMinutes = java.time.Duration.between(
+                assignment.getAssignedAt(), 
+                assignment.getFirstEvaluatedAt()
+            ).toMinutes();
+            detail.setMinEvalTimeMinutes(minMinutes);
+        }
+        
+        // Calculate Max Eval Time: time from assignment to last evaluation
+        // If only 1 evaluation, max = min. If multiple evaluations, max will be longer
+        if (assignment.getAssignedAt() != null && assignment.getLastEvaluatedAt() != null) {
+            long maxMinutes = java.time.Duration.between(
+                assignment.getAssignedAt(), 
+                assignment.getLastEvaluatedAt()
+            ).toMinutes();
+            detail.setMaxEvalTimeMinutes(maxMinutes);
+        }
+        
         detail.setStatus(assignment.getAssignmentStatus());
         detail.setCompletionPercentage(assignment.getCompletionPercentage());
         detail.setActualValue(assignment.getActualValue());

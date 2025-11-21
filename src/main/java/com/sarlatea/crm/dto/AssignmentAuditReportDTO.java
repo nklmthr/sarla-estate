@@ -20,9 +20,8 @@ public class AssignmentAuditReportDTO {
     private LocalDate reportGeneratedDate;
     private LocalDate startDate;
     private LocalDate endDate;
-    private Integer totalAssignments;
-    private Integer evaluatedAssignments;
-    private Integer pendingAssignments;
+    private Integer totalEvaluatedAssignments; // Only evaluated assignments
+    private Integer reEvaluatedAssignments; // Assignments with evaluation count > 1
     private Integer deletedAssignments;
     private List<AssignmentAuditDetail> assignments;
 
@@ -35,8 +34,11 @@ public class AssignmentAuditReportDTO {
         private String employeeName;
         private LocalDate assignmentDate;
         private LocalDateTime assignedAt;
+        private LocalDateTime firstEvaluatedAt;
         private LocalDateTime lastEvaluatedAt;
         private Integer evaluationCount;
+        private Long minEvalTimeMinutes; // Min time = from assignment to first evaluation
+        private Long maxEvalTimeMinutes; // Max time = from assignment to last evaluation (same as min if only 1 eval)
         private WorkAssignment.AssignmentStatus status;
         private Integer completionPercentage;
         private Double actualValue;

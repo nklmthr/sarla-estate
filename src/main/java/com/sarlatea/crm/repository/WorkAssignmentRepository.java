@@ -72,5 +72,17 @@ public interface WorkAssignmentRepository extends JpaRepository<WorkAssignment, 
            "ORDER BY wa.assignedAt DESC, e.name ASC")
     List<WorkAssignment> findAllByAssignmentDateBetweenIncludingDeleted(@Param("startDate") LocalDate startDate, 
                                                                          @Param("endDate") LocalDate endDate);
+    
+    /**
+     * Find only EVALUATED assignments (including deleted) in date range for evaluation report
+     * Filters at database level for assignments where firstEvaluatedAt IS NOT NULL
+     */
+    @Query("SELECT wa FROM WorkAssignment wa " +
+           "LEFT JOIN FETCH wa.assignedEmployee e " +
+           "WHERE wa.assignmentDate BETWEEN :startDate AND :endDate " +
+           "AND wa.firstEvaluatedAt IS NOT NULL " +
+           "ORDER BY wa.firstEvaluatedAt DESC, e.name ASC")
+    List<WorkAssignment> findEvaluatedAssignmentsByDateRange(@Param("startDate") LocalDate startDate, 
+                                                              @Param("endDate") LocalDate endDate);
 }
 

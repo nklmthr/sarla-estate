@@ -36,6 +36,7 @@ public class WorkAssignmentDTO {
     
     // Audit fields for tracking assignment and evaluation times
     private LocalDateTime assignedAt;
+    private LocalDateTime firstEvaluatedAt;
     private LocalDateTime lastEvaluatedAt;
     private Integer evaluationCount;
 }

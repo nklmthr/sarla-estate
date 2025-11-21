@@ -36,6 +36,9 @@ public class WorkAssignment extends BaseEntity {
     @Column(name = "assigned_at")
     private LocalDateTime assignedAt;
     
+    @Column(name = "first_evaluated_at")
+    private LocalDateTime firstEvaluatedAt;
+    
     @Column(name = "last_evaluated_at")
     private LocalDateTime lastEvaluatedAt;
     

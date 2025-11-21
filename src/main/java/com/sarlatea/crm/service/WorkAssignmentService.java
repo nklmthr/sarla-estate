@@ -179,8 +179,12 @@ public class WorkAssignmentService {
         }
         
         // Track evaluation time and count for audit
-        assignment.setLastEvaluatedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
         Integer currentCount = assignment.getEvaluationCount();
+        if (currentCount == null || currentCount == 0) {
+            assignment.setFirstEvaluatedAt(now); // Track first evaluation time
+        }
+        assignment.setLastEvaluatedAt(now);
         assignment.setEvaluationCount(currentCount != null ? currentCount + 1 : 1);
         
         WorkAssignment updatedAssignment = workAssignmentRepository.save(assignment);
@@ -215,8 +219,12 @@ public class WorkAssignmentService {
         assignment.setCompletionPercentage(validPercentage);
         
         // Track evaluation time and count for audit
-        assignment.setLastEvaluatedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
         Integer currentCount = assignment.getEvaluationCount();
+        if (currentCount == null || currentCount == 0) {
+            assignment.setFirstEvaluatedAt(now); // Track first evaluation time
+        }
+        assignment.setLastEvaluatedAt(now);
         assignment.setEvaluationCount(currentCount != null ? currentCount + 1 : 1);
         
         // Once an assignment is evaluated, mark it as COMPLETED regardless of percentage
@@ -260,6 +268,7 @@ public class WorkAssignmentService {
         dto.setCompletedDate(assignment.getCompletedDate());
         // Audit fields
         dto.setAssignedAt(assignment.getAssignedAt());
+        dto.setFirstEvaluatedAt(assignment.getFirstEvaluatedAt());
         dto.setLastEvaluatedAt(assignment.getLastEvaluatedAt());
         dto.setEvaluationCount(assignment.getEvaluationCount());
         return dto;

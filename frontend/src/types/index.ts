@@ -179,9 +179,8 @@ export interface AssignmentAuditReport {
   reportGeneratedDate: string;
   startDate: string;
   endDate: string;
-  totalAssignments: number;
-  evaluatedAssignments: number;
-  pendingAssignments: number;
+  totalEvaluatedAssignments: number; // Only evaluated assignments
+  reEvaluatedAssignments: number; // Assignments with evaluation count > 1
   deletedAssignments: number;
   assignments: AssignmentAuditDetail[];
 }
@@ -192,8 +191,11 @@ export interface AssignmentAuditDetail {
   employeeName: string;
   assignmentDate: string;
   assignedAt: string;
-  lastEvaluatedAt?: string;
+  firstEvaluatedAt: string;
+  lastEvaluatedAt: string;
   evaluationCount: number;
+  minEvalTimeMinutes: number; // Min time = from assignment to first evaluation
+  maxEvalTimeMinutes: number; // Max time = from assignment to last evaluation (same as min if only 1 eval)
   status: 'ASSIGNED' | 'COMPLETED';
   completionPercentage?: number;
   actualValue?: number;
