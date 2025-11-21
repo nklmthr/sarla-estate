@@ -36,7 +36,7 @@ spring.devtools.restart.enabled=true
 # Security
 # Generate a secure key with: openssl rand -base64 32
 jwt.secret=YOUR_JWT_SECRET_HERE
-jwt.expiration=86400000
+jwt.expiration=1800000
 
 # Audit Log Configuration
 # Enable/disable IP geolocation lookup (default: true)
