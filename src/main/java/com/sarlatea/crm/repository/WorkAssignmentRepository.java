@@ -61,5 +61,16 @@ public interface WorkAssignmentRepository extends JpaRepository<WorkAssignment, 
     
     // Count non-deleted assignments for a specific work activity
     long countByWorkActivityAndDeletedFalse(WorkActivity workActivity);
+    
+    /**
+     * Find all assignments (including deleted) in date range for audit report
+     * Shows when assignments were created and evaluated
+     */
+    @Query("SELECT wa FROM WorkAssignment wa " +
+           "LEFT JOIN FETCH wa.assignedEmployee e " +
+           "WHERE wa.assignmentDate BETWEEN :startDate AND :endDate " +
+           "ORDER BY wa.assignedAt DESC, e.name ASC")
+    List<WorkAssignment> findAllByAssignmentDateBetweenIncludingDeleted(@Param("startDate") LocalDate startDate, 
+                                                                         @Param("endDate") LocalDate endDate);
 }
 

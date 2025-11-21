@@ -36,6 +36,7 @@ import {
 } from '@mui/icons-material';
 import { workActivityApi } from '../../api/workActivityApi';
 import { completionCriteriaApi } from '../../api/completionCriteriaApi';
+import { unitOfMeasureApi, UnitOfMeasure } from '../../api/unitOfMeasureApi';
 import { WorkActivity, WorkActivityCompletionCriteria } from '../../types';
 import { useError } from '../../contexts/ErrorContext';
 
@@ -56,7 +57,7 @@ const WorkActivityList: React.FC = () => {
   const [showCriteriaForm, setShowCriteriaForm] = useState(false);
   const [editingCriteria, setEditingCriteria] = useState<WorkActivityCompletionCriteria | null>(null);
   const [criteriaFormData, setCriteriaFormData] = useState<WorkActivityCompletionCriteria>({
-    unit: 'KG',
+    unit: '',
     value: 0,
     startDate: new Date().toISOString().split('T')[0],
     endDate: '',
@@ -65,10 +66,12 @@ const WorkActivityList: React.FC = () => {
   const [successDialogOpen, setSuccessDialogOpen] = useState(false);
   const [deleteCriteriaDialogOpen, setDeleteCriteriaDialogOpen] = useState(false);
   const [criteriaToDelete, setCriteriaToDelete] = useState<WorkActivityCompletionCriteria | null>(null);
+  const [unitsOfMeasure, setUnitsOfMeasure] = useState<UnitOfMeasure[]>([]);
 
   // Reload activities whenever the page is navigated to
   useEffect(() => {
     loadActivities();
+    loadUnitsOfMeasure();
   }, [location.pathname]); // Reload when route changes
 
   useEffect(() => {
@@ -102,6 +105,16 @@ const WorkActivityList: React.FC = () => {
       setFilteredActivities(activitiesArray);
     } catch (error) {
       // Error handled by global interceptor
+    }
+  };
+
+  const loadUnitsOfMeasure = async () => {
+    try {
+      const data = await unitOfMeasureApi.getActiveUnits();
+      setUnitsOfMeasure(Array.isArray(data) ? data : []);
+    } catch (error) {
+      // Error handled by global interceptor
+      setUnitsOfMeasure([]);
     }
   };
 
@@ -163,6 +176,11 @@ const WorkActivityList: React.FC = () => {
     }
   };
 
+  const getUnitName = (unitCode: string): string => {
+    const unit = unitsOfMeasure.find(u => u.code === unitCode);
+    return unit ? unit.name : unitCode;
+  };
+
   const openCriteriaDialog = async (activity: WorkActivity) => {
     setSelectedActivity(activity);
     try {
@@ -186,7 +204,7 @@ const WorkActivityList: React.FC = () => {
 
   const resetCriteriaForm = () => {
     setCriteriaFormData({
-      unit: 'KG',
+      unit: unitsOfMeasure.length > 0 ? unitsOfMeasure[0].code : '',
       value: 0,
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
@@ -468,10 +486,11 @@ const WorkActivityList: React.FC = () => {
                   value={criteriaFormData.unit}
                   onChange={handleCriteriaFormChange}
                 >
-                  <MenuItem value="KG">Kilograms (KG)</MenuItem>
-                  <MenuItem value="AREA">Area</MenuItem>
-                  <MenuItem value="PLANTS">Plants</MenuItem>
-                  <MenuItem value="LITERS">Liters</MenuItem>
+                  {unitsOfMeasure.map((unit) => (
+                    <MenuItem key={unit.id} value={unit.code}>
+                      {unit.name}
+                    </MenuItem>
+                  ))}
                 </TextField>
               </Grid>
               <Grid item xs={12} md={6}>
@@ -565,7 +584,7 @@ const WorkActivityList: React.FC = () => {
                 <TableBody>
                   {completionCriteria.map((criteria) => (
                     <TableRow key={criteria.id}>
-                      <TableCell>{criteria.unit}</TableCell>
+                      <TableCell>{getUnitName(criteria.unit)}</TableCell>
                       <TableCell>{criteria.value}</TableCell>
                       <TableCell>{criteria.startDate}</TableCell>
                       <TableCell>{criteria.endDate || '-'}</TableCell>

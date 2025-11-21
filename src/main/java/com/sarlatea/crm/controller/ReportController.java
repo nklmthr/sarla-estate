@@ -1,5 +1,6 @@
 package com.sarlatea.crm.controller;
 
+import com.sarlatea.crm.dto.AssignmentAuditReportDTO;
 import com.sarlatea.crm.dto.PaymentReportDTO;
 import com.sarlatea.crm.dto.UpcomingAssignmentsReportDTO;
 import com.sarlatea.crm.service.ReportService;
@@ -100,6 +101,17 @@ public class ReportController {
         
         log.info("GET request for last week payment report");
         PaymentReportDTO report = reportService.generatePaymentReport(lastWeekStart, today);
+        return ResponseEntity.ok(report);
+    }
+
+    @GetMapping("/assignment-audit")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_ASSIGNMENT')")
+    public ResponseEntity<AssignmentAuditReportDTO> getAssignmentAuditReport(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
+        
+        log.info("GET request for assignment audit report from {} to {}", startDate, endDate);
+        AssignmentAuditReportDTO report = reportService.generateAssignmentAuditReport(startDate, endDate);
         return ResponseEntity.ok(report);
     }
 }

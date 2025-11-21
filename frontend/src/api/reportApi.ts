@@ -1,5 +1,5 @@
 import apiClient from './apiClient';
-import { UpcomingAssignmentsReport, PaymentReport } from '../types';
+import { UpcomingAssignmentsReport, PaymentReport, AssignmentAuditReport } from '../types';
 
 export const reportApi = {
   getUpcomingAssignments: (startDate: string, endDate: string) => 
@@ -27,5 +27,10 @@ export const reportApi = {
   
   getLastWeekPayment: () => 
     apiClient.get<PaymentReport>('/reports/payments/last-week'),
+  
+  getAssignmentAuditReport: (startDate: string, endDate: string) => 
+    apiClient.get<AssignmentAuditReport>(
+      `/reports/assignment-audit?startDate=${startDate}&endDate=${endDate}`
+    ),
 };
 

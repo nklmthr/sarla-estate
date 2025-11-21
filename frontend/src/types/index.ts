@@ -1,5 +1,14 @@
 // Type definitions for Tea Estate CRM
 
+export interface UnitOfMeasure {
+  id?: string;
+  code: string;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+  displayOrder?: number;
+}
+
 export interface EmployeeType {
   id?: string;
   code: string;
@@ -44,7 +53,7 @@ export interface WorkActivity {
 export interface WorkActivityCompletionCriteria {
   id?: string;
   workActivityId?: string;
-  unit: 'KG' | 'AREA' | 'PLANTS' | 'LITERS';
+  unit: string; // Unit code from Unit of Measure master data
   value: number;
   startDate: string;
   endDate?: string;
@@ -164,5 +173,30 @@ export interface AssignmentDetail {
   actualHours?: number;
   completionPercentage: number;
   contributionToPayment: number;
+}
+
+export interface AssignmentAuditReport {
+  reportGeneratedDate: string;
+  startDate: string;
+  endDate: string;
+  totalAssignments: number;
+  evaluatedAssignments: number;
+  pendingAssignments: number;
+  deletedAssignments: number;
+  assignments: AssignmentAuditDetail[];
+}
+
+export interface AssignmentAuditDetail {
+  assignmentId: string;
+  activityName: string;
+  employeeName: string;
+  assignmentDate: string;
+  assignedAt: string;
+  lastEvaluatedAt?: string;
+  evaluationCount: number;
+  status: 'ASSIGNED' | 'COMPLETED';
+  completionPercentage?: number;
+  actualValue?: number;
+  deleted: boolean;
 }
 

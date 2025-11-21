@@ -41,6 +41,7 @@ import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
 import { workActivityApi } from '../../api/workActivityApi';
 import { completionCriteriaApi } from '../../api/completionCriteriaApi';
+import { unitOfMeasureApi, UnitOfMeasure } from '../../api/unitOfMeasureApi';
 import { WorkAssignment, Employee, WorkActivity, WorkActivityCompletionCriteria } from '../../types';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { useError } from '../../contexts/ErrorContext';
@@ -61,6 +62,7 @@ const AssignmentList: React.FC = () => {
   const [activities, setActivities] = useState<ActivityWithCriteria[]>([]);
   const [assignments, setAssignments] = useState<WorkAssignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [unitsOfMeasure, setUnitsOfMeasure] = useState<UnitOfMeasure[]>([]);
   
   // Pagination
   const [page, setPage] = useState(0);
@@ -90,9 +92,10 @@ const AssignmentList: React.FC = () => {
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
-  // Load activities once on mount
+  // Load activities and units once on mount
   useEffect(() => {
     loadActivities();
+    loadUnitsOfMeasure();
   }, []);
 
   // Load employees and assignments when page, rowsPerPage, week, or search changes
@@ -126,6 +129,21 @@ const AssignmentList: React.FC = () => {
       console.error('Error loading activities:', error);
       setActivities([]);
     }
+  };
+
+  const loadUnitsOfMeasure = async () => {
+    try {
+      const data = await unitOfMeasureApi.getActiveUnits();
+      setUnitsOfMeasure(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading units of measure:', error);
+      setUnitsOfMeasure([]);
+    }
+  };
+
+  const getUnitName = (unitCode: string): string => {
+    const unit = unitsOfMeasure.find(u => u.code === unitCode);
+    return unit ? unit.name : unitCode;
   };
 
   const loadData = async () => {
@@ -499,9 +517,22 @@ const AssignmentList: React.FC = () => {
     // If assignment exists
     if (assignment) {
       const activity = activities.find((a) => a.id === assignment.workActivityId);
+      const hasActiveCriteria = !!activity?.activeCriteria;
+      const isCompleted = assignment.assignmentStatus === 'COMPLETED';
+      
       return (
         <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
-          <Paper elevation={1} sx={{ p: 0.75, bgcolor: 'action.hover', overflow: 'hidden', position: 'relative' }}>
+          <Paper 
+            elevation={1} 
+            sx={{ 
+              p: 0.75, 
+              bgcolor: !hasActiveCriteria && !isCompleted ? 'error.light' : 'action.hover',
+              overflow: 'hidden', 
+              position: 'relative',
+              border: !hasActiveCriteria && !isCompleted ? '1px solid' : 'none',
+              borderColor: 'error.main'
+            }}
+          >
             <Box display="flex" justifyContent="space-between" alignItems="flex-start">
               <Typography 
                 variant="body2" 
@@ -520,17 +551,23 @@ const AssignmentList: React.FC = () => {
                 {assignment.activityName}
               </Typography>
               <Box display="flex" gap={0.25} sx={{ position: 'relative', zIndex: 10 }}>
-                <Tooltip title="Evaluate" arrow>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleOpenCompletionDialog(assignment)}
-                    color="primary"
-                    sx={{ mt: -0.5, p: 0.25 }}
-                  >
-                    <AssessmentIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
+                <Tooltip 
+                  title={!hasActiveCriteria && !isCompleted ? "Cannot evaluate: No active criteria" : "Evaluate"} 
+                  arrow
+                >
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleOpenCompletionDialog(assignment)}
+                      color="primary"
+                      sx={{ mt: -0.5, p: 0.25 }}
+                      disabled={!hasActiveCriteria && !isCompleted}
+                    >
+                      <AssessmentIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </span>
                 </Tooltip>
-                <Tooltip title="Delete" arrow>
+                <Tooltip title="Delete Assignment" arrow>
                   <IconButton
                     size="small"
                     onClick={() => handleOpenDeleteDialog(assignment)}
@@ -542,9 +579,14 @@ const AssignmentList: React.FC = () => {
                 </Tooltip>
               </Box>
             </Box>
+            {!hasActiveCriteria && !isCompleted && (
+              <Typography variant="caption" color="error.dark" display="block" sx={{ fontSize: '0.65rem', fontWeight: 600, mt: 0.25 }}>
+                ⚠️ No active criteria - please delete
+              </Typography>
+            )}
             {activity?.activeCriteria && (
               <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: '0.7rem' }}>
-                Target: {activity.activeCriteria.value} {activity.activeCriteria.unit}
+                Target: {activity.activeCriteria.value} {getUnitName(activity.activeCriteria.unit)}
               </Typography>
             )}
             <Box sx={{ mt: 0.25 }}>
@@ -561,7 +603,7 @@ const AssignmentList: React.FC = () => {
             </Box>
             {assignment.actualValue !== undefined && assignment.actualValue !== null && (
               <Typography variant="caption" display="block" sx={{ mt: 0.25, fontSize: '0.7rem' }}>
-                Done: {assignment.actualValue} {activity?.activeCriteria?.unit || ''} ({assignment.completionPercentage}%)
+                Done: {assignment.actualValue} {activity?.activeCriteria ? getUnitName(activity.activeCriteria.unit) : ''} ({assignment.completionPercentage}%)
               </Typography>
             )}
           </Paper>
@@ -737,7 +779,7 @@ const AssignmentList: React.FC = () => {
                         Completion Criteria:
                       </Typography>
                       <Typography variant="h6" color="primary">
-                        {criteria.value} {criteria.unit}
+                        {criteria.value} {getUnitName(criteria.unit)}
                       </Typography>
                     </Box>
                   )}
@@ -756,7 +798,7 @@ const AssignmentList: React.FC = () => {
                       }
                     }}
                     InputProps={{
-                      endAdornment: criteria?.unit || '',
+                      endAdornment: criteria ? getUnitName(criteria.unit) : '',
                       inputProps: { min: 0, step: 0.1 }
                     }}
                     helperText="Enter the actual value of work completed (Press Enter to save)"

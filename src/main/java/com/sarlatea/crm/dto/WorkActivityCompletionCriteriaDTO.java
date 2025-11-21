@@ -1,7 +1,6 @@
 package com.sarlatea.crm.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.sarlatea.crm.model.WorkActivityCompletionCriteria;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -20,7 +19,7 @@ import java.time.LocalDate;
 public class WorkActivityCompletionCriteriaDTO {
     private String id;
     private String workActivityId;
-    private WorkActivityCompletionCriteria.Unit unit;
+    private String unit; // Unit code from UnitOfMeasure master data
     private BigDecimal value;
     private LocalDate startDate;
     private LocalDate endDate;

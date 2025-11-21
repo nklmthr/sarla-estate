@@ -34,16 +34,17 @@ import {
   TableChart as ExcelIcon,
 } from '@mui/icons-material';
 import { reportApi } from '../../api/reportApi';
-import { UpcomingAssignmentsReport, PaymentReport, WorkAssignment } from '../../types';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { UpcomingAssignmentsReport, PaymentReport, WorkAssignment, AssignmentAuditReport } from '../../types';
+import { format, startOfMonth, endOfMonth, differenceInMinutes, differenceInHours, differenceInDays } from 'date-fns';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { useError } from '../../contexts/ErrorContext';
+import HistoryIcon from '@mui/icons-material/History';
 
 const Reports: React.FC = () => {
   const { showSuccess } = useError();
-  const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments'>('payments');
+  const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments' | 'evaluation'>('payments');
   const [loading, setLoading] = useState(false);
   
   // Assignment Report
@@ -55,6 +56,11 @@ const Reports: React.FC = () => {
   const [paymentReport, setPaymentReport] = useState<PaymentReport | null>(null);
   const [paymentStartDate, setPaymentStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [paymentEndDate, setPaymentEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+  
+  // Assignment Audit Report
+  const [auditReport, setAuditReport] = useState<AssignmentAuditReport | null>(null);
+  const [auditStartDate, setAuditStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
+  const [auditEndDate, setAuditEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
 
   const loadDailyAssignments = async () => {
     try {
@@ -78,6 +84,39 @@ const Reports: React.FC = () => {
       // Error handled by global interceptor
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadAuditReport = async () => {
+    try {
+      setLoading(true);
+      const data = await reportApi.getAssignmentAuditReport(auditStartDate, auditEndDate);
+      setAuditReport(data);
+    } catch (error) {
+      // Error handled by global interceptor
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const calculateTimeDifference = (createdAt: string | undefined, evaluatedAt: string | undefined): string => {
+    if (!createdAt || !evaluatedAt) return '-';
+    
+    const created = new Date(createdAt);
+    const evaluated = new Date(evaluatedAt);
+    
+    const minutes = differenceInMinutes(evaluated, created);
+    const hours = differenceInHours(evaluated, created);
+    const days = differenceInDays(evaluated, created);
+    
+    if (days > 0) {
+      const remainingHours = hours % 24;
+      return remainingHours > 0 ? `${days}d ${remainingHours}h` : `${days}d`;
+    } else if (hours > 0) {
+      const remainingMinutes = minutes % 60;
+      return remainingMinutes > 0 ? `${hours}h ${remainingMinutes}m` : `${hours}h`;
+    } else {
+      return `${minutes}m`;
     }
   };
 
@@ -303,26 +342,26 @@ const Reports: React.FC = () => {
         {/* Left Sidebar Navigation */}
         <Paper 
           sx={{ 
-            width: 280, 
+            width: 200, 
             minHeight: 'calc(100vh - 200px)',
             position: 'sticky',
             top: 100,
             alignSelf: 'flex-start'
           }}
         >
-          <Box sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom sx={{ px: 2, pt: 1 }}>
-              Report Types
+          <Box sx={{ p: 1.5 }}>
+            <Typography variant="subtitle1" fontWeight="600" sx={{ px: 1 }}>
+              Reports
             </Typography>
           </Box>
           <Divider />
-          <List>
+          <List dense>
             <ListItem disablePadding>
               <ListItemButton
                 selected={selectedReport === 'payments'}
                 onClick={() => setSelectedReport('payments')}
                 sx={{
-                  py: 2,
+                  py: 1,
                   '&.Mui-selected': {
                     backgroundColor: 'primary.light',
                     color: 'primary.contrastText',
@@ -335,27 +374,21 @@ const Reports: React.FC = () => {
                   },
                 }}
               >
-                <ListItemIcon>
-                  <MoneyIcon color={selectedReport === 'payments' ? 'inherit' : 'primary'} />
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <MoneyIcon fontSize="small" color={selectedReport === 'payments' ? 'inherit' : 'primary'} />
                 </ListItemIcon>
                 <ListItemText 
-                  primary="Payment Report" 
-                  secondary="Employee payment summary"
-                  secondaryTypographyProps={{
-                    sx: { 
-                      color: selectedReport === 'payments' ? 'rgba(255,255,255,0.7)' : 'text.secondary' 
-                    }
-                  }}
+                  primary="Payment" 
+                  primaryTypographyProps={{ variant: 'body2' }}
                 />
               </ListItemButton>
             </ListItem>
-            <Divider />
             <ListItem disablePadding>
               <ListItemButton
                 selected={selectedReport === 'assignments'}
                 onClick={() => setSelectedReport('assignments')}
                 sx={{
-                  py: 2,
+                  py: 1,
                   '&.Mui-selected': {
                     backgroundColor: 'primary.light',
                     color: 'primary.contrastText',
@@ -368,17 +401,39 @@ const Reports: React.FC = () => {
                   },
                 }}
               >
-                <ListItemIcon>
-                  <AssignmentIcon color={selectedReport === 'assignments' ? 'inherit' : 'primary'} />
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <AssignmentIcon fontSize="small" color={selectedReport === 'assignments' ? 'inherit' : 'primary'} />
                 </ListItemIcon>
                 <ListItemText 
-                  primary="Assignment Report" 
-                  secondary="Daily assignments overview"
-                  secondaryTypographyProps={{
-                    sx: { 
-                      color: selectedReport === 'assignments' ? 'rgba(255,255,255,0.7)' : 'text.secondary' 
-                    }
-                  }}
+                  primary="Assignments" 
+                  primaryTypographyProps={{ variant: 'body2' }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={selectedReport === 'evaluation'}
+                onClick={() => setSelectedReport('evaluation')}
+                sx={{
+                  py: 1,
+                  '&.Mui-selected': {
+                    backgroundColor: 'primary.light',
+                    color: 'primary.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'primary.main',
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: 'primary.contrastText',
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <HistoryIcon fontSize="small" color={selectedReport === 'evaluation' ? 'inherit' : 'primary'} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="Evaluation" 
+                  primaryTypographyProps={{ variant: 'body2' }}
                 />
               </ListItemButton>
             </ListItem>
@@ -390,14 +445,14 @@ const Reports: React.FC = () => {
           {/* Assignment Report */}
           {selectedReport === 'assignments' && (
           <Box>
-            <Paper sx={{ mb: 3, p: 3, backgroundColor: 'primary.light', color: 'primary.contrastText' }}>
+            <Paper sx={{ mb: 2, p: 2, backgroundColor: 'primary.light', color: 'primary.contrastText' }}>
               <Box display="flex" alignItems="center">
-                <AssignmentIcon sx={{ mr: 2, fontSize: 40, color: 'primary.contrastText' }} />
+                <AssignmentIcon sx={{ mr: 1.5, fontSize: 32, color: 'primary.contrastText' }} />
                 <Box>
-                  <Typography variant="h4" gutterBottom sx={{ color: 'primary.contrastText' }}>
+                  <Typography variant="h5" sx={{ color: 'primary.contrastText', mb: 0.5 }}>
                     Assignment Report
                   </Typography>
-                  <Typography variant="body1" sx={{ color: 'primary.contrastText', opacity: 0.95 }}>
+                  <Typography variant="body2" sx={{ color: 'primary.contrastText', opacity: 0.9 }}>
                     View and analyze daily work assignments and their evaluation status
                   </Typography>
                 </Box>
@@ -462,7 +517,7 @@ const Reports: React.FC = () => {
                 <>
                   {/* Summary Cards */}
                   <Grid item xs={12}>
-                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 2 }}>
+                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 1 }}>
                       Summary
                     </Typography>
                   </Grid>
@@ -471,11 +526,11 @@ const Reports: React.FC = () => {
                       background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
                       color: 'white' 
                     }}>
-                      <CardContent>
-                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                           Total Assignments
                         </Typography>
-                        <Typography variant="h3" fontWeight="bold">
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
                           {getFilteredAssignments().length}
                         </Typography>
                       </CardContent>
@@ -486,11 +541,11 @@ const Reports: React.FC = () => {
                       background: 'linear-gradient(135deg, #81C784 0%, #66BB6A 100%)', 
                       color: 'white' 
                     }}>
-                      <CardContent>
-                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                           Evaluated
                         </Typography>
-                        <Typography variant="h3" fontWeight="bold">
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
                           {getEvaluatedCount()}
                         </Typography>
                       </CardContent>
@@ -501,12 +556,11 @@ const Reports: React.FC = () => {
                       background: 'linear-gradient(135deg, #FFB74D 0%, #FFA726 100%)', 
                       color: 'white' 
                     }}>
-
-                      <CardContent>
-                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
                           Pending Evaluation
                         </Typography>
-                        <Typography variant="h3" fontWeight="bold">
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
                           {getNotEvaluatedCount()}
                         </Typography>
                       </CardContent>
@@ -603,17 +657,241 @@ const Reports: React.FC = () => {
           </Box>
           )}
 
+          {/* Assignment Evaluation Report */}
+          {selectedReport === 'evaluation' && (
+          <Box>
+            <Paper sx={{ mb: 2, p: 2, backgroundColor: 'primary.light', color: 'primary.contrastText' }}>
+              <Box display="flex" alignItems="center">
+                <HistoryIcon sx={{ mr: 1.5, fontSize: 32, color: 'primary.contrastText' }} />
+                <Box>
+                  <Typography variant="h5" sx={{ color: 'primary.contrastText', mb: 0.5 }}>
+                    Assignment Evaluation Report
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'primary.contrastText', opacity: 0.9 }}>
+                    Track assignment creation and evaluation times including deleted assignments
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <Card elevation={3}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      Report Parameters
+                    </Typography>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} md={3}>
+                        <TextField
+                          fullWidth
+                          type="date"
+                          label="Start Date"
+                          value={auditStartDate}
+                          onChange={(e) => setAuditStartDate(e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <TextField
+                          fullWidth
+                          type="date"
+                          label="End Date"
+                          value={auditEndDate}
+                          onChange={(e) => setAuditEndDate(e.target.value)}
+                          InputLabelProps={{ shrink: true }}
+                        />
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Button
+                          variant="contained"
+                          onClick={loadAuditReport}
+                          disabled={loading}
+                        >
+                          Generate Report
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {loading && (
+                <Grid item xs={12}>
+                  <Box display="flex" justifyContent="center" py={5}>
+                    <CircularProgress />
+                  </Box>
+                </Grid>
+              )}
+
+              {!loading && auditReport && (
+                <>
+                  {/* Summary Cards */}
+                  <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 1 }}>
+                      Summary
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <Card elevation={3} sx={{ background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', color: 'white' }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                          Total Assignments
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
+                          {auditReport.totalAssignments}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <Card elevation={3} sx={{ background: 'linear-gradient(135deg, #81C784 0%, #66BB6A 100%)', color: 'white' }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                          Evaluated
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
+                          {auditReport.evaluatedAssignments}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <Card elevation={3} sx={{ background: 'linear-gradient(135deg, #FFD54F 0%, #FFC107 100%)', color: 'white' }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                          Pending
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
+                          {auditReport.pendingAssignments}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={3}>
+                    <Card elevation={3} sx={{ background: 'linear-gradient(135deg, #E57373 0%, #EF5350 100%)', color: 'white' }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem' }}>
+                          Deleted
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5 }}>
+                          {auditReport.deletedAssignments}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  {/* Audit Details Table */}
+                  <Grid item xs={12}>
+                    <Card elevation={3}>
+                      <CardContent>
+                        <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+                          <Typography variant="h6" color="primary">
+                            Assignment Evaluation Details
+                          </Typography>
+                          <Box>
+                            <Button
+                              startIcon={<PdfIcon />}
+                              size="small"
+                              sx={{ mr: 1 }}
+                              onClick={() => { /* Add export PDF */ }}
+                            >
+                              Export PDF
+                            </Button>
+                            <Button
+                              startIcon={<ExcelIcon />}
+                              size="small"
+                              color="success"
+                              onClick={() => { /* Add export Excel */ }}
+                            >
+                              Export Excel
+                            </Button>
+                          </Box>
+                        </Box>
+                        <TableContainer>
+                          <Table size="small">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell><strong>Activity</strong></TableCell>
+                                <TableCell><strong>Employee</strong></TableCell>
+                                <TableCell><strong>Date</strong></TableCell>
+                                <TableCell><strong>Created</strong></TableCell>
+                                <TableCell><strong>Evaluated</strong></TableCell>
+                                <TableCell><strong>Time to Eval</strong></TableCell>
+                                <TableCell><strong>Re-evals</strong></TableCell>
+                                <TableCell><strong>Status</strong></TableCell>
+                                <TableCell><strong>Completion %</strong></TableCell>
+                                <TableCell><strong>Deleted</strong></TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {auditReport.assignments.map((assignment) => (
+                                <TableRow key={assignment.assignmentId} sx={{ bgcolor: assignment.deleted ? 'error.50' : 'inherit' }}>
+                                  <TableCell>{assignment.activityName}</TableCell>
+                                  <TableCell>{assignment.employeeName}</TableCell>
+                                  <TableCell>{format(new Date(assignment.assignmentDate), 'dd-MMM')}</TableCell>
+                                  <TableCell>{assignment.assignedAt ? format(new Date(assignment.assignedAt), 'dd-MMM HH:mm') : '-'}</TableCell>
+                                  <TableCell>{assignment.lastEvaluatedAt ? format(new Date(assignment.lastEvaluatedAt), 'dd-MMM HH:mm') : '-'}</TableCell>
+                                  <TableCell>
+                                    <Chip 
+                                      label={calculateTimeDifference(assignment.assignedAt, assignment.lastEvaluatedAt)}
+                                      size="small"
+                                      variant="outlined"
+                                      color={assignment.lastEvaluatedAt ? 'primary' : 'default'}
+                                    />
+                                  </TableCell>
+                                  <TableCell align="center">
+                                    {assignment.evaluationCount > 1 ? (
+                                      <Chip 
+                                        label={assignment.evaluationCount - 1} 
+                                        size="small" 
+                                        color="warning"
+                                        title={`Re-evaluated ${assignment.evaluationCount - 1} time(s)`}
+                                      />
+                                    ) : (
+                                      <Typography variant="body2" color="text.secondary">-</Typography>
+                                    )}
+                                  </TableCell>
+                                  <TableCell>
+                                    <Chip
+                                      label={assignment.status}
+                                      size="small"
+                                      color={assignment.status === 'COMPLETED' ? 'success' : 'default'}
+                                    />
+                                  </TableCell>
+                                  <TableCell align="center">{assignment.completionPercentage ?? '-'}</TableCell>
+                                  <TableCell>
+                                    {assignment.deleted ? (
+                                      <Chip label="DELETED" size="small" color="error" />
+                                    ) : (
+                                      <Chip label="ACTIVE" size="small" color="success" />
+                                    )}
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </>
+              )}
+            </Grid>
+          </Box>
+          )}
+
           {/* Payment Report */}
           {selectedReport === 'payments' && (
           <Box>
-            <Paper sx={{ mb: 3, p: 3, backgroundColor: 'primary.light', color: 'primary.contrastText' }}>
+            <Paper sx={{ mb: 2, p: 2, backgroundColor: 'primary.light', color: 'primary.contrastText' }}>
               <Box display="flex" alignItems="center">
-                <MoneyIcon sx={{ mr: 2, fontSize: 40, color: 'primary.contrastText' }} />
+                <MoneyIcon sx={{ mr: 1.5, fontSize: 32, color: 'primary.contrastText' }} />
                 <Box>
-                  <Typography variant="h4" gutterBottom sx={{ color: 'primary.contrastText' }}>
+                  <Typography variant="h5" sx={{ color: 'primary.contrastText', mb: 0.5 }}>
                     Payment Report
                   </Typography>
-                  <Typography variant="body1" sx={{ color: 'primary.contrastText', opacity: 0.95 }}>
+                  <Typography variant="body2" sx={{ color: 'primary.contrastText', opacity: 0.9 }}>
                     Calculate and analyze employee payments based on completed assignments
                   </Typography>
                 </Box>
@@ -624,7 +902,7 @@ const Reports: React.FC = () => {
               <Grid item xs={12}>
                 <Card elevation={3}>
                   <CardContent>
-                    <Typography variant="h6" gutterBottom color="primary.main">
+                    <Typography variant="h6" gutterBottom color="primary">
                       Report Parameters
                     </Typography>
                     <Grid container spacing={2} alignItems="center">
@@ -683,7 +961,7 @@ const Reports: React.FC = () => {
                 <>
                   {/* Summary Cards */}
                   <Grid item xs={12}>
-                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 2 }}>
+                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 1 }}>
                       Summary
                     </Typography>
                   </Grid>
@@ -692,11 +970,11 @@ const Reports: React.FC = () => {
                       background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
                       color: 'white' 
                     }}>
-                      <CardContent>
-                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                           Total Employees
                         </Typography>
-                        <Typography variant="h3" fontWeight="bold">
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5, color: 'white' }}>
                           {paymentReport.totalEmployees}
                         </Typography>
                       </CardContent>
@@ -704,17 +982,17 @@ const Reports: React.FC = () => {
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <Card elevation={3} sx={{ 
-                      background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
+                      background: 'linear-gradient(135deg, #7E57C2 0%, #5E35B1 100%)', 
                       color: 'white' 
                     }}>
-                      <CardContent>
-                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                           Report Period
                         </Typography>
-                        <Typography variant="body1" fontWeight="medium">
+                        <Typography variant="body2" fontWeight="medium" sx={{ mt: 0.5, color: 'white' }}>
                           {format(new Date(paymentReport.periodStartDate), 'MMM dd, yyyy')}
                         </Typography>
-                        <Typography variant="body1" fontWeight="medium">
+                        <Typography variant="body2" fontWeight="medium" sx={{ color: 'white' }}>
                           to {format(new Date(paymentReport.periodEndDate), 'MMM dd, yyyy')}
                         </Typography>
                       </CardContent>
@@ -722,14 +1000,14 @@ const Reports: React.FC = () => {
                   </Grid>
                   <Grid item xs={12} md={4}>
                     <Card elevation={3} sx={{ 
-                      background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
+                      background: 'linear-gradient(135deg, #66BB6A 0%, #43A047 100%)', 
                       color: 'white' 
                     }}>
-                      <CardContent>
-                        <Typography variant="body2" gutterBottom sx={{ fontWeight: 500 }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.8rem', color: 'rgba(255, 255, 255, 0.9)' }}>
                           Total Net Payment
                         </Typography>
-                        <Typography variant="h3" fontWeight="bold">
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5, color: 'white' }}>
                           ₹{paymentReport.totalPaymentAmount ? paymentReport.totalPaymentAmount.toLocaleString() : '0'}
                         </Typography>
                       </CardContent>
@@ -738,32 +1016,36 @@ const Reports: React.FC = () => {
 
                   {/* Export Buttons */}
                   <Grid item xs={12}>
-                    <Box display="flex" gap={2} justifyContent="flex-end" sx={{ mt: 2 }}>
-                      <Button
-                        variant="contained"
-                        color="error"
-                        startIcon={<PdfIcon />}
-                        onClick={exportPaymentReportAsPDF}
-                      >
-                        Download PDF
-                      </Button>
-                      <Button
-                        variant="contained"
-                        color="primary"
-                        startIcon={<ExcelIcon />}
-                        onClick={exportPaymentReportAsExcel}
-                      >
-                        Download Excel
-                      </Button>
-                    </Box>
+                    <Card elevation={3}>
+                      <CardContent>
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                          <Typography variant="h6" color="primary">
+                            Employee Payment Breakdown
+                          </Typography>
+                          <Box>
+                            <Button
+                              startIcon={<PdfIcon />}
+                              size="small"
+                              sx={{ mr: 1 }}
+                              onClick={exportPaymentReportAsPDF}
+                            >
+                              Export PDF
+                            </Button>
+                            <Button
+                              startIcon={<ExcelIcon />}
+                              size="small"
+                              color="success"
+                              onClick={exportPaymentReportAsExcel}
+                            >
+                              Export Excel
+                            </Button>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
                   </Grid>
 
                   {/* Employee Payments Table */}
-                  <Grid item xs={12}>
-                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 3 }}>
-                      Employee Payment Breakdown
-                    </Typography>
-                  </Grid>
                   <Grid item xs={12}>
                     <Card elevation={3}>
                       <CardContent>

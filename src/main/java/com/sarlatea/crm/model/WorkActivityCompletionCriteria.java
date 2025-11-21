@@ -26,9 +26,8 @@ public class WorkActivityCompletionCriteria extends BaseEntity {
     @JoinColumn(name = "work_activity_id", nullable = false)
     private WorkActivity workActivity;
 
-    @Column(name = "unit", nullable = false)
-    @Enumerated(EnumType.STRING)
-    private Unit unit;
+    @Column(name = "unit", nullable = false, length = 20)
+    private String unit; // Unit code from UnitOfMeasure master data
 
     @Column(name = "`value`", nullable = false, precision = 15, scale = 2)
     private BigDecimal value;
@@ -78,13 +77,6 @@ public class WorkActivityCompletionCriteria extends BaseEntity {
     @PreUpdate
     public void updateIsActiveField() {
         this.isActive = calculateIsActive();
-    }
-
-    public enum Unit {
-        KG,          // Quantity in kilograms
-        AREA,        // Area of land (square meters or hectares)
-        PLANTS,      // Number of plants
-        LITERS       // Volume of liquid in liters
     }
 }
 

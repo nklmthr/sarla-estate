@@ -1,6 +1,7 @@
 package com.sarlatea.crm.service;
 
 import com.sarlatea.crm.config.SalaryConfiguration;
+import com.sarlatea.crm.dto.AssignmentAuditReportDTO;
 import com.sarlatea.crm.dto.PaymentReportDTO;
 import com.sarlatea.crm.dto.UpcomingAssignmentsReportDTO;
 import com.sarlatea.crm.model.Employee;
@@ -317,6 +318,65 @@ public class ReportService {
         summary.setAssignments(new ArrayList<>());
         summary.setPaymentNotes("No salary information available");
         return summary;
+    }
+
+    @Transactional(readOnly = true)
+    public AssignmentAuditReportDTO generateAssignmentAuditReport(LocalDate startDate, LocalDate endDate) {
+        
+        log.info("Generating assignment audit report from {} to {} (including deleted)", startDate, endDate);
+
+        // Fetch all assignments including deleted ones
+        List<WorkAssignment> assignments = workAssignmentRepository
+                .findAllByAssignmentDateBetweenIncludingDeleted(startDate, endDate);
+
+        AssignmentAuditReportDTO report = new AssignmentAuditReportDTO();
+        report.setReportGeneratedDate(LocalDate.now());
+        report.setStartDate(startDate);
+        report.setEndDate(endDate);
+        report.setTotalAssignments(assignments.size());
+
+        // Count assignments by various criteria
+        long evaluatedCount = assignments.stream()
+                .filter(a -> a.getLastEvaluatedAt() != null)
+                .count();
+        long pendingCount = assignments.stream()
+                .filter(a -> a.getAssignmentStatus() == WorkAssignment.AssignmentStatus.ASSIGNED)
+                .count();
+        long deletedCount = assignments.stream()
+                .filter(a -> Boolean.TRUE.equals(a.getDeleted()))
+                .count();
+
+        report.setEvaluatedAssignments((int) evaluatedCount);
+        report.setPendingAssignments((int) pendingCount);
+        report.setDeletedAssignments((int) deletedCount);
+
+        List<AssignmentAuditReportDTO.AssignmentAuditDetail> auditDetails = assignments.stream()
+                .map(this::convertToAuditDetail)
+                .collect(Collectors.toList());
+
+        report.setAssignments(auditDetails);
+
+        log.info("Audit report generated with {} assignments ({} evaluated, {} pending, {} deleted)", 
+                assignments.size(), evaluatedCount, pendingCount, deletedCount);
+
+        return report;
+    }
+
+    private AssignmentAuditReportDTO.AssignmentAuditDetail convertToAuditDetail(WorkAssignment assignment) {
+        AssignmentAuditReportDTO.AssignmentAuditDetail detail = new AssignmentAuditReportDTO.AssignmentAuditDetail();
+        detail.setAssignmentId(assignment.getId());
+        detail.setActivityName(assignment.getActivityName());
+        detail.setEmployeeName(assignment.getAssignedEmployee() != null ? 
+                assignment.getAssignedEmployee().getName() : "Unassigned");
+        detail.setAssignmentDate(assignment.getAssignmentDate());
+        detail.setAssignedAt(assignment.getAssignedAt());
+        detail.setLastEvaluatedAt(assignment.getLastEvaluatedAt());
+        detail.setEvaluationCount(assignment.getEvaluationCount() != null ? assignment.getEvaluationCount() : 0);
+        detail.setStatus(assignment.getAssignmentStatus());
+        detail.setCompletionPercentage(assignment.getCompletionPercentage());
+        detail.setActualValue(assignment.getActualValue());
+        detail.setDeleted(assignment.getDeleted());
+        return detail;
     }
 }
 
