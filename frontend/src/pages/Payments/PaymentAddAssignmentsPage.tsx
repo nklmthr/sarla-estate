@@ -76,6 +76,9 @@ const PaymentAddAssignmentsPage: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
 
   // Step 1: Date Range
   const [dateRange, setDateRange] = useState({
@@ -112,7 +115,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
 
   const loadPayment = async () => {
     if (!paymentId) return;
-    setLoading(true);
+    setInitialLoading(true);
     try {
       const data = await paymentApi.getPaymentById(paymentId);
       setPayment(data);
@@ -123,7 +126,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
         severity: 'error',
       });
     } finally {
-      setLoading(false);
+      setInitialLoading(false);
     }
   };
 
@@ -137,7 +140,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
       return;
     }
 
-    setLoading(true);
+    setSearchLoading(true);
     try {
       const assignments: any[] = await assignmentApi.getAssignmentsByDateRange(
         dateRange.startDate,
@@ -244,7 +247,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
         severity: 'error',
       });
     } finally {
-      setLoading(false);
+      setSearchLoading(false);
     }
   };
 
@@ -328,7 +331,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
   const handleSubmit = async () => {
     if (!payment || selectedAssignmentIds.size === 0) return;
 
-    setLoading(true);
+    setSubmitLoading(true);
     try {
       // Add all assignments in a single batch API call
       const assignmentIdsArray = Array.from(selectedAssignmentIds);
@@ -343,7 +346,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
         severity: 'error',
       });
     } finally {
-      setLoading(false);
+      setSubmitLoading(false);
     }
   };
 
@@ -374,7 +377,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
     return getSelectedAssignments().reduce((sum, a) => sum + (a.calculatedAmount || 0), 0);
   };
 
-  if (loading && !payment) {
+  if (initialLoading || !payment) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <CircularProgress />
@@ -706,7 +709,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
           <Button
             onClick={handleBack}
-            disabled={activeStep === 0 || loading}
+            disabled={activeStep === 0 || searchLoading || submitLoading}
             startIcon={<BackIcon />}
           >
             Back
@@ -715,6 +718,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
             <Button
               variant="outlined"
               onClick={() => navigate(`/payments/${paymentId}`)}
+              disabled={searchLoading || submitLoading}
             >
               Cancel
             </Button>
@@ -722,19 +726,19 @@ const PaymentAddAssignmentsPage: React.FC = () => {
               <Button
                 variant="contained"
                 onClick={handleNext}
-                endIcon={<ForwardIcon />}
-                disabled={loading}
+                endIcon={searchLoading && activeStep === 0 ? <CircularProgress size={20} /> : <ForwardIcon />}
+                disabled={searchLoading || submitLoading}
               >
-                Next
+                {searchLoading && activeStep === 0 ? 'Searching...' : 'Next'}
               </Button>
             ) : (
               <Button
                 variant="contained"
                 onClick={handleSubmit}
-                startIcon={<SaveIcon />}
-                disabled={loading || selectedAssignmentIds.size === 0}
+                startIcon={submitLoading ? <CircularProgress size={20} /> : <SaveIcon />}
+                disabled={submitLoading || selectedAssignmentIds.size === 0}
               >
-                {loading ? <CircularProgress size={24} /> : `Add ${selectedAssignmentIds.size} Assignment(s)`}
+                {submitLoading ? 'Adding...' : `Add ${selectedAssignmentIds.size} Assignment(s)`}
               </Button>
             )}
           </Box>

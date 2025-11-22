@@ -43,6 +43,8 @@ const PaymentListPage: React.FC = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [createLoading, setCreateLoading] = useState(false);
   const [tabValue, setTabValue] = useState(0);
   
   // Menu state
@@ -62,7 +64,10 @@ const PaymentListPage: React.FC = () => {
   }, [tabValue, payments]);
 
   const loadPayments = async () => {
-    setLoading(true);
+    const isInitial = payments.length === 0;
+    if (isInitial) {
+      setInitialLoading(true);
+    }
     try {
       const data = await paymentApi.getAllPayments();
       setPayments(data);
@@ -73,12 +78,14 @@ const PaymentListPage: React.FC = () => {
         severity: 'error',
       });
     } finally {
-      setLoading(false);
+      if (isInitial) {
+        setInitialLoading(false);
+      }
     }
   };
 
   const handleCreatePayment = async () => {
-    setLoading(true);
+    setCreateLoading(true);
     try {
       // Get current month and year
       const now = new Date();
@@ -92,8 +99,7 @@ const PaymentListPage: React.FC = () => {
         description: `Payment for ${now.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`,
         assignmentIds: [], // Start with empty, user will add assignments later
       });
-      showSuccess('Payment draft created successfully');
-      // Navigate to the detail page of the newly created payment
+      // Navigate directly to the detail page - user can see the created draft there
       navigate(`/payments/${newPayment.id}`);
     } catch (error: any) {
       showError({
@@ -102,7 +108,7 @@ const PaymentListPage: React.FC = () => {
         severity: 'error',
       });
     } finally {
-      setLoading(false);
+      setCreateLoading(false);
     }
   };
 
@@ -208,7 +214,7 @@ const PaymentListPage: React.FC = () => {
     payment.status === PaymentStatus.PENDING_APPROVAL || 
     payment.status === PaymentStatus.APPROVED;
 
-  if (loading) {
+  if (initialLoading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <CircularProgress />
@@ -222,11 +228,11 @@ const PaymentListPage: React.FC = () => {
         <Typography variant="h4">Payments</Typography>
         <Button
           variant="contained"
-          startIcon={<AddIcon />}
+          startIcon={createLoading ? <CircularProgress size={20} /> : <AddIcon />}
           onClick={handleCreatePayment}
-          disabled={loading}
+          disabled={createLoading}
         >
-          Create Payment Draft
+          {createLoading ? 'Creating...' : 'Create Payment Draft'}
         </Button>
       </Box>
 
