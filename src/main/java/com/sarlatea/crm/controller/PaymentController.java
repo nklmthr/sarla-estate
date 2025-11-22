@@ -103,6 +103,20 @@ public class PaymentController {
         return ResponseEntity.ok(payment);
     }
 
+    @PostMapping("/{id}/line-items/batch")
+    @PreAuthorize("hasPermission('PAYMENT', 'EDIT')")
+    public ResponseEntity<PaymentDTO> addLineItemsBatch(
+            @PathVariable String id,
+            @RequestBody AddLineItemsBatchRequest request) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        log.info("POST request to add {} line items to payment {} by: {}", 
+                request.getAssignmentIds().size(), id, username);
+
+        PaymentDTO payment = paymentService.addLineItemsBatch(id, request.getAssignmentIds(), username);
+        return ResponseEntity.ok(payment);
+    }
+
     @DeleteMapping("/{id}/line-items/{lineItemId}")
     @PreAuthorize("hasPermission('PAYMENT', 'EDIT')")
     public ResponseEntity<PaymentDTO> removeLineItem(
@@ -170,6 +184,17 @@ public class PaymentController {
         return ResponseEntity.ok(payment);
     }
 
+    @DeleteMapping("/{id}")
+    @PreAuthorize("hasPermission('PAYMENT', 'DELETE')")
+    public ResponseEntity<Void> deletePayment(@PathVariable String id) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String username = auth.getName();
+        log.info("DELETE request for payment {} by: {}", id, username);
+
+        paymentService.deletePayment(id, username);
+        return ResponseEntity.noContent().build();
+    }
+
     // ==================== Document Management ====================
 
     @PostMapping("/{id}/documents")
@@ -216,6 +241,18 @@ public class PaymentController {
 
         public void setAssignmentId(String assignmentId) {
             this.assignmentId = assignmentId;
+        }
+    }
+
+    public static class AddLineItemsBatchRequest {
+        private List<String> assignmentIds;
+
+        public List<String> getAssignmentIds() {
+            return assignmentIds;
+        }
+
+        public void setAssignmentIds(List<String> assignmentIds) {
+            this.assignmentIds = assignmentIds;
         }
     }
 }

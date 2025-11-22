@@ -164,6 +164,10 @@ export const paymentApi = {
     return apiClient.post<Payment>(`/payments/${paymentId}/line-items`, { assignmentId });
   },
 
+  addLineItemsBatch: async (paymentId: string, assignmentIds: string[]): Promise<Payment> => {
+    return apiClient.post<Payment>(`/payments/${paymentId}/line-items/batch`, { assignmentIds });
+  },
+
   removeLineItem: async (paymentId: string, lineItemId: string): Promise<Payment> => {
     return apiClient.delete<Payment>(`/payments/${paymentId}/line-items/${lineItemId}`);
   },
@@ -183,6 +187,10 @@ export const paymentApi = {
 
   cancelPayment: async (id: string, request: CancelPaymentRequest): Promise<Payment> => {
     return apiClient.post<Payment>(`/payments/${id}/cancel`, request);
+  },
+
+  deletePayment: async (id: string): Promise<void> => {
+    return apiClient.delete(`/payments/${id}`);
   },
 
   // Document management

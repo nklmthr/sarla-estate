@@ -129,6 +129,32 @@ public class PaymentService {
         return convertToDTOWithDetails(savedPayment);
     }
 
+    @Transactional
+    public PaymentDTO addLineItemsBatch(String paymentId, List<String> assignmentIds, String username) {
+        log.debug("Adding {} line items to payment {}", assignmentIds.size(), paymentId);
+
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found with id: " + paymentId));
+
+        if (payment.getStatus() != Payment.PaymentStatus.DRAFT) {
+            throw new IllegalStateException("Can only add line items to draft payments");
+        }
+
+        // Add all line items in a single transaction
+        for (String assignmentId : assignmentIds) {
+            addLineItemToPayment(payment, assignmentId, username);
+        }
+        
+        payment.recalculateTotalAmount();
+        Payment savedPayment = paymentRepository.save(payment);
+
+        createHistoryEntry(savedPayment, PaymentHistory.ChangeType.LINE_ITEM_ADDED, 
+                null, null, username, "Added " + assignmentIds.size() + " assignments in batch");
+
+        log.info("Successfully added {} line items to payment {}", assignmentIds.size(), paymentId);
+        return convertToDTOWithDetails(savedPayment);
+    }
+
     private void addLineItemToPayment(Payment payment, String assignmentId, String username) {
         WorkAssignment assignment = workAssignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Assignment not found with id: " + assignmentId));
@@ -173,11 +199,11 @@ public class PaymentService {
         // Quantity = 1 (one day of work)
         BigDecimal quantity = BigDecimal.ONE;
         
-        // Rate = Daily Rate × Completion Rate
-        BigDecimal rate = dailyRate.multiply(completionRate).setScale(2, java.math.RoundingMode.HALF_UP);
+        // Rate = Daily Rate (base rate before applying completion percentage)
+        BigDecimal rate = dailyRate;
         
-        // Amount = Rate (since quantity = 1)
-        BigDecimal amount = rate;
+        // Amount = Daily Rate × Completion Rate
+        BigDecimal amount = dailyRate.multiply(completionRate).setScale(2, java.math.RoundingMode.HALF_UP);
         
         // Calculate PF breakdowns
         BigDecimal employeePfPercentage = new BigDecimal("12.00"); // Mandatory 12%
@@ -421,6 +447,31 @@ public class PaymentService {
 
         log.info("Payment {} cancelled. {} assignments unlocked", paymentId, payment.getLineItems().size());
         return convertToDTOWithDetails(savedPayment);
+    }
+
+    @Transactional
+    public void deletePayment(String paymentId, String username) {
+        log.info("Deleting payment {} by {}", paymentId, username);
+
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found with id: " + paymentId));
+
+        // Only allow deletion of DRAFT payments
+        if (payment.getStatus() != Payment.PaymentStatus.DRAFT) {
+            throw new IllegalStateException("Only DRAFT payments can be deleted. Use cancel for other statuses.");
+        }
+
+        // Unlock all assignments
+        for (PaymentLineItem lineItem : payment.getLineItems()) {
+            WorkAssignment assignment = lineItem.getAssignment();
+            assignment.unlockFromCancelledPayment();
+            workAssignmentRepository.save(assignment);
+        }
+
+        // Delete the payment (cascade will handle line items, documents, and history)
+        paymentRepository.delete(payment);
+
+        log.info("Payment {} deleted. {} assignments unlocked", paymentId, payment.getLineItems().size());
     }
 
     // ==================== Document Management ====================

@@ -74,11 +74,14 @@ const PaymentDetailPage: React.FC = () => {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState(false);
   const [tabValue, setTabValue] = useState(0);
 
   // Dialog states
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [recordPaymentDialogOpen, setRecordPaymentDialogOpen] = useState(false);
   const [deleteLineItemDialogOpen, setDeleteLineItemDialogOpen] = useState(false);
@@ -103,7 +106,10 @@ const PaymentDetailPage: React.FC = () => {
 
   const loadPayment = async () => {
     if (!id) return;
-    setLoading(true);
+    const isInitial = !payment;
+    if (isInitial) {
+      setInitialLoading(true);
+    }
     try {
       const data = await paymentApi.getPaymentById(id);
       setPayment(data);
@@ -114,7 +120,9 @@ const PaymentDetailPage: React.FC = () => {
         severity: 'error',
       });
     } finally {
-      setLoading(false);
+      if (isInitial) {
+        setInitialLoading(false);
+      }
     }
   };
 
@@ -131,12 +139,13 @@ const PaymentDetailPage: React.FC = () => {
 
   const handleSubmitForApproval = async () => {
     if (!payment) return;
+    setActionLoading(true);
     try {
-      await paymentApi.submitForApproval(payment.id, { remarks });
+      const updatedPayment = await paymentApi.submitForApproval(payment.id, { remarks });
+      setPayment(updatedPayment);
       showSuccess('Payment submitted for approval. Assignments are now locked.');
       setSubmitDialogOpen(false);
       setRemarks('');
-      loadPayment();
       loadPaymentHistory();
     } catch (error: any) {
       showError({
@@ -144,17 +153,20 @@ const PaymentDetailPage: React.FC = () => {
         message: error.message || 'Could not submit payment for approval',
         severity: 'error',
       });
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleApprove = async () => {
     if (!payment) return;
+    setActionLoading(true);
     try {
-      await paymentApi.approvePayment(payment.id, { remarks });
+      const updatedPayment = await paymentApi.approvePayment(payment.id, { remarks });
+      setPayment(updatedPayment);
       showSuccess('Payment approved successfully');
       setApproveDialogOpen(false);
       setRemarks('');
-      loadPayment();
       loadPaymentHistory();
     } catch (error: any) {
       showError({
@@ -162,30 +174,34 @@ const PaymentDetailPage: React.FC = () => {
         message: error.message || 'Could not approve payment',
         severity: 'error',
       });
+    } finally {
+      setActionLoading(false);
     }
   };
 
   const handleRecordPayment = async () => {
     if (!payment || !paymentDate || !referenceNumber) return;
-    setLoading(true);
+    setActionLoading(true);
     try {
       // First record the payment
-      await paymentApi.recordPayment(payment.id, {
+      const updatedPayment = await paymentApi.recordPayment(payment.id, {
         paymentDate,
         referenceNumber,
         remarks,
       });
+      setPayment(updatedPayment);
       
       // Then upload documents if any
       if (uploadedFiles.length > 0) {
         setUploadProgress(true);
         for (const file of uploadedFiles) {
-          await paymentApi.uploadDocument(
+          const paymentWithDoc = await paymentApi.uploadDocument(
             payment.id,
             file,
             'PAYMENT_RECEIPT', // Default document type
             `Uploaded with payment on ${new Date().toLocaleDateString()}`
           );
+          setPayment(paymentWithDoc);
         }
         setUploadProgress(false);
       }
@@ -196,7 +212,6 @@ const PaymentDetailPage: React.FC = () => {
       setReferenceNumber('');
       setRemarks('');
       setUploadedFiles([]);
-      loadPayment();
       loadPaymentHistory();
     } catch (error: any) {
       setUploadProgress(false);
@@ -206,7 +221,7 @@ const PaymentDetailPage: React.FC = () => {
         severity: 'error',
       });
     } finally {
-      setLoading(false);
+      setActionLoading(false);
     }
   };
 
@@ -251,11 +266,11 @@ const PaymentDetailPage: React.FC = () => {
     if (!payment || !documentToDelete) return;
     
     try {
-      await paymentApi.deleteDocument(payment.id, documentToDelete);
-      showSuccess('Document deleted successfully');
+      const updatedPayment = await paymentApi.deleteDocument(payment.id, documentToDelete);
+      setPayment(updatedPayment);
+      // No success message needed - user already confirmed in dialog
       setDeleteDocumentDialogOpen(false);
       setDocumentToDelete(null);
-      loadPayment();
       loadPaymentHistory();
     } catch (error: any) {
       showError({
@@ -268,17 +283,35 @@ const PaymentDetailPage: React.FC = () => {
 
   const handleCancel = async () => {
     if (!payment || !cancellationReason) return;
+    setActionLoading(true);
     try {
-      await paymentApi.cancelPayment(payment.id, { cancellationReason });
+      const updatedPayment = await paymentApi.cancelPayment(payment.id, { cancellationReason });
+      setPayment(updatedPayment);
       showSuccess('Payment cancelled. Assignments have been unlocked.');
       setCancelDialogOpen(false);
       setCancellationReason('');
-      loadPayment();
       loadPaymentHistory();
     } catch (error: any) {
       showError({
         title: 'Failed to cancel payment',
         message: error.message || 'Could not cancel payment',
+        severity: 'error',
+      });
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!payment) return;
+    try {
+      await paymentApi.deletePayment(payment.id);
+      setDeleteDialogOpen(false);
+      navigate('/payments');
+    } catch (error: any) {
+      showError({
+        title: 'Failed to delete payment',
+        message: error.message || 'Could not delete payment',
         severity: 'error',
       });
     }
@@ -293,11 +326,11 @@ const PaymentDetailPage: React.FC = () => {
     if (!payment || !lineItemToDelete) return;
 
     try {
-      await paymentApi.removeLineItem(payment.id, lineItemToDelete);
-      showSuccess('Line item removed successfully');
+      const updatedPayment = await paymentApi.removeLineItem(payment.id, lineItemToDelete);
+      setPayment(updatedPayment);
+      // No success message needed - user already confirmed in dialog
       setDeleteLineItemDialogOpen(false);
       setLineItemToDelete(null);
-      loadPayment();
       loadPaymentHistory();
     } catch (error: any) {
       showError({
@@ -376,9 +409,10 @@ const PaymentDetailPage: React.FC = () => {
   const canApprove = payment?.status === PaymentStatus.PENDING_APPROVAL;
   const canRecordPayment = payment?.status === PaymentStatus.APPROVED;
   const canCancel = payment?.status === PaymentStatus.PENDING_APPROVAL || payment?.status === PaymentStatus.APPROVED;
+  const canDelete = payment?.status === PaymentStatus.DRAFT;
   const isLocked = payment?.status !== PaymentStatus.DRAFT && payment?.status !== PaymentStatus.CANCELLED;
 
-  if (loading || !payment) {
+  if (initialLoading || !payment) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
         <CircularProgress />
@@ -460,12 +494,31 @@ const PaymentDetailPage: React.FC = () => {
         <Divider />
 
         {/* Action Buttons */}
-        <Box sx={{ p: 2, display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
+        <Box sx={{ p: 2, display: 'flex', gap: 1, justifyContent: 'flex-end', position: 'relative' }}>
+          {actionLoading && (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: 'rgba(255, 255, 255, 0.7)',
+                zIndex: 1,
+              }}
+            >
+              <CircularProgress size={24} />
+            </Box>
+          )}
           {canSubmit && (
             <Button
               variant="contained"
               startIcon={<SendIcon />}
               onClick={() => setSubmitDialogOpen(true)}
+              disabled={actionLoading}
             >
               Submit for Approval
             </Button>
@@ -476,6 +529,7 @@ const PaymentDetailPage: React.FC = () => {
               color="success"
               startIcon={<ApproveIcon />}
               onClick={() => setApproveDialogOpen(true)}
+              disabled={actionLoading}
             >
               Approve Payment
             </Button>
@@ -486,6 +540,7 @@ const PaymentDetailPage: React.FC = () => {
               color="primary"
               startIcon={<PaymentIcon />}
               onClick={() => setRecordPaymentDialogOpen(true)}
+              disabled={actionLoading}
             >
               Record Payment
             </Button>
@@ -496,8 +551,20 @@ const PaymentDetailPage: React.FC = () => {
               color="error"
               startIcon={<CancelIcon />}
               onClick={() => setCancelDialogOpen(true)}
+              disabled={actionLoading}
             >
               Cancel Payment
+            </Button>
+          )}
+          {canDelete && (
+            <Button
+              variant="outlined"
+              color="error"
+              startIcon={<DeleteIcon />}
+              onClick={() => setDeleteDialogOpen(true)}
+              disabled={actionLoading}
+            >
+              Delete Draft
             </Button>
           )}
         </Box>
@@ -823,9 +890,9 @@ const PaymentDetailPage: React.FC = () => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setSubmitDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSubmitForApproval} variant="contained" color="warning">
-            Confirm & Submit
+          <Button onClick={() => setSubmitDialogOpen(false)} disabled={actionLoading}>Cancel</Button>
+          <Button onClick={handleSubmitForApproval} variant="contained" color="warning" disabled={actionLoading}>
+            {actionLoading ? 'Submitting...' : 'Confirm & Submit'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -847,9 +914,9 @@ const PaymentDetailPage: React.FC = () => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setApproveDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleApprove} variant="contained" color="success">
-            Approve Payment
+          <Button onClick={() => setApproveDialogOpen(false)} disabled={actionLoading}>Cancel</Button>
+          <Button onClick={handleApprove} variant="contained" color="success" disabled={actionLoading}>
+            {actionLoading ? 'Approving...' : 'Approve Payment'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -859,20 +926,24 @@ const PaymentDetailPage: React.FC = () => {
         <DialogTitle>Record Payment Transaction</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
-            <TextField
-              fullWidth
-              type="date"
-              label="Payment Date *"
-              value={paymentDate}
-              onChange={(e) => setPaymentDate(e.target.value)}
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              fullWidth
-              label="Transaction/Challan Reference *"
-              value={referenceNumber}
-              onChange={(e) => setReferenceNumber(e.target.value)}
-            />
+            {/* Payment Date and Reference in one row */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <TextField
+                type="date"
+                label="Payment Date *"
+                value={paymentDate}
+                onChange={(e) => setPaymentDate(e.target.value)}
+                InputLabelProps={{ shrink: true }}
+                sx={{ width: '200px' }}
+              />
+              <TextField
+                fullWidth
+                label="Transaction/Challan Reference *"
+                value={referenceNumber}
+                onChange={(e) => setReferenceNumber(e.target.value)}
+              />
+            </Box>
+            
             <TextField
               fullWidth
               multiline
@@ -893,40 +964,55 @@ const PaymentDetailPage: React.FC = () => {
                 Upload payment receipts, challans, or related documents
               </Typography>
               
-              <Button
-                variant="outlined"
-                component="label"
-                startIcon={<UploadIcon />}
-                fullWidth
-              >
-                Select Files
-                <input
-                  type="file"
-                  hidden
-                  multiple
-                  accept="image/*,.pdf,.doc,.docx"
-                  onChange={handleFileChange}
-                />
-              </Button>
-              
-              {uploadedFiles.length > 0 && (
-                <List dense sx={{ mt: 1, bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 1 }}>
-                  {uploadedFiles.map((file, index) => (
-                    <ListItem key={index}>
-                      <FileIcon sx={{ mr: 1, color: 'action.active' }} />
-                      <ListItemText
-                        primary={file.name}
-                        secondary={`${(file.size / 1024).toFixed(2)} KB`}
-                      />
-                      <ListItemSecondaryAction>
-                        <IconButton edge="end" size="small" onClick={() => handleRemoveFile(index)}>
-                          <CloseIcon />
-                        </IconButton>
-                      </ListItemSecondaryAction>
-                    </ListItem>
-                  ))}
-                </List>
-              )}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
+                {/* Upload Button */}
+                <Button
+                  variant="outlined"
+                  component="label"
+                  startIcon={<UploadIcon />}
+                  size="small"
+                  sx={{ flexShrink: 0 }}
+                >
+                  Select Files
+                  <input
+                    type="file"
+                    hidden
+                    multiple
+                    accept="image/*,.pdf,.doc,.docx"
+                    onChange={handleFileChange}
+                  />
+                </Button>
+                
+                {/* Uploaded Files List */}
+                {uploadedFiles.length > 0 && (
+                  <Box sx={{ flex: 1 }}>
+                    <List dense sx={{ bgcolor: 'background.paper', border: '1px solid', borderColor: 'divider', borderRadius: 1, py: 0 }}>
+                      {uploadedFiles.map((file, index) => (
+                        <ListItem key={index} sx={{ py: 0.5 }}>
+                          <FileIcon sx={{ mr: 1, color: 'action.active', fontSize: '1rem' }} />
+                          <ListItemText
+                            primary={file.name}
+                            secondary={`${(file.size / 1024).toFixed(2)} KB`}
+                            primaryTypographyProps={{ variant: 'body2' }}
+                            secondaryTypographyProps={{ variant: 'caption' }}
+                          />
+                          <ListItemSecondaryAction>
+                            <IconButton edge="end" size="small" onClick={() => handleRemoveFile(index)}>
+                              <CloseIcon fontSize="small" />
+                            </IconButton>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      ))}
+                    </List>
+                  </Box>
+                )}
+                
+                {uploadedFiles.length === 0 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ alignSelf: 'center' }}>
+                    No files selected
+                  </Typography>
+                )}
+              </Box>
               
               {uploadProgress && (
                 <Box sx={{ mt: 1 }}>
@@ -949,10 +1035,10 @@ const PaymentDetailPage: React.FC = () => {
           <Button
             onClick={handleRecordPayment}
             variant="contained"
-            disabled={!paymentDate || !referenceNumber || loading || uploadProgress}
-            startIcon={loading || uploadProgress ? <CircularProgress size={20} /> : <PaymentIcon />}
+            disabled={!paymentDate || !referenceNumber || actionLoading || uploadProgress}
+            startIcon={actionLoading || uploadProgress ? <CircularProgress size={20} /> : <PaymentIcon />}
           >
-            {uploadProgress ? 'Uploading...' : 'Record Payment'}
+            {uploadProgress ? 'Uploading...' : actionLoading ? 'Recording...' : 'Record Payment'}
           </Button>
         </DialogActions>
       </Dialog>
@@ -975,14 +1061,44 @@ const PaymentDetailPage: React.FC = () => {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCancelDialogOpen(false)}>Cancel</Button>
+          <Button onClick={() => setCancelDialogOpen(false)} disabled={actionLoading}>Cancel</Button>
           <Button
             onClick={handleCancel}
             variant="contained"
             color="error"
-            disabled={!cancellationReason.trim()}
+            disabled={!cancellationReason.trim() || actionLoading}
           >
-            Confirm Cancellation
+            {actionLoading ? 'Cancelling...' : 'Confirm Cancellation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Delete Payment Confirmation Dialog */}
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={() => setDeleteDialogOpen(false)} 
+        maxWidth="xs" 
+        fullWidth
+      >
+        <DialogTitle>Delete Payment Draft?</DialogTitle>
+        <DialogContent>
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            This will permanently delete this payment draft and unlock all {payment?.lineItems?.length || 0} assignments.
+          </Alert>
+          <Typography variant="body2" color="text.secondary">
+            This action cannot be undone. The assignments will become available for other payments.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDelete}
+            variant="contained"
+            color="error"
+          >
+            Delete Draft
           </Button>
         </DialogActions>
       </Dialog>

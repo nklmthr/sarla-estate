@@ -234,7 +234,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
 
       setAllAssignments(mappedAssignments);
       setEmployeesWithAssignments(employees);
-      showSuccess(`Found ${evaluatedAssignments.length} evaluated assignment(s) for ${employees.length} employee(s)`);
+      // No success message needed - user can see the results directly
       setActiveStep(1); // Move to employee selection step
     } catch (error: any) {
       console.error('Error fetching assignments:', error);
@@ -330,14 +330,11 @@ const PaymentAddAssignmentsPage: React.FC = () => {
 
     setLoading(true);
     try {
-      // Add assignments one by one using the line item endpoint
+      // Add all assignments in a single batch API call
       const assignmentIdsArray = Array.from(selectedAssignmentIds);
-      
-      for (const assignmentId of assignmentIdsArray) {
-        await paymentApi.addLineItem(payment.id, assignmentId);
-      }
+      await paymentApi.addLineItemsBatch(payment.id, assignmentIdsArray);
 
-      showSuccess(`Successfully added ${selectedAssignmentIds.size} assignment(s) to payment`);
+      // No success message needed - redirect to payment detail page to see results
       navigate(`/payments/${payment.id}`);
     } catch (error: any) {
       showError({
