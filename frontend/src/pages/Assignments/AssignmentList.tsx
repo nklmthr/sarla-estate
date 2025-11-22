@@ -24,6 +24,7 @@ import {
   DialogActions,
   TextField,
   Tooltip,
+  LinearProgress,
 } from '@mui/material';
 import {
   ChevronLeft as PrevIcon,
@@ -63,23 +64,35 @@ const AssignmentList: React.FC = () => {
   const [assignments, setAssignments] = useState<WorkAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<UnitOfMeasure[]>([]);
-  
+
   // Pagination
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalEmployees, setTotalEmployees] = useState(0);
-  
+
   // Search
   const [searchTerm, setSearchTerm] = useState<string>('');
-  
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>('');
+
+  // Debounce search term
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [searchTerm]);
+
   // Week navigation
   const [currentWeekStart, setCurrentWeekStart] = useState<Date>(
     startOfWeek(new Date(), { weekStartsOn: 1 }) // Monday
   );
-  
+
   // Cell editing state - key is "employeeId-dateString"
   const [editingCells, setEditingCells] = useState<Map<string, AssignmentCell>>(new Map());
-  
+
   // Completion dialog
   const [completionDialogOpen, setCompletionDialogOpen] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState<WorkAssignment | null>(null);
@@ -99,15 +112,16 @@ const AssignmentList: React.FC = () => {
   }, []);
 
   // Load employees and assignments when page, rowsPerPage, week, or search changes
+  // Load employees and assignments when page, rowsPerPage, week, or debounced search changes
   useEffect(() => {
     loadData();
-  }, [currentWeekStart, page, rowsPerPage, searchTerm]);
+  }, [currentWeekStart, page, rowsPerPage, debouncedSearchTerm]);
 
   const loadActivities = async () => {
     try {
       const activitiesData = await workActivityApi.getAllWorkActivities();
       const activitiesArray = Array.isArray(activitiesData) ? activitiesData : [];
-      
+
       // Load active completion criteria for ALL activities (including inactive)
       const activitiesWithCriteria: ActivityWithCriteria[] = await Promise.all(
         activitiesArray.map(async (activity) => {
@@ -123,7 +137,7 @@ const AssignmentList: React.FC = () => {
           }
         })
       );
-      
+
       setActivities(activitiesWithCriteria);
     } catch (error) {
       console.error('Error loading activities:', error);
@@ -149,11 +163,21 @@ const AssignmentList: React.FC = () => {
   const loadData = async () => {
     try {
       setLoading(true);
-      
+
       const weekStart = format(currentWeekStart, 'yyyy-MM-dd');
       const weekEnd = format(addDays(currentWeekStart, 6), 'yyyy-MM-dd');
-      
-      if (searchTerm.trim()) {
+
+      // Only search if we have at least 2 characters or if it's empty (to reset)
+      // But if it's empty, the if check below will be false, so we go to else block.
+      // If it's 1 char, we don't want to search yet, so we might need to handle that.
+      // However, the requirement says "start searching only if 2 or more characters are entered".
+      // So if length is 1, we should probably treat it as no search or just not trigger loadData?
+      // Actually, loadData is triggered by debouncedSearchTerm.
+      // So we can check length here.
+
+      const shouldSearch = debouncedSearchTerm.trim().length >= 2;
+
+      if (shouldSearch) {
         // When searching, fetch all employees and assignments for filtering
         const allEmployees = await employeeApi.getAllEmployees();
         const employeeIds = allEmployees.map(emp => emp.id!);
@@ -162,30 +186,30 @@ const AssignmentList: React.FC = () => {
           weekEnd,
           employeeIds
         );
-        
+
         setEmployees(allEmployees);
         setTotalEmployees(allEmployees.length);
         setAssignments(assignmentsData);
-      } else {
-        // When not searching, use server-side pagination
+      } else if (debouncedSearchTerm.trim().length === 0) {
+        // When not searching (empty), use server-side pagination
         const paginatedData = await employeeApi.getEmployeesPaginated(page, rowsPerPage);
         const employeesArray = paginatedData.content;
         setTotalEmployees(paginatedData.totalElements);
-        
+
         // Get employee IDs from the current page
         const employeeIds = employeesArray.map(emp => emp.id!);
-        
+
         // Fetch assignments only for the current week and current page employees
         const assignmentsData = await assignmentApi.getAssignmentsByDateRange(
           weekStart,
           weekEnd,
           employeeIds
         );
-        
+
         setEmployees(employeesArray);
         setAssignments(assignmentsData);
       }
-      
+
       setEditingCells(new Map());
     } catch (error) {
       console.error('Error loading data:', error);
@@ -229,13 +253,13 @@ const AssignmentList: React.FC = () => {
   const handleSaveAssignment = async (employeeId: string, date: Date) => {
     const key = getCellKey(employeeId, date);
     const cell = editingCells.get(key);
-    
+
     if (!cell || !cell.selectedActivityId) return;
-    
+
     try {
       const activity = activities.find(a => a.id === cell.selectedActivityId);
       if (!activity) return;
-      
+
       // Validate that activity has active completion criteria before saving
       if (!activity.activeCriteria) {
         showWarning(
@@ -256,10 +280,10 @@ const AssignmentList: React.FC = () => {
       };
 
       const savedAssignment = await assignmentApi.createAssignment(newAssignment);
-      
+
       // Update state locally instead of reloading all data
       setAssignments([...assignments, savedAssignment]);
-      
+
       // Clear the editing cell
       const newMap = new Map(editingCells);
       newMap.delete(key);
@@ -303,7 +327,7 @@ const AssignmentList: React.FC = () => {
       );
 
       // Update the assignment in state
-      setAssignments(assignments.map(a => 
+      setAssignments(assignments.map(a =>
         a.id === updatedAssignment.id ? updatedAssignment : a
       ));
 
@@ -327,7 +351,7 @@ const AssignmentList: React.FC = () => {
       );
 
       // Update the assignment in state
-      setAssignments(assignments.map(a => 
+      setAssignments(assignments.map(a =>
         a.id === updatedAssignment.id ? updatedAssignment : a
       ));
 
@@ -407,32 +431,32 @@ const AssignmentList: React.FC = () => {
   };
 
   // Filter employees based on search term (only when searching)
-  const filteredEmployees = searchTerm.trim() 
+  const filteredEmployees = debouncedSearchTerm.trim().length >= 2
     ? employees.filter((employee) => {
-        const lowerSearchTerm = searchTerm.toLowerCase();
-        
-        // Search by employee name
-        if (employee.name.toLowerCase().includes(lowerSearchTerm)) {
-          return true;
-        }
-        
-        // Search by activity name or status in any assignment for this employee
-        const hasMatchingAssignment = assignments.some((assignment) => {
-          if (assignment.assignedEmployeeId !== employee.id) return false;
-          
-          return (
-            assignment.activityName.toLowerCase().includes(lowerSearchTerm) ||
-            assignment.assignmentStatus?.toLowerCase().includes(lowerSearchTerm)
-          );
-        });
-        
-        return hasMatchingAssignment;
-      })
+      const lowerSearchTerm = debouncedSearchTerm.toLowerCase();
+
+      // Search by employee name
+      if (employee.name.toLowerCase().includes(lowerSearchTerm)) {
+        return true;
+      }
+
+      // Search by activity name or status in any assignment for this employee
+      const hasMatchingAssignment = assignments.some((assignment) => {
+        if (assignment.assignedEmployeeId !== employee.id) return false;
+
+        return (
+          assignment.activityName.toLowerCase().includes(lowerSearchTerm) ||
+          assignment.assignmentStatus?.toLowerCase().includes(lowerSearchTerm)
+        );
+      });
+
+      return hasMatchingAssignment;
+    })
     : employees;
 
   // When searching, do client-side pagination on filtered results
   // When not searching, employees are already paginated from server
-  const paginatedEmployees = searchTerm.trim()
+  const paginatedEmployees = debouncedSearchTerm.trim().length >= 2
     ? filteredEmployees.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
     : employees;
 
@@ -454,8 +478,8 @@ const AssignmentList: React.FC = () => {
               >
                 <MenuItem value="">Select Activity</MenuItem>
                 {activities.map((activity) => (
-                  <MenuItem 
-                    key={activity.id} 
+                  <MenuItem
+                    key={activity.id}
                     value={activity.id}
                     sx={{
                       color: activity.activeCriteria ? 'inherit' : 'error.main',
@@ -519,26 +543,25 @@ const AssignmentList: React.FC = () => {
       const activity = activities.find((a) => a.id === assignment.workActivityId);
       const hasActiveCriteria = !!activity?.activeCriteria;
       const isCompleted = assignment.assignmentStatus === 'COMPLETED';
-      
+
       return (
         <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
-          <Paper 
-            elevation={1} 
-            sx={{ 
-              p: 0.75, 
+          <Paper
+            elevation={1}
+            sx={{
+              p: 0.75,
               bgcolor: !hasActiveCriteria && !isCompleted ? 'error.light' : 'action.hover',
-              overflow: 'hidden', 
               position: 'relative',
               border: !hasActiveCriteria && !isCompleted ? '1px solid' : 'none',
               borderColor: 'error.main'
             }}
           >
             <Box display="flex" justifyContent="space-between" alignItems="flex-start">
-              <Typography 
-                variant="body2" 
-                fontWeight="bold" 
-                sx={{ 
-                  fontSize: '0.8125rem', 
+              <Typography
+                variant="body2"
+                fontWeight="bold"
+                sx={{
+                  fontSize: '0.8125rem',
                   lineHeight: 1.3,
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
@@ -550,9 +573,9 @@ const AssignmentList: React.FC = () => {
               >
                 {assignment.activityName}
               </Typography>
-              <Box display="flex" gap={0.25} sx={{ position: 'relative', zIndex: 10 }}>
-                <Tooltip 
-                  title={!hasActiveCriteria && !isCompleted ? "Cannot evaluate: No active criteria" : "Evaluate"} 
+              <Box display="flex" gap={0} sx={{ position: 'relative', zIndex: 10, flexShrink: 0 }}>
+                <Tooltip
+                  title={!hasActiveCriteria && !isCompleted ? "Cannot evaluate: No active criteria" : "Evaluate"}
                   arrow
                 >
                   <span>
@@ -560,7 +583,7 @@ const AssignmentList: React.FC = () => {
                       size="small"
                       onClick={() => handleOpenCompletionDialog(assignment)}
                       color="primary"
-                      sx={{ mt: -0.5, p: 0.25 }}
+                      sx={{ p: 0.5 }}
                       disabled={!hasActiveCriteria && !isCompleted}
                     >
                       <AssessmentIcon sx={{ fontSize: 16 }} />
@@ -572,7 +595,7 @@ const AssignmentList: React.FC = () => {
                     size="small"
                     onClick={() => handleOpenDeleteDialog(assignment)}
                     color="error"
-                    sx={{ mt: -0.5, mr: -0.5, p: 0.25 }}
+                    sx={{ p: 0.5 }}
                   >
                     <DeleteIcon sx={{ fontSize: 16 }} />
                   </IconButton>
@@ -628,7 +651,7 @@ const AssignmentList: React.FC = () => {
     );
   };
 
-  if (loading) {
+  if (loading && employees.length === 0) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress />
@@ -683,6 +706,7 @@ const AssignmentList: React.FC = () => {
       </Box>
 
       <Card>
+        {loading && <LinearProgress />}
         <TableContainer>
           <Table stickyHeader>
             <TableHead>
@@ -712,11 +736,11 @@ const AssignmentList: React.FC = () => {
               ) : (
                 paginatedEmployees.map((employee) => (
                   <TableRow key={employee.id} hover>
-                    <TableCell sx={{ 
-                      fontWeight: 'bold', 
-                      position: 'sticky', 
-                      left: 0, 
-                      bgcolor: 'background.paper', 
+                    <TableCell sx={{
+                      fontWeight: 'bold',
+                      position: 'sticky',
+                      left: 0,
+                      bgcolor: 'background.paper',
                       zIndex: 1,
                       width: 100,
                       maxWidth: 100,
@@ -738,7 +762,7 @@ const AssignmentList: React.FC = () => {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25, 50]}
           component="div"
-          count={searchTerm.trim() ? filteredEmployees.length : totalEmployees}
+          count={debouncedSearchTerm.trim().length >= 2 ? filteredEmployees.length : totalEmployees}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -747,8 +771,8 @@ const AssignmentList: React.FC = () => {
       </Card>
 
       {/* Work Evaluation Dialog */}
-      <Dialog 
-        open={completionDialogOpen} 
+      <Dialog
+        open={completionDialogOpen}
         onClose={handleCloseCompletionDialog}
         onKeyDown={handleCompletionDialogKeyDown}
         maxWidth="sm"
@@ -767,10 +791,10 @@ const AssignmentList: React.FC = () => {
             {(() => {
               const activity = activities.find(a => a.id === selectedAssignment?.workActivityId);
               const criteria = activity?.activeCriteria;
-              const calculatedPercentage = criteria?.value 
+              const calculatedPercentage = criteria?.value
                 ? Math.round((actualValue / criteria.value) * 100)
                 : 0;
-              
+
               return (
                 <>
                   {criteria && (
@@ -783,7 +807,7 @@ const AssignmentList: React.FC = () => {
                       </Typography>
                     </Box>
                   )}
-                  
+
                   <TextField
                     inputRef={completionInputRef}
                     fullWidth
@@ -805,7 +829,7 @@ const AssignmentList: React.FC = () => {
                     autoFocus
                     sx={{ mb: 3 }}
                   />
-                  
+
                   {criteria && (
                     <Box sx={{ p: 2, bgcolor: 'info.lighter', borderRadius: 1 }}>
                       <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -829,17 +853,17 @@ const AssignmentList: React.FC = () => {
             Cancel
           </Button>
           <Box sx={{ flex: 1 }} />
-          <Button 
-            onClick={handleMarkComplete} 
-            variant="contained" 
+          <Button
+            onClick={handleMarkComplete}
+            variant="contained"
             color="success"
             startIcon={<CheckCircleIcon />}
           >
             Mark 100% Complete
           </Button>
-          <Button 
-            onClick={handleSaveCompletion} 
-            variant="contained" 
+          <Button
+            onClick={handleSaveCompletion}
+            variant="contained"
             color="primary"
             startIcon={<SaveIcon />}
           >
@@ -886,9 +910,9 @@ const AssignmentList: React.FC = () => {
           <Button onClick={handleCloseDeleteDialog} color="inherit">
             Cancel
           </Button>
-          <Button 
-            onClick={handleConfirmDelete} 
-            variant="contained" 
+          <Button
+            onClick={handleConfirmDelete}
+            variant="contained"
             color="error"
             startIcon={<DeleteIcon />}
           >

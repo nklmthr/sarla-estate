@@ -30,6 +30,13 @@ axiosInstance.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // If the request is sending FormData, remove the Content-Type header
+    // to let the browser set it automatically with the correct boundary
+    if (config.data instanceof FormData) {
+      delete config.headers['Content-Type'];
+    }
+    
     return config;
   },
   (error) => {
@@ -39,12 +46,21 @@ axiosInstance.interceptors.request.use(
 
 // Response interceptor for handling errors and extracting data
 axiosInstance.interceptors.response.use(
-  (response) => response.data, // Extract data from response
+  (response) => {
+    // Check for new token in headers (sliding window session)
+    const newToken = response.headers['x-new-token'];
+    if (newToken) {
+      localStorage.setItem('token', newToken);
+      // We don't need to update the 'user' object as the username/role/permissions haven't changed
+      console.debug('Session refreshed with new token');
+    }
+    return response.data;
+  }, // Extract data from response
   (error: AxiosError) => {
     // Check if this error should be silently handled (config has silentError flag)
     const config = error.config as any;
     const silentError = config?.silentError === true;
-    
+
     // Handle network errors (server not reachable)
     if (!error.response) {
       if (!silentError && globalNetworkErrorHandler) {
@@ -59,7 +75,7 @@ axiosInstance.interceptors.response.use(
     const statusCode = error.response.status;
     const errorData = error.response.data as any;
     const errorMessage = errorData?.message || errorData?.error || error.message;
-    
+
     // Build technical details
     const technicalDetails = JSON.stringify({
       url: error.config?.url,
@@ -82,7 +98,7 @@ axiosInstance.interceptors.response.use(
       // Clear auth data
       localStorage.removeItem('token');
       localStorage.removeItem('user');
-      
+
       // Redirect to login if not already there
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';

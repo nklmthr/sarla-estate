@@ -7,11 +7,14 @@ export interface LoginRequest {
 
 export interface LoginResponse {
   token: string;
+  id: string;
   username: string;
-  fullName: string | null;
-  email: string | null;
+  fullName?: string;
+  email?: string;
+  timezone?: string;
+  profilePicture?: string;
   role: string;
-  permissions?: string[]; // Array of permission names
+  permissions: string[];
 }
 
 export const authApi = {

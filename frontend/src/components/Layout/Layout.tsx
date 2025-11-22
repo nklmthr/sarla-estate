@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Box,
@@ -15,6 +15,7 @@ import {
   ListItemText,
   Container,
   Button,
+  Avatar,
 } from '@mui/material';
 import {
   Menu as MenuIcon,
@@ -33,6 +34,7 @@ import {
   AccountCircle as AccountCircleIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
+import { userApi } from '../../api/userApi';
 
 const drawerWidth = 200;
 
@@ -64,9 +66,56 @@ const securityMenuItems: MenuItem[] = [
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profilePictureUrl, setProfilePictureUrl] = useState<string | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { logout, user, hasPermission } = useAuth();
+
+  useEffect(() => {
+    // Load profile picture when user changes
+    const loadUserProfilePicture = async () => {
+      if (!user) {
+        setProfilePictureUrl(null);
+        return;
+      }
+
+      try {
+        // If user object has id, use it directly
+        if (user.id) {
+          await loadProfilePicture(user.id);
+        } else {
+          // Otherwise, fetch the profile to get the id
+          const profile = await userApi.getProfile();
+          if (profile.id && profile.profilePicture) {
+            await loadProfilePicture(profile.id);
+          }
+        }
+      } catch (error) {
+        // Silently handle errors
+        setProfilePictureUrl(null);
+      }
+    };
+
+    loadUserProfilePicture();
+    
+    // Cleanup blob URL on unmount
+    return () => {
+      if (profilePictureUrl) {
+        URL.revokeObjectURL(profilePictureUrl);
+      }
+    };
+  }, [user?.username]); // Use username as dependency since it's always available
+
+  const loadProfilePicture = async (userId: string) => {
+    try {
+      const blob = await userApi.getProfilePicture(userId);
+      const url = URL.createObjectURL(blob);
+      setProfilePictureUrl(url);
+    } catch (error) {
+      // Silently handle missing profile pictures
+      setProfilePictureUrl(null);
+    }
+  };
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -97,8 +146,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   const drawer = (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <Toolbar 
-        sx={{ 
+      <Toolbar
+        sx={{
           backgroundColor: '#ffffff',
           borderBottom: '1px solid rgba(0, 0, 0, 0.08)',
           minHeight: 64,
@@ -149,11 +198,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
           </ListItem>
         ))}
       </List>
-      
+
       {visibleSecurityMenuItems.length > 0 && (
         <>
           <Divider sx={{ borderColor: 'rgba(0, 0, 0, 0.08)', my: 1 }} />
-          
+
           <List>
             <ListItem>
               <Typography variant="caption" sx={{ pl: 2, color: 'text.secondary', fontWeight: 600 }}>
@@ -161,46 +210,46 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               </Typography>
             </ListItem>
             {visibleSecurityMenuItems.map((item) => (
-          <ListItem key={item.text} disablePadding>
-            <ListItemButton
-              selected={location.pathname === item.path}
-              onClick={() => handleNavigation(item.path)}
-              sx={{
-                borderRadius: '8px',
-                mx: 1,
-                mb: 0.5,
-                '&.Mui-selected': {
-                  backgroundColor: '#e3f2fd',
-                  color: '#1976d2',
-                  '&:hover': {
-                    backgroundColor: '#bbdefb',
-                  },
-                  '& .MuiListItemIcon-root': {
-                    color: '#1976d2',
-                  },
-                },
-                '&:hover': {
-                  backgroundColor: '#f5f7fa',
-                  borderRadius: '8px',
-                },
-              }}
-            >
-              <ListItemIcon
-                sx={{
-                  color: location.pathname === item.path ? '#1976d2' : 'inherit',
-                  minWidth: 40,
-                }}
-              >
-                {item.icon}
-              </ListItemIcon>
-              <ListItemText primary={item.text} />
-            </ListItemButton>
-          </ListItem>
-        ))}
+              <ListItem key={item.text} disablePadding>
+                <ListItemButton
+                  selected={location.pathname === item.path}
+                  onClick={() => handleNavigation(item.path)}
+                  sx={{
+                    borderRadius: '8px',
+                    mx: 1,
+                    mb: 0.5,
+                    '&.Mui-selected': {
+                      backgroundColor: '#e3f2fd',
+                      color: '#1976d2',
+                      '&:hover': {
+                        backgroundColor: '#bbdefb',
+                      },
+                      '& .MuiListItemIcon-root': {
+                        color: '#1976d2',
+                      },
+                    },
+                    '&:hover': {
+                      backgroundColor: '#f5f7fa',
+                      borderRadius: '8px',
+                    },
+                  }}
+                >
+                  <ListItemIcon
+                    sx={{
+                      color: location.pathname === item.path ? '#1976d2' : 'inherit',
+                      minWidth: 40,
+                    }}
+                  >
+                    {item.icon}
+                  </ListItemIcon>
+                  <ListItemText primary={item.text} />
+                </ListItemButton>
+              </ListItem>
+            ))}
           </List>
         </>
       )}
-      
+
       <Box sx={{ flexGrow: 1 }} />
     </div>
   );
@@ -223,8 +272,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             aria-label="open drawer"
             edge="start"
             onClick={handleDrawerToggle}
-            sx={{ 
-              mr: 2, 
+            sx={{
+              mr: 2,
               display: { sm: 'none' },
               color: '#1976d2',
             }}
@@ -232,11 +281,11 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <MenuIcon />
           </IconButton>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <Typography 
-              variant="h6" 
-              noWrap 
+            <Typography
+              variant="h6"
+              noWrap
               component="div"
-              sx={{ 
+              sx={{
                 fontWeight: 600,
                 color: '#1a1a1a',
               }}
@@ -244,23 +293,42 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               Operations Dashboard
             </Typography>
           </Box>
-          
+
           {/* Spacer to push user info to the right */}
           <Box sx={{ flexGrow: 1 }} />
-          
+
           {/* User Profile and Logout in Top Right */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-              <AccountCircleIcon sx={{ color: '#1976d2' }} />
-              <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+            <IconButton
+              onClick={() => navigate('/profile')}
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1,
+                borderRadius: 2,
+                px: 1.5,
+                py: 0.5,
+                '&:hover': {
+                  backgroundColor: 'rgba(25, 118, 210, 0.08)',
+                },
+              }}
+            >
+              <Avatar 
+                src={profilePictureUrl || undefined}
+                sx={{ 
+                  width: 32, 
+                  height: 32, 
+                  bgcolor: '#1976d2'
+                }}
+              >
+                {!profilePictureUrl && (user?.fullName?.[0] || user?.username?.[0] || 'U')}
+              </Avatar>
+              <Box sx={{ display: { xs: 'none', sm: 'block' }, textAlign: 'left' }}>
                 <Typography variant="body2" sx={{ fontWeight: 500, color: '#1a1a1a' }}>
                   {user?.fullName || user?.username || 'User'}
                 </Typography>
-                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                  {user?.role || 'User'}
-                </Typography>
               </Box>
-            </Box>
+            </IconButton>
             <Button
               variant="outlined"
               size="small"

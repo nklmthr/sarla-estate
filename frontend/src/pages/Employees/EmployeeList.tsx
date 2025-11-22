@@ -24,6 +24,7 @@ import {
   Grid,
   MenuItem,
   TablePagination,
+  LinearProgress,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -47,14 +48,15 @@ const EmployeeList: React.FC = () => {
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [employeeToDelete, setEmployeeToDelete] = useState<Employee | null>(null);
-  
+
   // Pagination
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalEmployees, setTotalEmployees] = useState(0);
-  
+
   // Salary management states
   const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
@@ -63,7 +65,7 @@ const EmployeeList: React.FC = () => {
   const [salaryFormDialogOpen, setSalaryFormDialogOpen] = useState(false);
   const [isInitialSalary, setIsInitialSalary] = useState(false);
   const [loadingSalary, setLoadingSalary] = useState(false);
-  
+
   const [salaryFormData, setSalaryFormData] = useState({
     amount: 0,
     currency: 'INR',
@@ -73,10 +75,21 @@ const EmployeeList: React.FC = () => {
     notes: '',
   });
 
+  // Debounce search term
+  useEffect(() => {
+    const timerId = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 400);
+
+    return () => {
+      clearTimeout(timerId);
+    };
+  }, [searchTerm]);
+
   // Reload employees whenever page changes or when navigating to this route
   useEffect(() => {
     loadEmployees();
-  }, [page, rowsPerPage, searchTerm, location.pathname]);
+  }, [page, rowsPerPage, debouncedSearchTerm, location.pathname]);
 
   useEffect(() => {
     filterEmployees();
@@ -85,16 +98,19 @@ const EmployeeList: React.FC = () => {
   const loadEmployees = async () => {
     try {
       setLoading(true);
-      
+
       let paginatedData;
-      if (searchTerm.trim()) {
+      if (debouncedSearchTerm.trim().length >= 2) {
         // Use backend search with pagination
-        paginatedData = await employeeApi.searchEmployeesPaginated(searchTerm, page, rowsPerPage);
-      } else {
+        paginatedData = await employeeApi.searchEmployeesPaginated(debouncedSearchTerm, page, rowsPerPage);
+      } else if (debouncedSearchTerm.trim().length === 0) {
         // Use regular pagination
         paginatedData = await employeeApi.getEmployeesPaginated(page, rowsPerPage);
+      } else {
+        // Length is 1, do not trigger search, just return (loading will be set to false in finally)
+        return;
       }
-      
+
       setEmployees(paginatedData.content);
       setTotalEmployees(paginatedData.totalElements);
       setFilteredEmployees(paginatedData.content);
@@ -163,10 +179,10 @@ const EmployeeList: React.FC = () => {
         salaryApi.getCurrent(employeeId).catch(() => null),
         salaryApi.getHistory(employeeId).catch(() => null),
       ]);
-      
+
       const current = currentResponse ? (currentResponse as any).data || currentResponse : null;
       const history = historyResponse ? (historyResponse as any).data || historyResponse : [];
-      
+
       setCurrentSalary(current);
       const historyArray = Array.isArray(history) ? history : [];
       setSalaryHistory(historyArray);
@@ -243,7 +259,7 @@ const EmployeeList: React.FC = () => {
     }
   };
 
-  if (loading) {
+  if (loading && employees.length === 0) {
     return (
       <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress />
@@ -265,6 +281,7 @@ const EmployeeList: React.FC = () => {
       </Box>
 
       <Card>
+        {loading && <LinearProgress />}
         <Box p={2}>
           <TextField
             fullWidth
@@ -403,8 +420,8 @@ const EmployeeList: React.FC = () => {
       </Dialog>
 
       {/* Salary Management Dialog */}
-      <Dialog 
-        open={salaryDialogOpen} 
+      <Dialog
+        open={salaryDialogOpen}
         onClose={() => setSalaryDialogOpen(false)}
         maxWidth="md"
         fullWidth
@@ -501,15 +518,15 @@ const EmployeeList: React.FC = () => {
                                 {salary.currency} {salary.amount.toLocaleString()}
                               </TableCell>
                               <TableCell>
-                                {salary.voluntaryPfPercentage 
-                                  ? `${salary.voluntaryPfPercentage}%` 
+                                {salary.voluntaryPfPercentage
+                                  ? `${salary.voluntaryPfPercentage}%`
                                   : '0%'}
                               </TableCell>
                               <TableCell>
                                 {format(new Date(salary.startDate), 'MMM dd, yyyy')}
                               </TableCell>
                               <TableCell>
-                                {salary.endDate 
+                                {salary.endDate
                                   ? format(new Date(salary.endDate), 'MMM dd, yyyy')
                                   : '-'}
                               </TableCell>
@@ -537,8 +554,8 @@ const EmployeeList: React.FC = () => {
       </Dialog>
 
       {/* Salary Form Dialog (Add/Update) */}
-      <Dialog 
-        open={salaryFormDialogOpen} 
+      <Dialog
+        open={salaryFormDialogOpen}
         onClose={() => setSalaryFormDialogOpen(false)}
         maxWidth="sm"
         fullWidth

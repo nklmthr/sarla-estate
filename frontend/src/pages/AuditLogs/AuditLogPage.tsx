@@ -40,9 +40,9 @@ import {
   LocationOn as LocationIcon,
   Public as GlobeIcon,
 } from '@mui/icons-material';
-import { format } from 'date-fns';
 import { auditLogApi, AuditLog, AuditLogFilters } from '../../api/auditLogApi';
 import { useError } from '../../contexts/ErrorContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AuditLogPage: React.FC = () => {
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -178,9 +178,20 @@ const AuditLogPage: React.FC = () => {
     }
   };
 
+  const { user } = useAuth();
+
   const formatTimestamp = (timestamp: string) => {
     try {
-      return format(new Date(timestamp), 'MMM dd, yyyy HH:mm:ss');
+      const date = new Date(timestamp);
+      return new Intl.DateTimeFormat('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZone: user?.timezone || undefined,
+      }).format(date);
     } catch {
       return timestamp;
     }
@@ -360,7 +371,7 @@ const AuditLogPage: React.FC = () => {
                       <React.Fragment key={log.id}>
                         <TableRow
                           hover
-                          sx={{ 
+                          sx={{
                             cursor: 'pointer',
                             '&:hover': { bgcolor: 'action.hover' }
                           }}

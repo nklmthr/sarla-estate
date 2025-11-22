@@ -31,6 +31,13 @@ public class User extends BaseEntity {
     @Column(name = "email")
     private String email;
 
+    @Column(name = "timezone", nullable = false)
+    private String timezone = "UTC";
+
+    @Lob
+    @Column(name = "profile_picture", columnDefinition = "LONGBLOB")
+    private byte[] profilePicture;
+
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "role_id", nullable = false)
     private Role role;
@@ -55,4 +62,3 @@ public class User extends BaseEntity {
         return role != null ? role.getName() : null;
     }
 }
-

@@ -90,5 +90,16 @@ public class JwtUtil {
         final String extractedUsername = extractUsername(token);
         return (extractedUsername.equals(username) && !isTokenExpired(token));
     }
-}
 
+    public Boolean needsRefresh(String token) {
+        final Date expiration = extractExpiration(token);
+        // If the token expires in less than 25 minutes (assuming 30 min total), refresh
+        // it.
+        // This creates a sliding window where active users get a new token every 5
+        // minutes.
+        long remainingTime = expiration.getTime() - System.currentTimeMillis();
+        long refreshThreshold = this.expiration - (5 * 60 * 1000); // Total duration - 5 minutes
+
+        return remainingTime < refreshThreshold;
+    }
+}

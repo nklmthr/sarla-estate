@@ -21,6 +21,7 @@ import UserManagement from './pages/Admin/UserManagement';
 import RoleManagement from './pages/Admin/RoleManagement';
 import PermissionConfigManagement from './pages/Admin/PermissionConfigManagement';
 import AuditLogPage from './pages/AuditLogs/AuditLogPage';
+import Profile from './pages/Profile';
 
 const theme = createTheme({
   palette: {
@@ -375,7 +376,7 @@ function App() {
             <Routes>
               {/* Public Routes */}
               <Route path="/login" element={<Login />} />
-              
+
               {/* Protected Routes */}
               <Route path="/" element={
                 <ProtectedRoute>
@@ -384,7 +385,16 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
-              
+
+              {/* Profile Route */}
+              <Route path="/profile" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <Profile />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
               {/* Employee Routes */}
               <Route path="/employees" element={
                 <ProtectedRoute>
@@ -407,7 +417,7 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
-              
+
               {/* Work Activity Routes */}
               <Route path="/work-activities" element={
                 <ProtectedRoute>
@@ -430,7 +440,7 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
-              
+
               {/* Assignment Routes */}
               <Route path="/assignments" element={
                 <ProtectedRoute>
@@ -439,7 +449,7 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
-              
+
               {/* Salary Routes */}
               <Route path="/salary" element={
                 <ProtectedRoute>
@@ -448,7 +458,7 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
-              
+
               {/* Reports Routes */}
               <Route path="/reports" element={
                 <ProtectedRoute>
@@ -457,7 +467,7 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
-              
+
               {/* Admin Routes */}
               <Route path="/admin/settings" element={
                 <ProtectedRoute>
@@ -494,7 +504,7 @@ function App() {
                   </Layout>
                 </ProtectedRoute>
               } />
-            
+
               {/* Redirect unknown routes to dashboard */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
