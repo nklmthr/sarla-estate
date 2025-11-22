@@ -77,6 +77,9 @@ public class EmployeeSalaryService {
         EmployeeSalary salary = new EmployeeSalary();
         salary.setEmployee(employee);
         salary.setAmount(salaryDTO.getAmount());
+        salary.setSalaryType(salaryDTO.getSalaryType() != null ? 
+            EmployeeSalary.SalaryType.valueOf(salaryDTO.getSalaryType()) : 
+            EmployeeSalary.SalaryType.MONTHLY); // Default to MONTHLY
         salary.setCurrency(salaryDTO.getCurrency());
         salary.setStartDate(salaryDTO.getStartDate() != null ? salaryDTO.getStartDate() : LocalDate.now());
         salary.setEndDate(null); // No end date for initial/current salary
@@ -123,6 +126,9 @@ public class EmployeeSalaryService {
         EmployeeSalary newSalary = new EmployeeSalary();
         newSalary.setEmployee(employee);
         newSalary.setAmount(newSalaryDTO.getAmount());
+        newSalary.setSalaryType(newSalaryDTO.getSalaryType() != null ? 
+            EmployeeSalary.SalaryType.valueOf(newSalaryDTO.getSalaryType()) : 
+            (currentSalary != null ? currentSalary.getSalaryType() : EmployeeSalary.SalaryType.MONTHLY)); // Inherit or default
         newSalary.setCurrency(newSalaryDTO.getCurrency() != null ? newSalaryDTO.getCurrency() : 
             (currentSalary != null ? currentSalary.getCurrency() : "INR"));
         newSalary.setStartDate(effectiveDate);
@@ -178,6 +184,7 @@ public class EmployeeSalaryService {
         dto.setEmployeeId(salary.getEmployee() != null ? salary.getEmployee().getId() : null);
         dto.setEmployeeName(salary.getEmployee() != null ? salary.getEmployee().getName() : null);
         dto.setAmount(salary.getAmount());
+        dto.setSalaryType(salary.getSalaryType() != null ? salary.getSalaryType().name() : "MONTHLY"); // Add salary type
         dto.setCurrency(salary.getCurrency());
         dto.setStartDate(salary.getStartDate());
         dto.setEndDate(salary.getEndDate());

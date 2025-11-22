@@ -32,8 +32,10 @@ import {
   AttachMoney as MoneyIcon,
   PictureAsPdf as PdfIcon,
   TableChart as ExcelIcon,
+  AccountBalance as PfIcon,
 } from '@mui/icons-material';
 import { reportApi } from '../../api/reportApi';
+import pfReportApi, { PfReport } from '../../api/pfReportApi';
 import { UpcomingAssignmentsReport, PaymentReport, WorkAssignment, AssignmentAuditReport } from '../../types';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import jsPDF from 'jspdf';
@@ -42,7 +44,7 @@ import * as XLSX from 'xlsx';
 import HistoryIcon from '@mui/icons-material/History';
 
 const Reports: React.FC = () => {
-  const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments' | 'evaluation'>('payments');
+  const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments' | 'evaluation' | 'pf'>('payments');
   const [loading, setLoading] = useState(false);
   
   // Assignment Report
@@ -59,6 +61,11 @@ const Reports: React.FC = () => {
   const [auditReport, setAuditReport] = useState<AssignmentAuditReport | null>(null);
   const [auditStartDate, setAuditStartDate] = useState(format(startOfMonth(new Date()), 'yyyy-MM-dd'));
   const [auditEndDate, setAuditEndDate] = useState(format(endOfMonth(new Date()), 'yyyy-MM-dd'));
+
+  // PF Report
+  const [pfReport, setPfReport] = useState<PfReport | null>(null);
+  const [pfMonth, setPfMonth] = useState(new Date().getMonth() + 1); // 1-12
+  const [pfYear, setPfYear] = useState(new Date().getFullYear());
 
   const loadDailyAssignments = async () => {
     try {
@@ -90,6 +97,18 @@ const Reports: React.FC = () => {
       setLoading(true);
       const data = await reportApi.getAssignmentAuditReport(auditStartDate, auditEndDate);
       setAuditReport(data);
+    } catch (error) {
+      // Error handled by global interceptor
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadPfReport = async () => {
+    try {
+      setLoading(true);
+      const data = await pfReportApi.generatePfReport({ month: pfMonth, year: pfYear });
+      setPfReport(data);
     } catch (error) {
       // Error handled by global interceptor
     } finally {
@@ -429,6 +448,34 @@ const Reports: React.FC = () => {
                 </ListItemIcon>
                 <ListItemText 
                   primary="Evaluation" 
+                  primaryTypographyProps={{ variant: 'body2' }}
+                />
+              </ListItemButton>
+            </ListItem>
+            <Divider sx={{ my: 1 }} />
+            <ListItem disablePadding>
+              <ListItemButton
+                selected={selectedReport === 'pf'}
+                onClick={() => setSelectedReport('pf')}
+                sx={{
+                  py: 1,
+                  '&.Mui-selected': {
+                    backgroundColor: 'primary.light',
+                    color: 'primary.contrastText',
+                    '&:hover': {
+                      backgroundColor: 'primary.main',
+                    },
+                    '& .MuiListItemIcon-root': {
+                      color: 'primary.contrastText',
+                    },
+                  },
+                }}
+              >
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <PfIcon fontSize="small" color={selectedReport === 'pf' ? 'inherit' : 'primary'} />
+                </ListItemIcon>
+                <ListItemText 
+                  primary="PF Report" 
                   primaryTypographyProps={{ variant: 'body2' }}
                 />
               </ListItemButton>
@@ -1154,6 +1201,318 @@ const Reports: React.FC = () => {
                                   </TableCell>
                                 </TableRow>
                               )}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                </>
+              )}
+            </Grid>
+          </Box>
+          )}
+
+          {/* PF Report */}
+          {selectedReport === 'pf' && (
+          <Box>
+            <Paper sx={{ mb: 2, p: 2, backgroundColor: 'primary.light', color: 'primary.contrastText' }}>
+              <Box display="flex" alignItems="center">
+                <PfIcon sx={{ mr: 1.5, fontSize: 32, color: 'primary.contrastText' }} />
+                <Box>
+                  <Typography variant="h5" sx={{ color: 'primary.contrastText', mb: 0.5 }}>
+                    Monthly PF Report
+                  </Typography>
+                  <Typography variant="body2" sx={{ color: 'primary.contrastText', opacity: 0.9 }}>
+                    Provident Fund report for paid payments
+                  </Typography>
+                </Box>
+              </Box>
+            </Paper>
+
+            <Grid container spacing={3}>
+              <Grid item xs={12}>
+                <Card elevation={3}>
+                  <CardContent>
+                    <Typography variant="h6" gutterBottom color="primary">
+                      Report Parameters
+                    </Typography>
+                    <Grid container spacing={2} alignItems="center">
+                      <Grid item xs={12} md={3}>
+                        <FormControl fullWidth>
+                          <InputLabel>Month</InputLabel>
+                          <Select
+                            value={pfMonth}
+                            label="Month"
+                            onChange={(e) => setPfMonth(Number(e.target.value))}
+                          >
+                            <MenuItem value={1}>January</MenuItem>
+                            <MenuItem value={2}>February</MenuItem>
+                            <MenuItem value={3}>March</MenuItem>
+                            <MenuItem value={4}>April</MenuItem>
+                            <MenuItem value={5}>May</MenuItem>
+                            <MenuItem value={6}>June</MenuItem>
+                            <MenuItem value={7}>July</MenuItem>
+                            <MenuItem value={8}>August</MenuItem>
+                            <MenuItem value={9}>September</MenuItem>
+                            <MenuItem value={10}>October</MenuItem>
+                            <MenuItem value={11}>November</MenuItem>
+                            <MenuItem value={12}>December</MenuItem>
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={3}>
+                        <FormControl fullWidth>
+                          <InputLabel>Year</InputLabel>
+                          <Select
+                            value={pfYear}
+                            label="Year"
+                            onChange={(e) => setPfYear(Number(e.target.value))}
+                          >
+                            {[2025, 2024, 2023, 2022, 2021].map((y) => (
+                              <MenuItem key={y} value={y}>{y}</MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={6}>
+                        <Button
+                          variant="contained"
+                          onClick={loadPfReport}
+                          disabled={loading}
+                        >
+                          Generate Report
+                        </Button>
+                      </Grid>
+                    </Grid>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              {loading && (
+                <Grid item xs={12}>
+                  <Box display="flex" justifyContent="center" py={5}>
+                    <CircularProgress />
+                  </Box>
+                </Grid>
+              )}
+
+              {!loading && pfReport && pfReport.employees.length === 0 && (
+                <Grid item xs={12}>
+                  <Card elevation={3}>
+                    <CardContent>
+                      <Box sx={{ textAlign: 'center', py: 4, color: 'text.secondary' }}>
+                        <PfIcon sx={{ fontSize: 60, mb: 2 }} />
+                        <Typography variant="h6">No paid payments found</Typography>
+                        <Typography variant="body2">
+                          No paid payments found for {pfReport.monthName} {pfReport.year}
+                        </Typography>
+                      </Box>
+                    </CardContent>
+                  </Card>
+                </Grid>
+              )}
+
+              {!loading && pfReport && pfReport.employees.length > 0 && (
+                <>
+                  {/* Summary Cards */}
+                  <Grid item xs={12}>
+                    <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 1 }}>
+                      Summary - {pfReport.monthName} {pfReport.year}
+                    </Typography>
+                  </Grid>
+                  <Grid item xs={12} md={2.4}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
+                      color: 'white' 
+                    }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.75rem', color: 'white' }}>
+                          Total Employees
+                        </Typography>
+                        <Typography variant="h4" fontWeight="bold" sx={{ mt: 0.5, color: 'white' }}>
+                          {pfReport.totals.totalEmployees}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={2.4}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #EF5350 0%, #E53935 100%)', 
+                      color: 'white' 
+                    }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.75rem', color: 'white' }}>
+                          Employee PF (12%)
+                        </Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ mt: 0.5, color: 'white' }}>
+                          ₹{pfReport.totals.totalEmployeePf.toLocaleString()}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={2.4}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #FFA726 0%, #FF9800 100%)', 
+                      color: 'white' 
+                    }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.75rem', color: 'white' }}>
+                          Voluntary PF
+                        </Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ mt: 0.5, color: 'white' }}>
+                          ₹{pfReport.totals.totalVoluntaryPf.toLocaleString()}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={2.4}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #66BB6A 0%, #4CAF50 100%)', 
+                      color: 'white' 
+                    }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.75rem', color: 'white' }}>
+                          Employer PF (12%)
+                        </Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ mt: 0.5, color: 'white' }}>
+                          ₹{pfReport.totals.totalEmployerPf.toLocaleString()}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+                  <Grid item xs={12} md={2.4}>
+                    <Card elevation={3} sx={{ 
+                      background: 'linear-gradient(135deg, #7E57C2 0%, #673AB7 100%)', 
+                      color: 'white',
+                      border: '2px solid #FFD700'
+                    }}>
+                      <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                        <Typography variant="caption" sx={{ fontWeight: 500, fontSize: '0.75rem', color: 'white' }}>
+                          Total PF to Govt
+                        </Typography>
+                        <Typography variant="h5" fontWeight="bold" sx={{ mt: 0.5, color: 'white' }}>
+                          ₹{(pfReport.totals.totalEmployeePf + pfReport.totals.totalVoluntaryPf + pfReport.totals.totalEmployerPf).toLocaleString()}
+                        </Typography>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  {/* Export Buttons */}
+                  <Grid item xs={12}>
+                    <Card elevation={3}>
+                      <CardContent>
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                          <Typography variant="h6" color="primary">
+                            Employee-wise PF Details
+                          </Typography>
+                          <Box>
+                            <Button
+                              startIcon={<PdfIcon />}
+                              size="small"
+                              sx={{ mr: 1 }}
+                              onClick={() => window.print()}
+                            >
+                              Print/PDF
+                            </Button>
+                            <Button
+                              startIcon={<ExcelIcon />}
+                              size="small"
+                              color="success"
+                            >
+                              Export Excel
+                            </Button>
+                          </Box>
+                        </Box>
+                      </CardContent>
+                    </Card>
+                  </Grid>
+
+                  {/* Employee-wise PF Table */}
+                  <Grid item xs={12}>
+                    <Card elevation={3}>
+                      <CardContent>
+                        <TableContainer sx={{ overflowX: 'auto' }}>
+                          <Table size="small" sx={{ minWidth: 1000 }}>
+                            <TableHead>
+                              <TableRow>
+                                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Employee</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem', minWidth: 100 }}>PF Acc ID</TableCell>
+                                <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem', display: { xs: 'none', md: 'table-cell' } }}>Phone</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Gross</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Emp PF</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>VPF</TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Empr PF</TableCell>
+                                <TableCell align="right" sx={{ backgroundColor: '#FFF3E0', fontWeight: 'bold', fontSize: '0.875rem' }}>
+                                  Total PF
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Net Amt</TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {pfReport.employees.map((emp) => (
+                                <TableRow key={emp.employeeId} hover>
+                                  <TableCell sx={{ fontSize: '0.813rem' }}>
+                                    <strong>{emp.employeeName}</strong>
+                                  </TableCell>
+                                  <TableCell sx={{ fontSize: '0.75rem' }}>
+                                    <Chip label={emp.pfAccountId} size="small" color="primary" variant="outlined" sx={{ fontSize: '0.7rem', height: 20 }} />
+                                  </TableCell>
+                                  <TableCell sx={{ fontSize: '0.75rem', display: { xs: 'none', md: 'table-cell' } }}>
+                                    {emp.phoneNumber || '-'}
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ fontSize: '0.813rem' }}>
+                                    ₹{emp.totals.totalGrossAmount.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ color: 'error.main', fontSize: '0.813rem' }}>
+                                    ₹{emp.totals.totalEmployeePf.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ color: 'warning.main', fontSize: '0.813rem' }}>
+                                    ₹{emp.totals.totalVoluntaryPf.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ color: 'success.main', fontSize: '0.813rem' }}>
+                                    ₹{emp.totals.totalEmployerPf.toLocaleString()}
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ backgroundColor: '#FFF3E0', fontWeight: 'bold', fontSize: '0.875rem' }}>
+                                    <Typography variant="body2" fontWeight="bold" color="primary">
+                                      ₹{(emp.totals.totalEmployeePf + emp.totals.totalVoluntaryPf + emp.totals.totalEmployerPf).toLocaleString()}
+                                    </Typography>
+                                  </TableCell>
+                                  <TableCell align="right" sx={{ fontSize: '0.813rem' }}>
+                                    <Typography variant="body2" fontWeight="bold">
+                                      ₹{emp.totals.totalNetAmount.toLocaleString()}
+                                    </Typography>
+                                  </TableCell>
+                                </TableRow>
+                              ))}
+                              {/* Grand Total Row */}
+                              <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+                                <TableCell colSpan={3} sx={{ fontSize: '0.938rem' }}>
+                                  <Typography variant="subtitle1" fontWeight="bold">TOTAL</Typography>
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>
+                                  ₹{pfReport.totals.totalGrossAmount.toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', color: 'error.main', fontSize: '0.875rem' }}>
+                                  ₹{pfReport.totals.totalEmployeePf.toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', color: 'warning.main', fontSize: '0.875rem' }}>
+                                  ₹{pfReport.totals.totalVoluntaryPf.toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '0.875rem' }}>
+                                  ₹{pfReport.totals.totalEmployerPf.toLocaleString()}
+                                </TableCell>
+                                <TableCell align="right" sx={{ backgroundColor: '#FFE082', fontWeight: 'bold' }}>
+                                  <Typography variant="subtitle1" color="primary" fontWeight="bold">
+                                    ₹{(pfReport.totals.totalEmployeePf + pfReport.totals.totalVoluntaryPf + pfReport.totals.totalEmployerPf).toLocaleString()}
+                                  </Typography>
+                                </TableCell>
+                                <TableCell align="right">
+                                  <Typography variant="subtitle1" color="primary" fontWeight="bold">
+                                    ₹{pfReport.totals.totalNetAmount.toLocaleString()}
+                                  </Typography>
+                                </TableCell>
+                              </TableRow>
                             </TableBody>
                           </Table>
                         </TableContainer>

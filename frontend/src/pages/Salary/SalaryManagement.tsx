@@ -51,8 +51,7 @@ const SalaryManagement: React.FC = () => {
     amount: 0,
     currency: 'INR',
     startDate: format(new Date(), 'yyyy-MM-dd'),
-    salaryType: 'BASE_SALARY',
-    paymentFrequency: 'MONTHLY',
+    salaryType: 'MONTHLY', // Updated to new values
     voluntaryPfPercentage: 0,
     reasonForChange: '',
     approvedBy: '',
@@ -107,8 +106,7 @@ const SalaryManagement: React.FC = () => {
       amount: 0,
       currency: 'INR',
       startDate: format(new Date(), 'yyyy-MM-dd'),
-      salaryType: 'BASE_SALARY',
-      paymentFrequency: 'MONTHLY',
+      salaryType: 'MONTHLY', // Updated
       voluntaryPfPercentage: 0,
       reasonForChange: 'Initial salary',
       approvedBy: '',
@@ -124,8 +122,7 @@ const SalaryManagement: React.FC = () => {
       amount: currentSalary.amount,
       currency: currentSalary.currency || 'INR',
       startDate: format(new Date(), 'yyyy-MM-dd'),
-      salaryType: currentSalary.salaryType || 'BASE_SALARY',
-      paymentFrequency: currentSalary.paymentFrequency || 'MONTHLY',
+      salaryType: currentSalary.salaryType || 'MONTHLY', // Updated
       voluntaryPfPercentage: currentSalary.voluntaryPfPercentage || 0,
       reasonForChange: '',
       approvedBy: '',
@@ -411,7 +408,7 @@ const SalaryManagement: React.FC = () => {
                   InputLabelProps={{ shrink: true }}
                 />
               </Grid>
-              <Grid item xs={12} md={6}>
+              <Grid item xs={12}>
                 <TextField
                   fullWidth
                   select
@@ -419,26 +416,11 @@ const SalaryManagement: React.FC = () => {
                   name="salaryType"
                   value={salaryFormData.salaryType}
                   onChange={handleFormChange}
+                  helperText="How the salary amount should be interpreted for payment calculations"
                 >
-                  <MenuItem value="BASE_SALARY">Base Salary</MenuItem>
-                  <MenuItem value="HOURLY_RATE">Hourly Rate</MenuItem>
-                  <MenuItem value="DAILY_WAGE">Daily Wage</MenuItem>
-                  <MenuItem value="PIECE_RATE">Piece Rate</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Payment Frequency"
-                  name="paymentFrequency"
-                  value={salaryFormData.paymentFrequency}
-                  onChange={handleFormChange}
-                >
-                  <MenuItem value="DAILY">Daily</MenuItem>
-                  <MenuItem value="WEEKLY">Weekly</MenuItem>
-                  <MenuItem value="BIWEEKLY">Bi-weekly</MenuItem>
-                  <MenuItem value="MONTHLY">Monthly</MenuItem>
+                  <MenuItem value="DAILY">Daily Wage</MenuItem>
+                  <MenuItem value="WEEKLY">Weekly Wage (divides by 7 for daily rate)</MenuItem>
+                  <MenuItem value="MONTHLY">Monthly Salary (divides by 30 for daily rate)</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12}>
@@ -535,6 +517,21 @@ const SalaryManagement: React.FC = () => {
                   onChange={handleFormChange}
                   InputLabelProps={{ shrink: true }}
                 />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Salary Type"
+                  name="salaryType"
+                  value={salaryFormData.salaryType}
+                  onChange={handleFormChange}
+                  helperText="How the salary amount should be interpreted for payment calculations"
+                >
+                  <MenuItem value="DAILY">Daily Wage</MenuItem>
+                  <MenuItem value="WEEKLY">Weekly Wage (divides by 7 for daily rate)</MenuItem>
+                  <MenuItem value="MONTHLY">Monthly Salary (divides by 30 for daily rate)</MenuItem>
+                </TextField>
               </Grid>
               <Grid item xs={12}>
                 <TextField

@@ -271,6 +271,12 @@ public class WorkAssignmentService {
         dto.setFirstEvaluatedAt(assignment.getFirstEvaluatedAt());
         dto.setLastEvaluatedAt(assignment.getLastEvaluatedAt());
         dto.setEvaluationCount(assignment.getEvaluationCount());
+        // Payment tracking
+        dto.setPaymentStatus(assignment.getPaymentStatus());
+        dto.setIncludedInPaymentId(assignment.getIncludedInPaymentId());
+        dto.setPaidInPaymentId(assignment.getPaidInPaymentId());
+        dto.setPaymentLockedAt(assignment.getPaymentLockedAt());
+        dto.setIsEditable(assignment.isEditable());
         return dto;
     }
 

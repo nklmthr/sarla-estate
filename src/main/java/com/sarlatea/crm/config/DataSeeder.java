@@ -10,6 +10,7 @@ import com.sarlatea.crm.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -19,8 +20,10 @@ import java.util.HashSet;
 /**
  * Data seeder to initialize default master data for Roles, Users, Employee Types, and Statuses
  * This runs once when the application starts
+ * Order(1) ensures this runs BEFORE ComprehensiveSampleDataSeeder
  */
 @Component
+@Order(1)
 @RequiredArgsConstructor
 @Slf4j
 public class DataSeeder implements CommandLineRunner {
@@ -82,6 +85,15 @@ public class DataSeeder implements CommandLineRunner {
                 Permission.EDIT_ASSIGNMENT,
                 Permission.DELETE_ASSIGNMENT,
                 Permission.EVALUATE_ASSIGNMENT,
+                Permission.VIEW_PAYMENTS,
+                Permission.CREATE_PAYMENT,
+                Permission.EDIT_PAYMENT,
+                Permission.DELETE_PAYMENT,
+                Permission.SUBMIT_PAYMENT,
+                Permission.APPROVE_PAYMENT,
+                Permission.RECORD_PAYMENT,
+                Permission.CANCEL_PAYMENT,
+                Permission.MANAGE_PAYMENT_DOCUMENTS,
                 Permission.VIEW_REPORTS,
                 Permission.GENERATE_PAYMENT_REPORT,
                 Permission.GENERATE_ASSIGNMENT_REPORT,
@@ -109,6 +121,7 @@ public class DataSeeder implements CommandLineRunner {
                 Permission.VIEW_EMPLOYEES,
                 Permission.VIEW_WORK_ACTIVITIES,
                 Permission.VIEW_ASSIGNMENTS,
+                Permission.VIEW_PAYMENTS,
                 Permission.VIEW_REPORTS
         )));
         userRole.setIsSystemRole(false); // Can be modified/deleted
@@ -145,6 +158,17 @@ public class DataSeeder implements CommandLineRunner {
         createPermissionConfig("ASSIGNMENT", "EDIT", Permission.EDIT_ASSIGNMENT, "Edit existing assignments");
         createPermissionConfig("ASSIGNMENT", "DELETE", Permission.DELETE_ASSIGNMENT, "Delete assignments");
         createPermissionConfig("ASSIGNMENT", "EVALUATE", Permission.EVALUATE_ASSIGNMENT, "Evaluate and complete assignments");
+
+        // PAYMENT resource configurations
+        createPermissionConfig("PAYMENT", "VIEW", Permission.VIEW_PAYMENTS, "View payment list and details");
+        createPermissionConfig("PAYMENT", "CREATE", Permission.CREATE_PAYMENT, "Create payment drafts");
+        createPermissionConfig("PAYMENT", "EDIT", Permission.EDIT_PAYMENT, "Edit payment drafts");
+        createPermissionConfig("PAYMENT", "DELETE", Permission.DELETE_PAYMENT, "Delete payment drafts");
+        createPermissionConfig("PAYMENT", "SUBMIT", Permission.SUBMIT_PAYMENT, "Submit payment for approval");
+        createPermissionConfig("PAYMENT", "APPROVE", Permission.APPROVE_PAYMENT, "Approve pending payments");
+        createPermissionConfig("PAYMENT", "RECORD", Permission.RECORD_PAYMENT, "Record actual payment transactions");
+        createPermissionConfig("PAYMENT", "CANCEL", Permission.CANCEL_PAYMENT, "Cancel payment requests");
+        createPermissionConfig("PAYMENT", "MANAGE_DOCUMENTS", Permission.MANAGE_PAYMENT_DOCUMENTS, "Manage payment documents");
 
         // REPORT resource configurations
         createPermissionConfig("REPORT", "VIEW", Permission.VIEW_REPORTS, "Access to reports section");

@@ -66,8 +66,17 @@ const EmployeeList: React.FC = () => {
   const [isInitialSalary, setIsInitialSalary] = useState(false);
   const [loadingSalary, setLoadingSalary] = useState(false);
 
-  const [salaryFormData, setSalaryFormData] = useState({
+  const [salaryFormData, setSalaryFormData] = useState<{
+    amount: number;
+    salaryType: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+    currency: string;
+    startDate: string;
+    voluntaryPfPercentage: number;
+    reasonForChange: string;
+    notes: string;
+  }>({
     amount: 0,
+    salaryType: 'MONTHLY',
     currency: 'INR',
     startDate: format(new Date(), 'yyyy-MM-dd'),
     voluntaryPfPercentage: 0,
@@ -200,6 +209,7 @@ const EmployeeList: React.FC = () => {
     if (initial) {
       setSalaryFormData({
         amount: 0,
+        salaryType: 'MONTHLY', // Default to MONTHLY
         currency: 'INR',
         startDate: format(new Date(), 'yyyy-MM-dd'),
         voluntaryPfPercentage: 0,
@@ -209,6 +219,7 @@ const EmployeeList: React.FC = () => {
     } else if (currentSalary) {
       setSalaryFormData({
         amount: currentSalary.amount,
+        salaryType: currentSalary.salaryType || 'MONTHLY', // Preserve or default to MONTHLY
         currency: currentSalary.currency || 'INR',
         startDate: format(new Date(), 'yyyy-MM-dd'),
         voluntaryPfPercentage: currentSalary.voluntaryPfPercentage || 0,
@@ -595,6 +606,21 @@ const EmployeeList: React.FC = () => {
                   <MenuItem value="INR">INR</MenuItem>
                   <MenuItem value="USD">USD</MenuItem>
                   <MenuItem value="EUR">EUR</MenuItem>
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  select
+                  label="Salary Type"
+                  name="salaryType"
+                  value={salaryFormData.salaryType || 'MONTHLY'}
+                  onChange={handleSalaryFormChange}
+                  helperText="How the salary amount should be interpreted for payment calculations"
+                >
+                  <MenuItem value="DAILY">Daily Wage</MenuItem>
+                  <MenuItem value="WEEKLY">Weekly Wage (divides by 7 for daily rate)</MenuItem>
+                  <MenuItem value="MONTHLY">Monthly Salary (divides by 30 for daily rate)</MenuItem>
                 </TextField>
               </Grid>
               <Grid item xs={12}>

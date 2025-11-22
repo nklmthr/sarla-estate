@@ -37,6 +37,7 @@ import {
   CheckCircle as CheckCircleIcon,
   Search as SearchIcon,
   Clear as ClearIcon,
+  Lock as LockIcon,
 } from '@mui/icons-material';
 import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
@@ -543,6 +544,7 @@ const AssignmentList: React.FC = () => {
       const activity = activities.find((a) => a.id === assignment.workActivityId);
       const hasActiveCriteria = !!activity?.activeCriteria;
       const isCompleted = assignment.assignmentStatus === 'COMPLETED';
+      const isLocked = assignment.isEditable === false; // Assignment is locked if isEditable is explicitly false
 
       return (
         <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
@@ -550,12 +552,36 @@ const AssignmentList: React.FC = () => {
             elevation={1}
             sx={{
               p: 0.75,
-              bgcolor: !hasActiveCriteria && !isCompleted ? 'error.light' : 'action.hover',
+              bgcolor: isLocked ? 'grey.200' : (!hasActiveCriteria && !isCompleted ? 'error.light' : 'action.hover'),
               position: 'relative',
-              border: !hasActiveCriteria && !isCompleted ? '1px solid' : 'none',
-              borderColor: 'error.main'
+              border: isLocked ? '2px solid' : (!hasActiveCriteria && !isCompleted ? '1px solid' : 'none'),
+              borderColor: isLocked ? 'warning.main' : 'error.main',
+              opacity: isLocked ? 0.7 : 1,
             }}
           >
+            {isLocked && (
+              <Box
+                sx={{
+                  position: 'absolute',
+                  top: 4,
+                  left: 4,
+                  zIndex: 20,
+                  display: 'flex',
+                  alignItems: 'center',
+                  bgcolor: 'warning.main',
+                  color: 'warning.contrastText',
+                  px: 0.5,
+                  py: 0.25,
+                  borderRadius: 0.5,
+                  fontSize: '0.65rem',
+                }}
+              >
+                <LockIcon sx={{ fontSize: 12, mr: 0.25 }} />
+                <Typography variant="caption" sx={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                  LOCKED
+                </Typography>
+              </Box>
+            )}
             <Box display="flex" justifyContent="space-between" alignItems="flex-start">
               <Typography
                 variant="body2"
@@ -575,7 +601,13 @@ const AssignmentList: React.FC = () => {
               </Typography>
               <Box display="flex" gap={0} sx={{ position: 'relative', zIndex: 10, flexShrink: 0 }}>
                 <Tooltip
-                  title={!hasActiveCriteria && !isCompleted ? "Cannot evaluate: No active criteria" : "Evaluate"}
+                  title={
+                    isLocked 
+                      ? "Assignment is locked (included in payment)" 
+                      : (!hasActiveCriteria && !isCompleted 
+                          ? "Cannot evaluate: No active criteria" 
+                          : "Evaluate")
+                  }
                   arrow
                 >
                   <span>
@@ -584,24 +616,35 @@ const AssignmentList: React.FC = () => {
                       onClick={() => handleOpenCompletionDialog(assignment)}
                       color="primary"
                       sx={{ p: 0.5 }}
-                      disabled={!hasActiveCriteria && !isCompleted}
+                      disabled={isLocked || (!hasActiveCriteria && !isCompleted)}
                     >
                       <AssessmentIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                   </span>
                 </Tooltip>
-                <Tooltip title="Delete Assignment" arrow>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleOpenDeleteDialog(assignment)}
-                    color="error"
-                    sx={{ p: 0.5 }}
-                  >
-                    <DeleteIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
+                <Tooltip 
+                  title={isLocked ? "Cannot delete: Assignment is locked (included in payment)" : "Delete Assignment"} 
+                  arrow
+                >
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleOpenDeleteDialog(assignment)}
+                      color="error"
+                      sx={{ p: 0.5 }}
+                      disabled={isLocked}
+                    >
+                      <DeleteIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </span>
                 </Tooltip>
               </Box>
             </Box>
+            {isLocked && assignment.includedInPaymentId && (
+              <Typography variant="caption" color="warning.dark" display="block" sx={{ fontSize: '0.65rem', fontWeight: 600, mt: 0.5 }}>
+                 In Payment: {assignment.includedInPaymentId.substring(0, 8)}...
+              </Typography>
+            )}
             {!hasActiveCriteria && !isCompleted && (
               <Typography variant="caption" color="error.dark" display="block" sx={{ fontSize: '0.65rem', fontWeight: 600, mt: 0.25 }}>
                 ⚠️ No active criteria - please delete

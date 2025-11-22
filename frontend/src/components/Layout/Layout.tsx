@@ -32,6 +32,7 @@ import {
   VpnKey as KeyIcon,
   History as HistoryIcon,
   AccountCircle as AccountCircleIcon,
+  Payment as PaymentIcon,
 } from '@mui/icons-material';
 import { useAuth } from '../../contexts/AuthContext';
 import { userApi } from '../../api/userApi';
@@ -53,6 +54,7 @@ const menuItems: MenuItem[] = [
   { text: 'Employees', icon: <PeopleIcon />, path: '/employees' },
   { text: 'Work Activities', icon: <WorkIcon />, path: '/work-activities' },
   { text: 'Assignments', icon: <AssignmentIcon />, path: '/assignments' },
+  { text: 'Payments', icon: <PaymentIcon />, path: '/payments' },
   { text: 'Reports', icon: <ReportsIcon />, path: '/reports' },
   { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
 ];

@@ -28,6 +28,17 @@ public enum Permission {
     DELETE_ASSIGNMENT("Delete Assignment", "Delete assignments"),
     EVALUATE_ASSIGNMENT("Evaluate Assignment", "Evaluate and mark assignments as complete"),
     
+    // Payment Management
+    VIEW_PAYMENTS("View Payments", "View payment list and details"),
+    CREATE_PAYMENT("Create Payment", "Create payment drafts"),
+    EDIT_PAYMENT("Edit Payment", "Edit payment drafts"),
+    DELETE_PAYMENT("Delete Payment", "Delete payment drafts"),
+    SUBMIT_PAYMENT("Submit Payment", "Submit payment for approval"),
+    APPROVE_PAYMENT("Approve Payment", "Approve pending payments"),
+    RECORD_PAYMENT("Record Payment", "Record actual payment transactions"),
+    CANCEL_PAYMENT("Cancel Payment", "Cancel payment requests"),
+    MANAGE_PAYMENT_DOCUMENTS("Manage Payment Documents", "Upload and manage payment documents"),
+    
     // Reports
     VIEW_REPORTS("View Reports", "Access to reports section"),
     GENERATE_PAYMENT_REPORT("Generate Payment Report", "Generate payment reports"),

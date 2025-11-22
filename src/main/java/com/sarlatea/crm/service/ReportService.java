@@ -3,12 +3,17 @@ package com.sarlatea.crm.service;
 import com.sarlatea.crm.config.SalaryConfiguration;
 import com.sarlatea.crm.dto.AssignmentAuditReportDTO;
 import com.sarlatea.crm.dto.PaymentReportDTO;
+import com.sarlatea.crm.dto.PfReportDTO;
+import com.sarlatea.crm.dto.PfReportRequestDTO;
 import com.sarlatea.crm.dto.UpcomingAssignmentsReportDTO;
 import com.sarlatea.crm.model.Employee;
 import com.sarlatea.crm.model.EmployeeSalary;
+import com.sarlatea.crm.model.Payment;
+import com.sarlatea.crm.model.PaymentLineItem;
 import com.sarlatea.crm.model.WorkAssignment;
 import com.sarlatea.crm.repository.EmployeeRepository;
 import com.sarlatea.crm.repository.EmployeeSalaryRepository;
+import com.sarlatea.crm.repository.PaymentRepository;
 import com.sarlatea.crm.repository.WorkAssignmentRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,8 +23,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
+import java.time.format.TextStyle;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -34,6 +42,7 @@ public class ReportService {
     private final WorkAssignmentRepository workAssignmentRepository;
     private final EmployeeSalaryRepository salaryRepository;
     private final EmployeeRepository employeeRepository;
+    private final PaymentRepository paymentRepository;
     private final SalaryConfiguration salaryConfiguration;
 
     @Transactional(readOnly = true)
@@ -248,15 +257,28 @@ public class ReportService {
     private BigDecimal calculatePaymentAmount(EmployeeSalary salary, List<WorkAssignment> assignments,
                                                LocalDate periodStart, LocalDate periodEnd) {
         
-        BigDecimal baseSalary = salary.getAmount();
+        // Use the salary object's daily rate calculation which handles DAILY/WEEKLY/MONTHLY types
+        BigDecimal dailyRate = salary.calculateDailyRate();
         
-        // Simplified: calculate based on completion percentage and proportional to days worked
-        return calculateProportionalPayment(baseSalary, assignments, periodStart, periodEnd);
+        // Calculate payment based on actual assignments and their completion percentage
+        BigDecimal totalPayment = BigDecimal.ZERO;
+        
+        for (WorkAssignment assignment : assignments) {
+            double completionRate = (assignment.getCompletionPercentage() != null 
+                    ? assignment.getCompletionPercentage() : 0) / 100.0;
+            
+            // Each assignment = 1 day of work × completion rate
+            BigDecimal assignmentPayment = dailyRate.multiply(BigDecimal.valueOf(completionRate));
+            totalPayment = totalPayment.add(assignmentPayment);
+        }
+
+        return totalPayment.setScale(2, RoundingMode.HALF_UP);
     }
 
     private BigDecimal calculateProportionalPayment(BigDecimal baseSalary, List<WorkAssignment> assignments,
                                                      LocalDate periodStart, LocalDate periodEnd) {
-        // Calculate daily rate (assuming 30 days per month as standard)
+        // This method will be deprecated - we now get salary object and use calculateDailyRate()
+        // Calculate daily rate (assuming 30 days per month as standard for MONTHLY salary)
         BigDecimal dailyRate = baseSalary.divide(BigDecimal.valueOf(30), 4, RoundingMode.HALF_UP);
         
         // Calculate payment based on actual assignments and their completion percentage
@@ -283,11 +305,11 @@ public class ReportService {
         detail.setActualHours(assignment.getActualDurationHours());
         detail.setCompletionPercentage(assignment.getCompletionPercentage() != null ? assignment.getCompletionPercentage() : 0);
         
-        // Calculate contribution (simplified)
+        // Calculate contribution using the salary type-aware daily rate
         double completionRate = (assignment.getCompletionPercentage() != null ? assignment.getCompletionPercentage() : 0) / 100.0;
-        BigDecimal contribution = salary.getAmount()
-                .multiply(BigDecimal.valueOf(completionRate))
-                .divide(BigDecimal.valueOf(30), 2, RoundingMode.HALF_UP); // Rough daily estimate
+        BigDecimal dailyRate = salary.calculateDailyRate(); // Use salary type-aware calculation
+        BigDecimal contribution = dailyRate.multiply(BigDecimal.valueOf(completionRate))
+                .setScale(2, RoundingMode.HALF_UP);
         detail.setContributionToPayment(contribution);
         
         return detail;
@@ -395,6 +417,235 @@ public class ReportService {
         detail.setActualValue(assignment.getActualValue());
         detail.setDeleted(assignment.getDeleted());
         return detail;
+    }
+
+    /**
+     * Generate monthly PF report for PAID payments
+     * Groups by employee and shows PF account details with payment summaries
+     */
+    @Transactional(readOnly = true)
+    public PfReportDTO generatePfReport(PfReportRequestDTO request) {
+        log.info("Generating PF report for month {} year {}", request.getMonth(), request.getYear());
+
+        // Validate month
+        if (request.getMonth() < 1 || request.getMonth() > 12) {
+            throw new IllegalArgumentException("Invalid month. Must be between 1 and 12");
+        }
+
+        // Find all PAID payments for the given month/year
+        List<Payment> allPayments = paymentRepository.findAll();
+        log.info("Total payments in database: {}", allPayments.size());
+        
+        List<Payment> paidPayments = allPayments.stream()
+                .filter(p -> {
+                    log.debug("Payment {}: status={}, month={}, year={}", 
+                            p.getId().substring(0, 8), p.getStatus(), p.getPaymentMonth(), p.getPaymentYear());
+                    return p.getStatus() == Payment.PaymentStatus.PAID;
+                })
+                .filter(p -> {
+                    boolean monthMatch = p.getPaymentMonth() != null && p.getPaymentMonth().equals(request.getMonth());
+                    if (!monthMatch) {
+                        log.debug("Payment {} month mismatch: {} != {}", 
+                                p.getId().substring(0, 8), p.getPaymentMonth(), request.getMonth());
+                    }
+                    return monthMatch;
+                })
+                .filter(p -> {
+                    boolean yearMatch = p.getPaymentYear() != null && p.getPaymentYear().equals(request.getYear());
+                    if (!yearMatch) {
+                        log.debug("Payment {} year mismatch: {} != {}", 
+                                p.getId().substring(0, 8), p.getPaymentYear(), request.getYear());
+                    }
+                    return yearMatch;
+                })
+                .collect(Collectors.toList());
+
+        log.info("Found {} paid payments for {}/{}", paidPayments.size(), request.getMonth(), request.getYear());
+
+        // Group payments by employee
+        Map<String, List<Payment>> paymentsByEmployee = new LinkedHashMap<>();
+        
+        for (Payment payment : paidPayments) {
+            for (PaymentLineItem lineItem : payment.getLineItems()) {
+                String employeeId = lineItem.getEmployee().getId();
+                paymentsByEmployee.computeIfAbsent(employeeId, k -> new ArrayList<>());
+                if (!paymentsByEmployee.get(employeeId).contains(payment)) {
+                    paymentsByEmployee.get(employeeId).add(payment);
+                }
+            }
+        }
+
+        // Build report
+        PfReportDTO report = new PfReportDTO();
+        report.setMonth(request.getMonth());
+        report.setYear(request.getYear());
+        report.setMonthName(java.time.Month.of(request.getMonth())
+                .getDisplayName(TextStyle.FULL, Locale.ENGLISH));
+
+        List<PfReportDTO.EmployeePfSummary> employeeSummaries = new ArrayList<>();
+
+        // Initialize report totals
+        PfReportDTO.PfReportTotals reportTotals = new PfReportDTO.PfReportTotals();
+        reportTotals.setTotalEmployees(paymentsByEmployee.size());
+        reportTotals.setTotalPayments(0); // Will be summed from employee totals
+        reportTotals.setTotalGrossAmount(BigDecimal.ZERO);
+        reportTotals.setTotalEmployeePf(BigDecimal.ZERO);
+        reportTotals.setTotalVoluntaryPf(BigDecimal.ZERO);
+        reportTotals.setTotalEmployerPf(BigDecimal.ZERO);
+        reportTotals.setTotalPfDeduction(BigDecimal.ZERO);
+        reportTotals.setTotalNetAmount(BigDecimal.ZERO);
+        reportTotals.setTotalAssignments(0);
+
+        // Process each employee
+        for (Map.Entry<String, List<Payment>> entry : paymentsByEmployee.entrySet()) {
+            String employeeId = entry.getKey();
+            List<Payment> employeePayments = entry.getValue();
+
+            Employee employee = employeeRepository.findById(employeeId).orElse(null);
+            if (employee == null) continue;
+
+            // Get employee's PF account details (from latest salary record)
+            EmployeeSalary latestSalary = salaryRepository.findCurrentSalaryByEmployeeId(employeeId).orElse(null);
+
+            PfReportDTO.EmployeePfSummary employeeSummary = new PfReportDTO.EmployeePfSummary();
+            employeeSummary.setEmployeeId(employeeId);
+            employeeSummary.setEmployeeName(employee.getName());
+            employeeSummary.setEmployeeCode(employeeId.substring(0, Math.min(8, employeeId.length()))); // Use shortened ID as code
+            employeeSummary.setPhoneNumber(employee.getPhone());
+            employeeSummary.setPfAccountId(employee.getPfAccountId() != null ? employee.getPfAccountId() : "N/A");
+
+            List<PfReportDTO.PaymentDetail> paymentDetails = new ArrayList<>();
+
+            // Initialize employee totals
+            PfReportDTO.EmployeePfTotals employeeTotals = new PfReportDTO.EmployeePfTotals();
+            employeeTotals.setTotalPayments(0);
+            employeeTotals.setTotalAssignments(0);
+            employeeTotals.setTotalGrossAmount(BigDecimal.ZERO);
+            employeeTotals.setTotalEmployeePf(BigDecimal.ZERO);
+            employeeTotals.setTotalVoluntaryPf(BigDecimal.ZERO);
+            employeeTotals.setTotalEmployerPf(BigDecimal.ZERO);
+            employeeTotals.setTotalPfDeduction(BigDecimal.ZERO);
+            employeeTotals.setTotalNetAmount(BigDecimal.ZERO);
+
+            // Process each payment for this employee
+            for (Payment payment : employeePayments) {
+                // Filter line items for this employee only
+                List<PaymentLineItem> employeeLineItems = payment.getLineItems().stream()
+                        .filter(li -> li.getEmployee().getId().equals(employeeId))
+                        .collect(Collectors.toList());
+
+                if (employeeLineItems.isEmpty()) continue;
+
+                // Calculate totals for this payment (for this employee)
+                BigDecimal grossAmount = BigDecimal.ZERO;
+                BigDecimal employeePf = BigDecimal.ZERO;
+                BigDecimal voluntaryPf = BigDecimal.ZERO;
+                BigDecimal employerPf = BigDecimal.ZERO;
+                BigDecimal netAmount = BigDecimal.ZERO;
+
+                for (PaymentLineItem item : employeeLineItems) {
+                    grossAmount = grossAmount.add(item.getAmount() != null ? item.getAmount() : BigDecimal.ZERO);
+                    employeePf = employeePf.add(item.getEmployeePf() != null ? item.getEmployeePf() : BigDecimal.ZERO);
+                    voluntaryPf = voluntaryPf.add(item.getVoluntaryPf() != null ? item.getVoluntaryPf() : BigDecimal.ZERO);
+                    employerPf = employerPf.add(item.getEmployerPf() != null ? item.getEmployerPf() : BigDecimal.ZERO);
+                    netAmount = netAmount.add(item.getNetAmount() != null ? item.getNetAmount() : BigDecimal.ZERO);
+                }
+
+                BigDecimal totalPf = employeePf.add(voluntaryPf);
+
+                PfReportDTO.PaymentDetail detail = new PfReportDTO.PaymentDetail();
+                detail.setPaymentId(payment.getId());
+                detail.setPaymentDate(payment.getPaidAt() != null ? payment.getPaidAt().toString() : "-");
+                detail.setReferenceNumber(payment.getReferenceNumber() != null ? payment.getReferenceNumber() : "-");
+                detail.setGrossAmount(grossAmount);
+                detail.setEmployeePf(employeePf);
+                detail.setVoluntaryPf(voluntaryPf);
+                detail.setEmployerPf(employerPf);
+                detail.setTotalPf(totalPf);
+                detail.setNetAmount(netAmount);
+                detail.setAssignmentCount(employeeLineItems.size());
+
+                paymentDetails.add(detail);
+
+                // Update employee totals
+                employeeTotals.setTotalPayments(employeeTotals.getTotalPayments() + 1);
+                employeeTotals.setTotalAssignments(employeeTotals.getTotalAssignments() + employeeLineItems.size());
+                employeeTotals.setTotalGrossAmount(employeeTotals.getTotalGrossAmount().add(grossAmount));
+                employeeTotals.setTotalEmployeePf(employeeTotals.getTotalEmployeePf().add(employeePf));
+                employeeTotals.setTotalVoluntaryPf(employeeTotals.getTotalVoluntaryPf().add(voluntaryPf));
+                employeeTotals.setTotalEmployerPf(employeeTotals.getTotalEmployerPf().add(employerPf));
+                employeeTotals.setTotalPfDeduction(employeeTotals.getTotalPfDeduction().add(totalPf));
+                employeeTotals.setTotalNetAmount(employeeTotals.getTotalNetAmount().add(netAmount));
+            }
+
+            employeeSummary.setPayments(paymentDetails);
+            employeeSummary.setTotals(employeeTotals);
+            employeeSummaries.add(employeeSummary);
+
+            // Update report totals
+            reportTotals.setTotalPayments(reportTotals.getTotalPayments() + employeeTotals.getTotalPayments());
+            reportTotals.setTotalAssignments(reportTotals.getTotalAssignments() + employeeTotals.getTotalAssignments());
+            reportTotals.setTotalGrossAmount(reportTotals.getTotalGrossAmount().add(employeeTotals.getTotalGrossAmount()));
+            reportTotals.setTotalEmployeePf(reportTotals.getTotalEmployeePf().add(employeeTotals.getTotalEmployeePf()));
+            reportTotals.setTotalVoluntaryPf(reportTotals.getTotalVoluntaryPf().add(employeeTotals.getTotalVoluntaryPf()));
+            reportTotals.setTotalEmployerPf(reportTotals.getTotalEmployerPf().add(employeeTotals.getTotalEmployerPf()));
+            reportTotals.setTotalPfDeduction(reportTotals.getTotalPfDeduction().add(employeeTotals.getTotalPfDeduction()));
+            reportTotals.setTotalNetAmount(reportTotals.getTotalNetAmount().add(employeeTotals.getTotalNetAmount()));
+        }
+
+        report.setEmployees(employeeSummaries);
+        report.setTotals(reportTotals);
+
+        log.info("PF report generated for {} employees with {} total payments", 
+                employeeSummaries.size(), reportTotals.getTotalPayments());
+
+        return report;
+    }
+    
+    /**
+     * Debug method to get all payments for diagnostic purposes
+     */
+    public List<Payment> getAllPayments() {
+        return paymentRepository.findAll();
+    }
+    
+    /**
+     * Debug method to check payment data in database
+     */
+    public Map<String, Object> debugPaymentData() {
+        List<Payment> allPayments = paymentRepository.findAll();
+        Map<String, Object> result = new LinkedHashMap<>();
+        
+        result.put("totalPayments", allPayments.size());
+        
+        List<Map<String, Object>> paymentSummaries = allPayments.stream().map(p -> {
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("id", p.getId());
+            summary.put("status", p.getStatus());
+            summary.put("month", p.getPaymentMonth());
+            summary.put("year", p.getPaymentYear());
+            summary.put("totalAmount", p.getTotalAmount());
+            summary.put("lineItemCount", p.getLineItems() != null ? p.getLineItems().size() : 0);
+            
+            if (p.getLineItems() != null && !p.getLineItems().isEmpty()) {
+                List<Map<String, Object>> lineItemDetails = p.getLineItems().stream().map(li -> {
+                    Map<String, Object> liDetail = new LinkedHashMap<>();
+                    liDetail.put("id", li.getId());
+                    liDetail.put("employeeId", li.getEmployee() != null ? li.getEmployee().getId() : null);
+                    liDetail.put("employeeName", li.getEmployee() != null ? li.getEmployee().getName() : null);
+                    liDetail.put("amount", li.getAmount());
+                    liDetail.put("netAmount", li.getNetAmount());
+                    return liDetail;
+                }).collect(Collectors.toList());
+                summary.put("lineItems", lineItemDetails);
+            }
+            
+            return summary;
+        }).collect(Collectors.toList());
+        
+        result.put("payments", paymentSummaries);
+        
+        return result;
     }
 }
 

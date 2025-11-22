@@ -39,5 +39,12 @@ public class WorkAssignmentDTO {
     private LocalDateTime firstEvaluatedAt;
     private LocalDateTime lastEvaluatedAt;
     private Integer evaluationCount;
+    
+    // Payment tracking
+    private WorkAssignment.PaymentStatus paymentStatus;
+    private String includedInPaymentId;
+    private String paidInPaymentId;
+    private LocalDateTime paymentLockedAt;
+    private Boolean isEditable; // Computed field
 }
 

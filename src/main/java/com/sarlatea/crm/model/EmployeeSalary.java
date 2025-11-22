@@ -16,6 +16,7 @@ import java.time.LocalDate;
  * 
  * Salary Structure:
  * - amount: Base salary (the primary salary amount)
+ * - salaryType: DAILY, WEEKLY, or MONTHLY - determines how to calculate per-day rate
  * - Employee PF: Mandatory 12% + Optional voluntary contribution (calculated on full base salary)
  * - Employer PF: Fixed 12% (does not change with voluntary contributions, calculated on full base salary)
  * - Total Salary: Base + Employer PF contribution
@@ -28,6 +29,12 @@ import java.time.LocalDate;
 @EqualsAndHashCode(callSuper = true)
 public class EmployeeSalary extends BaseEntity {
 
+    public enum SalaryType {
+        DAILY,    // Amount is daily wage
+        WEEKLY,   // Amount is weekly wage (divide by 7 for daily)
+        MONTHLY   // Amount is monthly salary (divide by 30 for daily)
+    }
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "employee_id", nullable = false)
     private Employee employee;
@@ -37,6 +44,16 @@ public class EmployeeSalary extends BaseEntity {
      */
     @Column(name = "amount", nullable = false, precision = 10, scale = 2)
     private BigDecimal amount;
+
+    /**
+     * Salary type determines how to calculate daily rate from the amount
+     * - DAILY: amount is per day
+     * - WEEKLY: amount is per week (divide by 7)
+     * - MONTHLY: amount is per month (divide by 30)
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "salary_type", nullable = false, length = 20)
+    private SalaryType salaryType = SalaryType.MONTHLY; // Default to monthly for backward compatibility
 
     @Column(name = "currency", length = 3)
     private String currency;
@@ -89,6 +106,27 @@ public class EmployeeSalary extends BaseEntity {
         }
         if (voluntaryPfPercentage == null) {
             voluntaryPfPercentage = BigDecimal.ZERO;
+        }
+        if (salaryType == null) {
+            salaryType = SalaryType.MONTHLY; // Default to monthly for backward compatibility
+        }
+    }
+
+    /**
+     * Calculate daily rate based on salary type
+     * - DAILY: amount itself is the daily rate
+     * - WEEKLY: amount / 7
+     * - MONTHLY: amount / 30
+     */
+    public BigDecimal calculateDailyRate() {
+        switch (salaryType) {
+            case DAILY:
+                return amount;
+            case WEEKLY:
+                return amount.divide(new BigDecimal("7"), 4, RoundingMode.HALF_UP);
+            case MONTHLY:
+            default:
+                return amount.divide(new BigDecimal("30"), 4, RoundingMode.HALF_UP);
         }
     }
 

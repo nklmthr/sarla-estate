@@ -22,6 +22,9 @@ import RoleManagement from './pages/Admin/RoleManagement';
 import PermissionConfigManagement from './pages/Admin/PermissionConfigManagement';
 import AuditLogPage from './pages/AuditLogs/AuditLogPage';
 import Profile from './pages/Profile';
+import PaymentListPage from './pages/Payments/PaymentListPage';
+import PaymentDetailPage from './pages/Payments/PaymentDetailPage';
+import PaymentAddAssignmentsPage from './pages/Payments/PaymentAddAssignmentsPage';
 
 const theme = createTheme({
   palette: {
@@ -464,6 +467,29 @@ function App() {
                 <ProtectedRoute>
                   <Layout>
                     <Reports />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+
+              {/* Payment Routes */}
+              <Route path="/payments" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PaymentListPage />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/payments/:paymentId/add-assignments" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PaymentAddAssignmentsPage />
+                  </Layout>
+                </ProtectedRoute>
+              } />
+              <Route path="/payments/:id" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <PaymentDetailPage />
                   </Layout>
                 </ProtectedRoute>
               } />

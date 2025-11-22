@@ -2,6 +2,8 @@ package com.sarlatea.crm.controller;
 
 import com.sarlatea.crm.dto.AssignmentAuditReportDTO;
 import com.sarlatea.crm.dto.PaymentReportDTO;
+import com.sarlatea.crm.dto.PfReportDTO;
+import com.sarlatea.crm.dto.PfReportRequestDTO;
 import com.sarlatea.crm.dto.UpcomingAssignmentsReportDTO;
 import com.sarlatea.crm.service.ReportService;
 import lombok.RequiredArgsConstructor;
@@ -113,6 +115,34 @@ public class ReportController {
         log.info("GET request for assignment audit report from {} to {}", startDate, endDate);
         AssignmentAuditReportDTO report = reportService.generateAssignmentAuditReport(startDate, endDate);
         return ResponseEntity.ok(report);
+    }
+
+    @PostMapping("/pf-report")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_PAYMENT')")
+    public ResponseEntity<PfReportDTO> getPfReport(@RequestBody PfReportRequestDTO request) {
+        log.info("POST request for PF report for month {} year {}", request.getMonth(), request.getYear());
+        PfReportDTO report = reportService.generatePfReport(request);
+        return ResponseEntity.ok(report);
+    }
+    
+    @GetMapping("/debug/payments")
+    @PreAuthorize("hasPermission('REPORT', 'GENERATE_PAYMENT')")
+    public ResponseEntity<String> debugPayments() {
+        log.info("GET request for payment debug info");
+        StringBuilder debug = new StringBuilder();
+        
+        java.util.List<com.sarlatea.crm.model.Payment> allPayments = reportService.getAllPayments();
+        debug.append("Total payments in database: ").append(allPayments.size()).append("\n\n");
+        
+        for (com.sarlatea.crm.model.Payment p : allPayments) {
+            debug.append("Payment ID: ").append(p.getId().substring(0, Math.min(8, p.getId().length()))).append("\n");
+            debug.append("  Status: ").append(p.getStatus()).append("\n");
+            debug.append("  Month: ").append(p.getPaymentMonth()).append("\n");
+            debug.append("  Year: ").append(p.getPaymentYear()).append("\n");
+            debug.append("  Line Items: ").append(p.getLineItems() != null ? p.getLineItems().size() : 0).append("\n\n");
+        }
+        
+        return ResponseEntity.ok(debug.toString());
     }
 }
 

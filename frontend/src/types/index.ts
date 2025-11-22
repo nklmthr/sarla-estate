@@ -79,6 +79,12 @@ export interface WorkAssignment {
   assignedAt?: string;
   lastEvaluatedAt?: string;
   evaluationCount?: number;
+  // Payment tracking
+  paymentStatus?: 'UNPAID' | 'DRAFT' | 'PENDING_PAYMENT' | 'APPROVED' | 'PAID' | 'CANCELLED';
+  includedInPaymentId?: string;
+  paidInPaymentId?: string;
+  paymentLockedAt?: string;
+  isEditable?: boolean; // Computed field from backend
 }
 
 export interface EmployeeSalary {
@@ -86,11 +92,10 @@ export interface EmployeeSalary {
   employeeId?: string;
   employeeName?: string;
   amount: number; // Base salary
+  salaryType?: 'DAILY' | 'WEEKLY' | 'MONTHLY'; // NEW: Determines how to calculate daily rate
   currency?: string;
   startDate: string;
   endDate?: string;
-  salaryType?: 'BASE_SALARY' | 'HOURLY_WAGE' | 'DAILY_WAGE' | 'CONTRACT' | 'PIECE_RATE';
-  paymentFrequency?: 'MONTHLY' | 'BIWEEKLY' | 'WEEKLY' | 'DAILY' | 'HOURLY';
   reasonForChange?: string;
   isActive?: boolean;
   approvedBy?: string;

@@ -22,6 +22,10 @@ public class EmployeeSalaryDTO {
     
     // Base salary amount
     private BigDecimal amount;
+    
+    // Salary type: DAILY, WEEKLY, or MONTHLY
+    private String salaryType; // Will be "DAILY", "WEEKLY", or "MONTHLY"
+    
     private String currency;
     private LocalDate startDate;
     private LocalDate endDate;

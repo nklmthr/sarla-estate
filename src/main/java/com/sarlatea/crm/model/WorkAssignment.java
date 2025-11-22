@@ -45,6 +45,20 @@ public class WorkAssignment extends BaseEntity {
     @Column(name = "evaluation_count")
     private Integer evaluationCount = 0;
     
+    // Payment tracking fields
+    @Column(name = "payment_status")
+    @Enumerated(EnumType.STRING)
+    private PaymentStatus paymentStatus = PaymentStatus.UNPAID;
+    
+    @Column(name = "included_in_payment_id")
+    private String includedInPaymentId; // Reference to Payment draft
+    
+    @Column(name = "paid_in_payment_id")
+    private String paidInPaymentId; // Reference to final paid Payment
+    
+    @Column(name = "payment_locked_at")
+    private LocalDateTime paymentLockedAt; // When payment was finalized (locks editing)
+    
     // Soft delete flag - assignments are never hard deleted for audit purposes
     @Column(name = "deleted")
     private Boolean deleted = false;
@@ -78,6 +92,68 @@ public class WorkAssignment extends BaseEntity {
     public enum AssignmentStatus {
         ASSIGNED,    // Initial status when assignment is created
         COMPLETED    // Status after evaluation, regardless of completion percentage
+    }
+
+    public enum PaymentStatus {
+        UNPAID,           // No payment drafted yet - EDITABLE
+        DRAFT,            // Included in payment draft - EDITABLE (can re-evaluate)
+        PENDING_PAYMENT,  // Payment request submitted (PENDING_APPROVAL) - LOCKED
+        APPROVED,         // Payment approved - LOCKED
+        PAID,             // Payment completed - LOCKED
+        CANCELLED         // Payment cancelled - EDITABLE (unlocked for correction)
+    }
+
+    /**
+     * Check if assignment can be edited
+     * Assignments are editable only when:
+     * - Status is UNPAID, DRAFT, or CANCELLED
+     * - NOT in PENDING_PAYMENT, APPROVED, or PAID status
+     */
+    public boolean isEditable() {
+        // Assignments are only editable if:
+        // 1. Not in any payment (UNPAID or null)
+        // 2. In a cancelled payment (CANCELLED)
+        // Assignments in DRAFT payments are NOT editable to prevent data changes after adding to payment
+        return paymentStatus == PaymentStatus.UNPAID 
+            || paymentStatus == PaymentStatus.CANCELLED
+            || paymentStatus == null; // Default state
+    }
+
+    /**
+     * Lock assignment when payment request is submitted (moved to PENDING_APPROVAL)
+     * This prevents changes to assignments and salaries after submission
+     */
+    public void lockForPaymentRequest(String paymentId) {
+        this.paymentStatus = PaymentStatus.PENDING_PAYMENT;
+        this.includedInPaymentId = paymentId;
+        this.paymentLockedAt = LocalDateTime.now();
+    }
+
+    /**
+     * Lock assignment when payment is completed
+     */
+    public void lockForPayment(String paymentId) {
+        this.paymentStatus = PaymentStatus.PAID;
+        this.paidInPaymentId = paymentId;
+        this.paymentLockedAt = LocalDateTime.now();
+    }
+
+    /**
+     * Unlock assignment when payment is cancelled
+     * This allows corrections to be made and new payment request to be created
+     */
+    public void unlockFromCancelledPayment() {
+        this.paymentStatus = PaymentStatus.CANCELLED;
+        this.paymentLockedAt = null;
+        // Keep includedInPaymentId and paidInPaymentId for audit trail
+    }
+
+    /**
+     * Include in payment draft (assignment still editable)
+     */
+    public void includeInPaymentDraft(String paymentId) {
+        this.paymentStatus = PaymentStatus.DRAFT;
+        this.includedInPaymentId = paymentId;
     }
 
     /**
