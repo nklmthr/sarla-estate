@@ -669,7 +669,7 @@ const AssignmentList: React.FC = () => {
             </Box>
             {assignment.actualValue !== undefined && assignment.actualValue !== null && (
               <Typography variant="caption" display="block" sx={{ mt: 0.25, fontSize: '0.7rem' }}>
-                Done: {assignment.actualValue} {activity?.activeCriteria ? getUnitName(activity.activeCriteria.unit) : ''} ({assignment.completionPercentage}%)
+                Done: {assignment.actualValue} {activity?.activeCriteria ? getUnitName(activity.activeCriteria.unit) : ''} ({(assignment.completionPercentage || 0).toFixed(2)}%)
               </Typography>
             )}
           </Paper>
