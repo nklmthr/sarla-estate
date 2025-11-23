@@ -49,7 +49,7 @@ function TabPanel(props: TabPanelProps) {
 }
 
 const Profile: React.FC = () => {
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
     const { showError, showSuccess } = useError();
     const [tabValue, setTabValue] = useState(0);
     const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -263,7 +263,7 @@ const Profile: React.FC = () => {
                 day: '2-digit',
                 hour: '2-digit',
                 minute: '2-digit',
-                timeZone: user?.timezone || undefined,
+                timeZone: timezone || 'UTC',
             }).format(date);
         } catch {
             return timestamp;
@@ -281,19 +281,12 @@ const Profile: React.FC = () => {
             });
             setProfile(updatedProfile);
 
-            // Update local storage user data if needed, or trigger a re-fetch in AuthContext
-            // For now, we can manually update the user object in localStorage to reflect changes immediately
-            const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-            const updatedUser = {
-                ...currentUser,
+            // Update AuthContext user state to reflect changes immediately in Layout
+            updateUser({
                 fullName: updatedProfile.fullName,
                 email: updatedProfile.email,
                 timezone: updatedProfile.timezone
-            };
-            localStorage.setItem('user', JSON.stringify(updatedUser));
-            // Ideally AuthContext should expose a method to update user state without full login
-            // But since we are reloading the page or navigating, it might be fine. 
-            // Actually, let's just show success.
+            });
 
             showSuccess('Profile updated successfully');
         } catch (error: any) {

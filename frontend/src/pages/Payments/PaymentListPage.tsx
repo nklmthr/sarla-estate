@@ -29,8 +29,6 @@ import {
   MoreVert as MoreVertIcon,
   Visibility as ViewIcon,
   Edit as EditIcon,
-  Check as ApproveIcon,
-  Payment as PaymentIcon,
   Cancel as CancelIcon,
 } from '@mui/icons-material';
 import { paymentApi, Payment, PaymentStatus } from '../../api/paymentApi';
@@ -42,7 +40,6 @@ const PaymentListPage: React.FC = () => {
   
   const [payments, setPayments] = useState<Payment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>([]);
-  const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [createLoading, setCreateLoading] = useState(false);
   const [tabValue, setTabValue] = useState(0);
@@ -96,7 +93,6 @@ const PaymentListPage: React.FC = () => {
       const newPayment = await paymentApi.createDraft({
         paymentMonth: currentMonth,
         paymentYear: currentYear,
-        description: `Payment for ${now.toLocaleString('en-US', { month: 'long', year: 'numeric' })}`,
         assignmentIds: [], // Start with empty, user will add assignments later
       });
       // Navigate directly to the detail page - user can see the created draft there
@@ -214,14 +210,6 @@ const PaymentListPage: React.FC = () => {
     payment.status === PaymentStatus.PENDING_APPROVAL || 
     payment.status === PaymentStatus.APPROVED;
 
-  if (initialLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -259,7 +247,13 @@ const PaymentListPage: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredPayments.length === 0 ? (
+              {initialLoading ? (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    <CircularProgress size={24} sx={{ my: 2 }} />
+                  </TableCell>
+                </TableRow>
+              ) : filteredPayments.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={7} align="center">
                     <Typography color="text.secondary" sx={{ py: 3 }}>

@@ -151,7 +151,6 @@ const WorkActivityList: React.FC = () => {
     try {
       await workActivityApi.deleteWorkActivity(activityToDelete.id!);
       setActivities(activities.filter((a) => a.id !== activityToDelete.id));
-      showSuccess('Work activity deleted successfully!');
       setDeleteDialogOpen(false);
       setActivityToDelete(null);
     } catch (error) {
@@ -287,8 +286,6 @@ const WorkActivityList: React.FC = () => {
 
       // Reload activities list in background to update ACTIVE/INACTIVE status
       reloadActivitiesInBackground();
-      
-      showSuccess('Completion criteria deleted successfully!');
     } catch (error) {
       // Error handled by global interceptor
     }
@@ -304,14 +301,6 @@ const WorkActivityList: React.FC = () => {
     setEditingCriteria(null);
     resetCriteriaForm();
   };
-
-  if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <Box>
@@ -366,7 +355,13 @@ const WorkActivityList: React.FC = () => {
               </TableRow>
             </TableHead>
             <TableBody>
-              {filteredActivities.length === 0 ? (
+              {loading ? (
+                <TableRow>
+                  <TableCell colSpan={4} align="center" sx={{ py: 4 }}>
+                    <CircularProgress size={40} />
+                  </TableCell>
+                </TableRow>
+              ) : filteredActivities.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} align="center">
                     <Typography color="textSecondary">
@@ -393,19 +388,11 @@ const WorkActivityList: React.FC = () => {
                     <TableCell align="right">
                       <IconButton
                         size="small"
-                        onClick={() => openCriteriaDialog(activity)}
-                        color="primary"
-                        title="Manage Completion Criteria"
-                      >
-                        <RuleIcon />
-                      </IconButton>
-                      <IconButton
-                        size="small"
                         onClick={() => navigate(`/work-activities/${activity.id}/edit`)}
                         color="primary"
                         title="Edit Activity"
                       >
-                        <EditIcon />
+                        <RuleIcon />
                       </IconButton>
                       <IconButton
                         size="small"

@@ -63,6 +63,7 @@ public enum Permission {
     VIEW_SETTINGS("View Settings", "Access to settings section"),
     MANAGE_EMPLOYEE_TYPES("Manage Employee Types", "Manage employee type master data"),
     MANAGE_EMPLOYEE_STATUSES("Manage Employee Statuses", "Manage employee status master data"),
+    VIEW_UNITS_OF_MEASURE("View Units of Measure", "View unit of measure list"),
     MANAGE_UNITS_OF_MEASURE("Manage Units of Measure", "Manage unit of measure master data"),
     
     // Audit Log

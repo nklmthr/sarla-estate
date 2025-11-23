@@ -128,7 +128,7 @@ const Login: React.FC = () => {
           </form>
 
           <Typography variant="caption" display="block" textAlign="center" color="text.secondary">
-            © 2024 Sarla Tea Estates. All rights reserved.
+            © 2025 Sarla Tea Estates. All rights reserved.
           </Typography>
         </CardContent>
       </Card>

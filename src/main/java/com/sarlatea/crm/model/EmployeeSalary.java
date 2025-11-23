@@ -64,9 +64,6 @@ public class EmployeeSalary extends BaseEntity {
     @Column(name = "end_date")
     private LocalDate endDate;
 
-    @Column(name = "reason_for_change", length = 500)
-    private String reasonForChange;
-
     @Column(name = "is_active")
     private Boolean isActive;
 

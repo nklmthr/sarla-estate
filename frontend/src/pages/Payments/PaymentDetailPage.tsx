@@ -30,7 +30,6 @@ import {
   ListItemSecondaryAction,
   LinearProgress,
   Paper,
-  Tooltip,
 } from '@mui/material';
 import {
   ArrowBack as BackIcon,
@@ -73,7 +72,6 @@ const PaymentDetailPage: React.FC = () => {
 
   const [payment, setPayment] = useState<Payment | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
-  const [loading, setLoading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [tabValue, setTabValue] = useState(0);
@@ -412,14 +410,6 @@ const PaymentDetailPage: React.FC = () => {
   const canDelete = payment?.status === PaymentStatus.DRAFT;
   const isLocked = payment?.status !== PaymentStatus.DRAFT && payment?.status !== PaymentStatus.CANCELLED;
 
-  if (initialLoading || !payment) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
   return (
     <Box>
       {/* Header */}
@@ -428,38 +418,56 @@ const PaymentDetailPage: React.FC = () => {
           <BackIcon />
         </IconButton>
         <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="h4">Payment Details</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Created {formatDate(payment.createdAt)} by {payment.createdBy}
+          <Typography variant="h4">
+            {initialLoading ? 'Loading...' : 'Payment Details'}
           </Typography>
+          {payment && (
+            <Typography variant="body2" color="text.secondary">
+              Created {formatDate(payment.createdAt)} by {payment.createdBy}
+            </Typography>
+          )}
         </Box>
-        <Chip
-          label={paymentApi.getStatusLabel(payment.status)}
-          color={paymentApi.getStatusColor(payment.status)}
-          icon={isLocked ? <LockIcon /> : <UnlockedIcon />}
-        />
+        {payment && (
+          <Chip
+            label={paymentApi.getStatusLabel(payment.status)}
+            color={paymentApi.getStatusColor(payment.status)}
+            icon={isLocked ? <LockIcon /> : <UnlockedIcon />}
+          />
+        )}
       </Box>
 
-      {/* Status Alert */}
-      {payment.status === PaymentStatus.DRAFT && (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          This payment is in DRAFT status. Assignments can still be re-evaluated.
-          Click "Submit for Approval" when ready to lock assignments and submit for approval.
-        </Alert>
+      {initialLoading && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
       )}
 
-      {payment.status === PaymentStatus.PENDING_APPROVAL && (
-        <Alert severity="warning" icon={<LockIcon />} sx={{ mb: 3 }}>
-          Payment submitted for approval. All {payment.lineItems?.length || 0} assignments are now LOCKED.
-          To make corrections, cancel this payment request.
-        </Alert>
+      {!initialLoading && !payment && (
+        <Alert severity="error">Payment not found</Alert>
       )}
 
-      {payment.status === PaymentStatus.CANCELLED && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          Payment cancelled: {payment.cancellationReason}
-          <br />
-          Cancelled by {payment.cancelledBy} on {formatDate(payment.cancelledAt)}
+      {!initialLoading && payment && (
+        <>
+          {/* Status Alert */}
+          {payment.status === PaymentStatus.DRAFT && (
+            <Alert severity="info" sx={{ mb: 3 }}>
+              This payment is in DRAFT status. Assignments can still be re-evaluated.
+              Click "Submit for Approval" when ready to lock assignments and submit for approval.
+            </Alert>
+          )}
+
+          {payment.status === PaymentStatus.PENDING_APPROVAL && (
+            <Alert severity="warning" icon={<LockIcon />} sx={{ mb: 3 }}>
+              Payment submitted for approval. All {payment.lineItems?.length || 0} assignments are now LOCKED.
+              To make corrections, cancel this payment request.
+            </Alert>
+          )}
+
+          {payment.status === PaymentStatus.CANCELLED && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              Payment cancelled: {payment.cancellationReason}
+              <br />
+              Cancelled by {payment.cancelledBy} on {formatDate(payment.cancelledAt)}
         </Alert>
       )}
 
@@ -797,11 +805,11 @@ const PaymentDetailPage: React.FC = () => {
                               </Typography>
                               <Box display="flex" alignItems="center" gap={1} mt={0.5}>
                                 <Typography variant="body2">
-                                  {formatCurrency(entry.previousAmount)}
+                                  {formatCurrency(entry.previousAmount || 0)}
                                 </Typography>
                                 <Typography variant="caption">→</Typography>
                                 <Typography variant="body2" fontWeight="bold" color="primary">
-                                  {formatCurrency(entry.newAmount)}
+                                  {formatCurrency(entry.newAmount || 0)}
                                 </Typography>
                               </Box>
                             </Grid>
@@ -1180,6 +1188,8 @@ const PaymentDetailPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+        </>
+      )}
     </Box>
   );
 };

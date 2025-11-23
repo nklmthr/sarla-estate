@@ -8,6 +8,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   hasPermission: (permission: string) => boolean;
+  updateUser: (updates: Partial<LoginResponse>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -53,6 +54,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return user.permissions.includes(permission);
   };
 
+  const updateUser = (updates: Partial<LoginResponse>) => {
+    if (!user) return;
+    
+    const updatedUser = { ...user, ...updates };
+    setUser(updatedUser);
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+  };
+
   return (
     <AuthContext.Provider value={{ 
       user, 
@@ -60,7 +69,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       logout, 
       isAuthenticated: !!user,
       isLoading,
-      hasPermission
+      hasPermission,
+      updateUser
     }}>
       {children}
     </AuthContext.Provider>

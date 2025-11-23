@@ -34,8 +34,8 @@ public class PaymentService {
 
     @Transactional(readOnly = true)
     public List<PaymentDTO> getAllPayments() {
-        log.debug("Fetching all payments");
-        return paymentRepository.findAllByOrderByPaymentDateDesc().stream()
+        log.debug("Fetching all payments ordered by status priority");
+        return paymentRepository.findAllOrderedByStatusPriority().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }

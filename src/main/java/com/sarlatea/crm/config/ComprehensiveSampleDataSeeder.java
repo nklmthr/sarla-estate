@@ -79,6 +79,9 @@ public class ComprehensiveSampleDataSeeder implements CommandLineRunner {
         // TODAY = LocalDate.of(2025, 1, 22); // Fixed date for testing
 
         try {
+            // First, backfill any missing firstEvaluatedAt timestamps
+            backfillFirstEvaluatedAt();
+            
             createEmployees();
             createSalaries();
             createWorkActivitiesAndCriteria();
@@ -90,6 +93,52 @@ public class ComprehensiveSampleDataSeeder implements CommandLineRunner {
             printSummary();
         } catch (Exception e) {
             log.error("Error during sample data generation", e);
+        }
+    }
+
+    /**
+     * Backfill firstEvaluatedAt and assignedAt for assignments that are missing these timestamps
+     * This fixes historical data that was created before these tracking fields were properly set
+     */
+    private void backfillFirstEvaluatedAt() {
+        log.info("\n[0/4] Backfilling missing timestamps (firstEvaluatedAt and assignedAt)...");
+        
+        List<WorkAssignment> assignmentsToFix = workAssignmentRepository.findAll();
+        int fixedFirstEval = 0;
+        int fixedAssignedAt = 0;
+        
+        for (WorkAssignment assignment : assignmentsToFix) {
+            boolean needsSave = false;
+            
+            // Fix missing firstEvaluatedAt
+            if (assignment.getLastEvaluatedAt() != null && assignment.getFirstEvaluatedAt() == null) {
+                assignment.setFirstEvaluatedAt(assignment.getLastEvaluatedAt());
+                // Ensure evaluation count is at least 1
+                if (assignment.getEvaluationCount() == null || assignment.getEvaluationCount() == 0) {
+                    assignment.setEvaluationCount(1);
+                }
+                fixedFirstEval++;
+                needsSave = true;
+            }
+            
+            // Fix missing assignedAt - use assignment date at 8 AM as best guess
+            if (assignment.getAssignedEmployee() != null && assignment.getAssignedAt() == null) {
+                LocalDateTime assignedAt = assignment.getAssignmentDate().atTime(8, 0);
+                assignment.setAssignedAt(assignedAt);
+                fixedAssignedAt++;
+                needsSave = true;
+            }
+            
+            if (needsSave) {
+                workAssignmentRepository.save(assignment);
+            }
+        }
+        
+        if (fixedFirstEval == 0 && fixedAssignedAt == 0) {
+            log.info("    ✓ No assignments need backfilling - all timestamps are up to date");
+        } else {
+            log.info("    ✓ Backfilled {} assignments with missing firstEvaluatedAt", fixedFirstEval);
+            log.info("    ✓ Backfilled {} assignments with missing assignedAt", fixedAssignedAt);
         }
     }
 
@@ -180,7 +229,6 @@ public class ComprehensiveSampleDataSeeder implements CommandLineRunner {
             salary.setStartDate(LocalDate.of(2024, 1, 1));
             salary.setEndDate(null);
             salary.setVoluntaryPfPercentage(BigDecimal.valueOf((Integer) config[2]));
-            salary.setReasonForChange("Initial salary");
             salary.setIsActive(true);
             employeeSalaryRepository.save(salary);
         }
@@ -472,8 +520,17 @@ public class ComprehensiveSampleDataSeeder implements CommandLineRunner {
         assignment.setCompletionPercentage(completionPercentage);
         assignment.setActualValue((double) (completionPercentage * 0.3)); // Proportional actual value
         assignment.setCompletedDate(date);
-        assignment.setLastEvaluatedAt(LocalDateTime.now());
+        
+        // Set assignment time (when it was assigned to employee) - use early morning of assignment date
+        LocalDateTime assignedAt = date.atTime(8, 0); // 8 AM assignment time
+        assignment.setAssignedAt(assignedAt);
+        
+        // Set evaluation times - use noon of the assignment date
+        LocalDateTime evaluatedAt = date.atTime(12, 0); // Noon evaluation time
+        assignment.setFirstEvaluatedAt(evaluatedAt);
+        assignment.setLastEvaluatedAt(evaluatedAt);
         assignment.setEvaluationCount(1);
+        
         assignment = workAssignmentRepository.save(assignment);
         return assignment;
     }

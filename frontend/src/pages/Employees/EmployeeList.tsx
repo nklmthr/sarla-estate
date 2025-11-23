@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Card,
-  CardContent,
   Table,
   TableBody,
   TableCell,
@@ -16,13 +15,10 @@ import {
   Chip,
   TextField,
   InputAdornment,
-  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Grid,
-  MenuItem,
   TablePagination,
   LinearProgress,
 } from '@mui/material';
@@ -31,13 +27,9 @@ import {
   Edit as EditIcon,
   Delete as DeleteIcon,
   Search as SearchIcon,
-  AccountBalanceWallet as MoneyIcon,
-  History as HistoryIcon,
 } from '@mui/icons-material';
 import { employeeApi } from '../../api/employeeApi';
-import { salaryApi } from '../../api/salaryApi';
-import { Employee, EmployeeSalary } from '../../types';
-import { format } from 'date-fns';
+import { Employee } from '../../types';
 import { useError } from '../../contexts/ErrorContext';
 
 const EmployeeList: React.FC = () => {
@@ -56,33 +48,6 @@ const EmployeeList: React.FC = () => {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalEmployees, setTotalEmployees] = useState(0);
-
-  // Salary management states
-  const [salaryDialogOpen, setSalaryDialogOpen] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(null);
-  const [currentSalary, setCurrentSalary] = useState<EmployeeSalary | null>(null);
-  const [salaryHistory, setSalaryHistory] = useState<EmployeeSalary[]>([]);
-  const [salaryFormDialogOpen, setSalaryFormDialogOpen] = useState(false);
-  const [isInitialSalary, setIsInitialSalary] = useState(false);
-  const [loadingSalary, setLoadingSalary] = useState(false);
-
-  const [salaryFormData, setSalaryFormData] = useState<{
-    amount: number;
-    salaryType: 'DAILY' | 'WEEKLY' | 'MONTHLY';
-    currency: string;
-    startDate: string;
-    voluntaryPfPercentage: number;
-    reasonForChange: string;
-    notes: string;
-  }>({
-    amount: 0,
-    salaryType: 'MONTHLY',
-    currency: 'INR',
-    startDate: format(new Date(), 'yyyy-MM-dd'),
-    voluntaryPfPercentage: 0,
-    reasonForChange: '',
-    notes: '',
-  });
 
   // Debounce search term
   useEffect(() => {
@@ -162,97 +127,19 @@ const EmployeeList: React.FC = () => {
     try {
       await employeeApi.deleteEmployee(employeeToDelete.id!);
       setEmployees(employees.filter((e) => e.id !== employeeToDelete.id));
-      setDeleteDialogOpen(false);
       showSuccess('Employee deleted successfully!');
-      setEmployeeToDelete(null);
     } catch (error) {
       // Error handled by global interceptor
+    } finally {
+      // Always close dialog and reset state, whether success or error
+      setDeleteDialogOpen(false);
+      setEmployeeToDelete(null);
     }
   };
 
   const openDeleteDialog = (employee: Employee) => {
     setEmployeeToDelete(employee);
     setDeleteDialogOpen(true);
-  };
-
-  const openSalaryDialog = async (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setSalaryDialogOpen(true);
-    await loadEmployeeSalary(employee.id!);
-  };
-
-  const loadEmployeeSalary = async (employeeId: string) => {
-    try {
-      setLoadingSalary(true);
-      const [currentResponse, historyResponse] = await Promise.all([
-        salaryApi.getCurrent(employeeId).catch(() => null),
-        salaryApi.getHistory(employeeId).catch(() => null),
-      ]);
-
-      const current = currentResponse ? (currentResponse as any).data || currentResponse : null;
-      const history = historyResponse ? (historyResponse as any).data || historyResponse : [];
-
-      setCurrentSalary(current);
-      const historyArray = Array.isArray(history) ? history : [];
-      setSalaryHistory(historyArray);
-    } catch (error) {
-      // Error handled by global interceptor
-      setCurrentSalary(null);
-      setSalaryHistory([]);
-    } finally {
-      setLoadingSalary(false);
-    }
-  };
-
-  const openSalaryFormDialog = (initial: boolean) => {
-    setIsInitialSalary(initial);
-    if (initial) {
-      setSalaryFormData({
-        amount: 0,
-        salaryType: 'MONTHLY', // Default to MONTHLY
-        currency: 'INR',
-        startDate: format(new Date(), 'yyyy-MM-dd'),
-        voluntaryPfPercentage: 0,
-        reasonForChange: 'Initial salary',
-        notes: '',
-      });
-    } else if (currentSalary) {
-      setSalaryFormData({
-        amount: currentSalary.amount,
-        salaryType: currentSalary.salaryType || 'MONTHLY', // Preserve or default to MONTHLY
-        currency: currentSalary.currency || 'INR',
-        startDate: format(new Date(), 'yyyy-MM-dd'),
-        voluntaryPfPercentage: currentSalary.voluntaryPfPercentage || 0,
-        reasonForChange: '',
-        notes: '',
-      });
-    }
-    setSalaryFormDialogOpen(true);
-  };
-
-  const handleSalaryFormChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setSalaryFormData((prev) => ({
-      ...prev,
-      [name]: name === 'amount' ? parseFloat(value) || 0 : value,
-    }));
-  };
-
-  const handleSaveSalary = async () => {
-    if (!selectedEmployee?.id) return;
-
-    try {
-      if (isInitialSalary) {
-        await salaryApi.createInitial(selectedEmployee.id, salaryFormData);
-      } else {
-        await salaryApi.update(selectedEmployee.id, salaryFormData);
-      }
-      await loadEmployeeSalary(selectedEmployee.id);
-      showSuccess('Salary saved successfully!');
-      setSalaryFormDialogOpen(false);
-    } catch (error) {
-      // Error handled by global interceptor
-    }
   };
 
   const getIdCardTypeLabel = (type?: string) => {
@@ -269,14 +156,6 @@ const EmployeeList: React.FC = () => {
         return type || '-';
     }
   };
-
-  if (loading && employees.length === 0) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
-        <CircularProgress />
-      </Box>
-    );
-  }
 
   return (
     <Box>
@@ -315,7 +194,6 @@ const EmployeeList: React.FC = () => {
               <TableRow>
                 <TableCell>Name</TableCell>
                 <TableCell>Phone</TableCell>
-                <TableCell>PF Account ID</TableCell>
                 <TableCell>Type</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell>ID Card Type</TableCell>
@@ -326,7 +204,7 @@ const EmployeeList: React.FC = () => {
             <TableBody>
               {filteredEmployees.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={8} align="center">
+                  <TableCell colSpan={7} align="center">
                     <Typography color="textSecondary">
                       {searchTerm ? 'No employees found' : 'No employees yet'}
                     </Typography>
@@ -337,7 +215,6 @@ const EmployeeList: React.FC = () => {
                   <TableRow key={employee.id} hover>
                     <TableCell>{employee.name}</TableCell>
                     <TableCell>{employee.phone || '-'}</TableCell>
-                    <TableCell>{employee.pfAccountId || '-'}</TableCell>
                     <TableCell>
                       {employee.employeeTypeName ? (
                         <Chip
@@ -372,14 +249,6 @@ const EmployeeList: React.FC = () => {
                     </TableCell>
                     <TableCell>{employee.idCardValue || '-'}</TableCell>
                     <TableCell align="right">
-                      <IconButton
-                        size="small"
-                        onClick={() => openSalaryDialog(employee)}
-                        color="success"
-                        title="Manage Salary"
-                      >
-                        <MoneyIcon />
-                      </IconButton>
                       <IconButton
                         size="small"
                         onClick={() => navigate(`/employees/${employee.id}/edit`)}
@@ -426,254 +295,6 @@ const EmployeeList: React.FC = () => {
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleDelete} color="error" variant="contained">
             Delete
-          </Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Salary Management Dialog */}
-      <Dialog
-        open={salaryDialogOpen}
-        onClose={() => setSalaryDialogOpen(false)}
-        maxWidth="md"
-        fullWidth
-      >
-        <DialogTitle>
-          <Box display="flex" alignItems="center" gap={1}>
-            <MoneyIcon color="success" />
-            <span>Salary Management - {selectedEmployee?.name}</span>
-          </Box>
-        </DialogTitle>
-        <DialogContent>
-          {loadingSalary ? (
-            <Box display="flex" justifyContent="center" py={4}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <Box sx={{ mt: 2 }}>
-              {/* Current Salary Section */}
-              <Card sx={{ mb: 3 }}>
-                <CardContent>
-                  <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-                    <Typography variant="h6">Current Salary</Typography>
-                    {currentSalary ? (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<MoneyIcon />}
-                        onClick={() => openSalaryFormDialog(false)}
-                      >
-                        Update
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="contained"
-                        size="small"
-                        startIcon={<AddIcon />}
-                        onClick={() => openSalaryFormDialog(true)}
-                      >
-                        Set Salary
-                      </Button>
-                    )}
-                  </Box>
-
-                  {currentSalary ? (
-                    <Box>
-                      <Typography variant="h4" color="success.main" gutterBottom>
-                        {currentSalary.currency} {currentSalary.amount.toLocaleString()}
-                      </Typography>
-                      <Typography variant="body2" color="textSecondary">
-                        Start Date: {format(new Date(currentSalary.startDate), 'MMM dd, yyyy')}
-                      </Typography>
-                      {currentSalary.reasonForChange && (
-                        <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                          Reason: {currentSalary.reasonForChange}
-                        </Typography>
-                      )}
-                      {currentSalary.notes && (
-                        <Typography variant="body2" color="textSecondary" sx={{ mt: 1 }}>
-                          Notes: {currentSalary.notes}
-                        </Typography>
-                      )}
-                    </Box>
-                  ) : (
-                    <Typography color="textSecondary">
-                      No salary record found for this employee
-                    </Typography>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Salary History Section */}
-              {salaryHistory.length > 0 && (
-                <Card>
-                  <CardContent>
-                    <Box display="flex" alignItems="center" mb={2}>
-                      <HistoryIcon sx={{ mr: 1 }} />
-                      <Typography variant="h6">Salary History</Typography>
-                    </Box>
-                    <TableContainer>
-                      <Table size="small">
-                        <TableHead>
-                          <TableRow>
-                            <TableCell>Amount</TableCell>
-                            <TableCell>Voluntary PF</TableCell>
-                            <TableCell>Start Date</TableCell>
-                            <TableCell>End Date</TableCell>
-                            <TableCell>Status</TableCell>
-                          </TableRow>
-                        </TableHead>
-                        <TableBody>
-                          {salaryHistory.map((salary) => (
-                            <TableRow key={salary.id}>
-                              <TableCell>
-                                {salary.currency} {salary.amount.toLocaleString()}
-                              </TableCell>
-                              <TableCell>
-                                {salary.voluntaryPfPercentage
-                                  ? `${salary.voluntaryPfPercentage}%`
-                                  : '0%'}
-                              </TableCell>
-                              <TableCell>
-                                {format(new Date(salary.startDate), 'MMM dd, yyyy')}
-                              </TableCell>
-                              <TableCell>
-                                {salary.endDate
-                                  ? format(new Date(salary.endDate), 'MMM dd, yyyy')
-                                  : '-'}
-                              </TableCell>
-                              <TableCell>
-                                <Chip
-                                  label={salary.isActive ? 'Active' : 'Historical'}
-                                  color={salary.isActive ? 'success' : 'default'}
-                                  size="small"
-                                />
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    </TableContainer>
-                  </CardContent>
-                </Card>
-              )}
-            </Box>
-          )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSalaryDialogOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
-
-      {/* Salary Form Dialog (Add/Update) */}
-      <Dialog
-        open={salaryFormDialogOpen}
-        onClose={() => setSalaryFormDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>
-          {isInitialSalary ? 'Set Initial Salary' : 'Update Salary'}
-        </DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            {!isInitialSalary && currentSalary && (
-              <Typography variant="body2" color="textSecondary" gutterBottom>
-                Current: {currentSalary.currency} {currentSalary.amount.toLocaleString()}
-              </Typography>
-            )}
-            <Grid container spacing={2} sx={{ mt: 1 }}>
-              <Grid item xs={8}>
-                <TextField
-                  fullWidth
-                  required
-                  type="number"
-                  label="Amount"
-                  name="amount"
-                  value={salaryFormData.amount}
-                  onChange={handleSalaryFormChange}
-                  inputProps={{ min: 0, step: 100 }}
-                />
-              </Grid>
-              <Grid item xs={4}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Currency"
-                  name="currency"
-                  value={salaryFormData.currency}
-                  onChange={handleSalaryFormChange}
-                >
-                  <MenuItem value="INR">INR</MenuItem>
-                  <MenuItem value="USD">USD</MenuItem>
-                  <MenuItem value="EUR">EUR</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  select
-                  label="Salary Type"
-                  name="salaryType"
-                  value={salaryFormData.salaryType || 'MONTHLY'}
-                  onChange={handleSalaryFormChange}
-                  helperText="How the salary amount should be interpreted for payment calculations"
-                >
-                  <MenuItem value="DAILY">Daily Wage</MenuItem>
-                  <MenuItem value="WEEKLY">Weekly Wage (divides by 7 for daily rate)</MenuItem>
-                  <MenuItem value="MONTHLY">Monthly Salary (divides by 30 for daily rate)</MenuItem>
-                </TextField>
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  type="date"
-                  label={isInitialSalary ? "Start Date" : "Effective From"}
-                  name="startDate"
-                  value={salaryFormData.startDate}
-                  onChange={handleSalaryFormChange}
-                  InputLabelProps={{ shrink: true }}
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  type="number"
-                  label="Voluntary PF Percentage"
-                  name="voluntaryPfPercentage"
-                  value={salaryFormData.voluntaryPfPercentage}
-                  onChange={handleSalaryFormChange}
-                  inputProps={{ min: 0, max: 100, step: 0.5 }}
-                  helperText="Additional PF contribution beyond mandatory 12% (e.g., 0, 2, 3)"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Reason"
-                  name="reasonForChange"
-                  value={salaryFormData.reasonForChange}
-                  onChange={handleSalaryFormChange}
-                  placeholder="e.g., Initial salary, Annual increment"
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  fullWidth
-                  label="Notes"
-                  name="notes"
-                  multiline
-                  rows={2}
-                  value={salaryFormData.notes}
-                  onChange={handleSalaryFormChange}
-                />
-              </Grid>
-            </Grid>
-          </Box>
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setSalaryFormDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSaveSalary} variant="contained" color="primary">
-            {isInitialSalary ? 'Create' : 'Update'}
           </Button>
         </DialogActions>
       </Dialog>

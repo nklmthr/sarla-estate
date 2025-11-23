@@ -27,7 +27,7 @@ public class UnitOfMeasureController {
     private final UnitOfMeasureService unitOfMeasureService;
 
     @GetMapping
-    @PreAuthorize("hasPermission('UNIT_OF_MEASURE', 'VIEW')")
+    @PreAuthorize("hasPermission('UNITS_OF_MEASURE', 'VIEW')")
     public ResponseEntity<List<UnitOfMeasureDTO>> getAllUnits() {
         log.info("GET request to fetch all units of measure");
         List<UnitOfMeasureDTO> units = unitOfMeasureService.getAllUnits();
@@ -35,7 +35,7 @@ public class UnitOfMeasureController {
     }
 
     @GetMapping("/active")
-    @PreAuthorize("hasPermission('UNIT_OF_MEASURE', 'VIEW')")
+    @PreAuthorize("hasPermission('UNITS_OF_MEASURE', 'VIEW')")
     public ResponseEntity<List<UnitOfMeasureDTO>> getActiveUnits() {
         log.info("GET request to fetch active units of measure");
         List<UnitOfMeasureDTO> units = unitOfMeasureService.getActiveUnits();
@@ -43,7 +43,7 @@ public class UnitOfMeasureController {
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasPermission('UNIT_OF_MEASURE', 'VIEW')")
+    @PreAuthorize("hasPermission('UNITS_OF_MEASURE', 'VIEW')")
     public ResponseEntity<UnitOfMeasureDTO> getUnitById(@PathVariable String id) {
         log.info("GET request to fetch unit with id: {}", id);
         UnitOfMeasureDTO unit = unitOfMeasureService.getUnitById(id);
@@ -51,7 +51,7 @@ public class UnitOfMeasureController {
     }
 
     @PostMapping
-    @PreAuthorize("hasPermission('UNIT_OF_MEASURE', 'CREATE')")
+    @PreAuthorize("hasPermission('UNITS_OF_MEASURE', 'CREATE')")
     public ResponseEntity<UnitOfMeasureDTO> createUnit(@RequestBody UnitOfMeasureDTO unitDTO) {
         log.info("POST request to create new unit: {}", unitDTO.getName());
         UnitOfMeasureDTO createdUnit = unitOfMeasureService.createUnit(unitDTO);
@@ -59,7 +59,7 @@ public class UnitOfMeasureController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasPermission('UNIT_OF_MEASURE', 'EDIT')")
+    @PreAuthorize("hasPermission('UNITS_OF_MEASURE', 'EDIT')")
     public ResponseEntity<UnitOfMeasureDTO> updateUnit(
             @PathVariable String id,
             @RequestBody UnitOfMeasureDTO unitDTO) {
@@ -69,7 +69,7 @@ public class UnitOfMeasureController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasPermission('UNIT_OF_MEASURE', 'DELETE')")
+    @PreAuthorize("hasPermission('UNITS_OF_MEASURE', 'DELETE')")
     public ResponseEntity<Void> deleteUnit(@PathVariable String id) {
         log.info("DELETE request for unit with id: {}", id);
         unitOfMeasureService.deleteUnit(id);

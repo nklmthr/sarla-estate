@@ -8,9 +8,9 @@ import { AuthProvider } from './contexts/AuthContext';
 import Login from './pages/Auth/Login';
 import Dashboard from './pages/Dashboard';
 import EmployeeList from './pages/Employees/EmployeeList';
-import EmployeeForm from './pages/Employees/EmployeeForm';
+import EmployeeWizard from './pages/Employees/EmployeeWizard';
 import WorkActivityList from './pages/WorkActivities/WorkActivityList';
-import WorkActivityForm from './pages/WorkActivities/WorkActivityForm';
+import WorkActivityWizard from './pages/WorkActivities/WorkActivityWizard';
 import AssignmentList from './pages/Assignments/AssignmentList';
 import SalaryManagement from './pages/Salary/SalaryManagement';
 import Reports from './pages/Reports/Reports';
@@ -409,14 +409,14 @@ function App() {
               <Route path="/employees/new" element={
                 <ProtectedRoute>
                   <Layout>
-                    <EmployeeForm />
+                    <EmployeeWizard />
                   </Layout>
                 </ProtectedRoute>
               } />
               <Route path="/employees/:id/edit" element={
                 <ProtectedRoute>
                   <Layout>
-                    <EmployeeForm />
+                    <EmployeeWizard />
                   </Layout>
                 </ProtectedRoute>
               } />
@@ -432,14 +432,14 @@ function App() {
               <Route path="/work-activities/new" element={
                 <ProtectedRoute>
                   <Layout>
-                    <WorkActivityForm />
+                    <WorkActivityWizard />
                   </Layout>
                 </ProtectedRoute>
               } />
               <Route path="/work-activities/:id/edit" element={
                 <ProtectedRoute>
                   <Layout>
-                    <WorkActivityForm />
+                    <WorkActivityWizard />
                   </Layout>
                 </ProtectedRoute>
               } />

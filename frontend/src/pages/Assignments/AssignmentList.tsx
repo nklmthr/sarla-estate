@@ -364,7 +364,9 @@ const AssignmentList: React.FC = () => {
 
   const handleActualValueChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value === '' ? 0 : Number(event.target.value);
-    setActualValue(Math.max(0, value));
+    // Round to 2 decimal places to prevent floating point precision issues
+    const roundedValue = Math.round(value * 100) / 100;
+    setActualValue(Math.max(0, roundedValue));
   };
 
   const handleCompletionDialogKeyDown = (event: React.KeyboardEvent) => {
@@ -396,7 +398,6 @@ const AssignmentList: React.FC = () => {
       // Remove the assignment from state
       setAssignments(assignments.filter(a => a.id !== assignmentToDelete.id));
 
-      showSuccess('Assignment deleted successfully!');
       handleCloseDeleteDialog();
     } catch (error) {
       // Error handled by global interceptor
@@ -609,6 +610,9 @@ const AssignmentList: React.FC = () => {
                           : "Evaluate")
                   }
                   arrow
+                  disableInteractive
+                  enterDelay={500}
+                  leaveDelay={0}
                 >
                   <span>
                     <IconButton
@@ -625,6 +629,9 @@ const AssignmentList: React.FC = () => {
                 <Tooltip 
                   title={isLocked ? "Cannot delete: Assignment is locked (included in payment)" : "Delete Assignment"} 
                   arrow
+                  disableInteractive
+                  enterDelay={500}
+                  leaveDelay={0}
                 >
                   <span>
                     <IconButton
@@ -864,9 +871,19 @@ const AssignmentList: React.FC = () => {
                         handleSaveCompletion();
                       }
                     }}
+                    onBlur={(e) => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val)) {
+                        const roundedValue = Math.round(val * 100) / 100;
+                        setActualValue(roundedValue);
+                      }
+                    }}
                     InputProps={{
                       endAdornment: criteria ? getUnitName(criteria.unit) : '',
-                      inputProps: { min: 0, step: 0.1 }
+                      inputProps: { 
+                        min: 0, 
+                        step: 0.01
+                      }
                     }}
                     helperText="Enter the actual value of work completed (Press Enter to save)"
                     autoFocus
@@ -882,7 +899,7 @@ const AssignmentList: React.FC = () => {
                         {calculatedPercentage}%
                       </Typography>
                       <Typography variant="caption" color="text.secondary">
-                        ({actualValue} / {criteria.value} {criteria.unit})
+                        ({actualValue.toFixed(2)} / {criteria.value} {criteria.unit})
                       </Typography>
                     </Box>
                   )}

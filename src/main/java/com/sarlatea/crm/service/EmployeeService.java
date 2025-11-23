@@ -8,13 +8,18 @@ import com.sarlatea.crm.model.EmployeeStatus;
 import com.sarlatea.crm.repository.EmployeeRepository;
 import com.sarlatea.crm.repository.EmployeeTypeRepository;
 import com.sarlatea.crm.repository.EmployeeStatusRepository;
+import com.sarlatea.crm.repository.EmployeeSalaryRepository;
+import com.sarlatea.crm.repository.WorkAssignmentRepository;
+import com.sarlatea.crm.repository.PaymentLineItemRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -29,6 +34,9 @@ public class EmployeeService {
     private final EmployeeRepository employeeRepository;
     private final EmployeeTypeRepository employeeTypeRepository;
     private final EmployeeStatusRepository employeeStatusRepository;
+    private final EmployeeSalaryRepository employeeSalaryRepository;
+    private final WorkAssignmentRepository workAssignmentRepository;
+    private final PaymentLineItemRepository paymentLineItemRepository;
 
     @Transactional(readOnly = true)
     public List<EmployeeDTO> getAllEmployees() {
@@ -79,7 +87,38 @@ public class EmployeeService {
         if (!employeeRepository.existsById(id)) {
             throw new ResourceNotFoundException("Employee not found with id: " + id);
         }
+        
+        // Check for related records
+        List<String> relatedRecords = new ArrayList<>();
+        
+        // Check for salary records
+        long salaryCount = employeeSalaryRepository.findSalaryHistoryByEmployeeId(id).size();
+        if (salaryCount > 0) {
+            relatedRecords.add(salaryCount + " salary record(s)");
+        }
+        
+        // Check for work assignments
+        long assignmentCount = workAssignmentRepository.findByAssignedEmployeeIdAndDeletedFalse(id).size();
+        if (assignmentCount > 0) {
+            relatedRecords.add(assignmentCount + " work assignment(s)");
+        }
+        
+        // Check for payment line items
+        long paymentLineItemCount = paymentLineItemRepository.findByEmployeeId(id).size();
+        if (paymentLineItemCount > 0) {
+            relatedRecords.add(paymentLineItemCount + " payment line item(s)");
+        }
+        
+        if (!relatedRecords.isEmpty()) {
+            String message = "Cannot delete employee because they have " + 
+                           String.join(", ", relatedRecords) + 
+                           ". Please delete or reassign these records first.";
+            log.warn("Cannot delete employee {}: {}", id, message);
+            throw new DataIntegrityViolationException(message);
+        }
+        
         employeeRepository.deleteById(id);
+        log.info("Successfully deleted employee with id: {}", id);
     }
 
     @Transactional(readOnly = true)

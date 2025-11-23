@@ -83,7 +83,6 @@ public class EmployeeSalaryService {
         salary.setCurrency(salaryDTO.getCurrency());
         salary.setStartDate(salaryDTO.getStartDate() != null ? salaryDTO.getStartDate() : LocalDate.now());
         salary.setEndDate(null); // No end date for initial/current salary
-        salary.setReasonForChange(salaryDTO.getReasonForChange());
         salary.setNotes(salaryDTO.getNotes());
         salary.setIsActive(true);
         salary.setVoluntaryPfPercentage(salaryDTO.getVoluntaryPfPercentage() != null ? 
@@ -133,7 +132,6 @@ public class EmployeeSalaryService {
             (currentSalary != null ? currentSalary.getCurrency() : "INR"));
         newSalary.setStartDate(effectiveDate);
         newSalary.setEndDate(null); // No end date - this is now the current salary
-        newSalary.setReasonForChange(newSalaryDTO.getReasonForChange());
         newSalary.setNotes(newSalaryDTO.getNotes());
         newSalary.setIsActive(true);
         newSalary.setVoluntaryPfPercentage(newSalaryDTO.getVoluntaryPfPercentage() != null ? 
@@ -188,7 +186,6 @@ public class EmployeeSalaryService {
         dto.setCurrency(salary.getCurrency());
         dto.setStartDate(salary.getStartDate());
         dto.setEndDate(salary.getEndDate());
-        dto.setReasonForChange(salary.getReasonForChange());
         dto.setIsActive(salary.getIsActive());
         dto.setNotes(salary.getNotes());
         dto.setVoluntaryPfPercentage(salary.getVoluntaryPfPercentage());

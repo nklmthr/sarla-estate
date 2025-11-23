@@ -1,6 +1,12 @@
 package com.sarlatea.crm.config;
 
-import com.sarlatea.crm.model.*;
+import com.sarlatea.crm.model.EmployeeStatus;
+import com.sarlatea.crm.model.EmployeeType;
+import com.sarlatea.crm.model.Permission;
+import com.sarlatea.crm.model.PermissionConfig;
+import com.sarlatea.crm.model.Role;
+import com.sarlatea.crm.model.UnitOfMeasure;
+import com.sarlatea.crm.model.User;
 import com.sarlatea.crm.repository.EmployeeStatusRepository;
 import com.sarlatea.crm.repository.EmployeeTypeRepository;
 import com.sarlatea.crm.repository.PermissionConfigRepository;
@@ -16,6 +22,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Set;
 
 /**
  * Data seeder to initialize default master data for Roles, Users, Employee Types, and Statuses
@@ -48,8 +55,10 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedRoles() {
-        if (roleRepository.count() > 0) {
-            log.info("Roles already exist, skipping seed data");
+        long existingCount = roleRepository.count();
+        if (existingCount > 0) {
+            log.info("Found {} existing roles, updating to ensure all permissions are included...", existingCount);
+            updateExistingRoles();
             return;
         }
 
@@ -104,6 +113,7 @@ public class DataSeeder implements CommandLineRunner {
                 Permission.VIEW_SETTINGS,
                 Permission.MANAGE_EMPLOYEE_TYPES,
                 Permission.MANAGE_EMPLOYEE_STATUSES,
+                Permission.VIEW_UNITS_OF_MEASURE,
                 Permission.MANAGE_UNITS_OF_MEASURE,
                 Permission.VIEW_AUDIT_LOGS
         )));
@@ -122,7 +132,8 @@ public class DataSeeder implements CommandLineRunner {
                 Permission.VIEW_WORK_ACTIVITIES,
                 Permission.VIEW_ASSIGNMENTS,
                 Permission.VIEW_PAYMENTS,
-                Permission.VIEW_REPORTS
+                Permission.VIEW_REPORTS,
+                Permission.VIEW_UNITS_OF_MEASURE
         )));
         userRole.setIsSystemRole(false); // Can be modified/deleted
         userRole.setIsActive(true);
@@ -133,12 +144,12 @@ public class DataSeeder implements CommandLineRunner {
     }
 
     private void seedPermissionConfigs() {
-        if (permissionConfigRepository.count() > 0) {
-            log.info("Permission configurations already exist, skipping seed data");
-            return;
+        long existingCount = permissionConfigRepository.count();
+        if (existingCount > 0) {
+            log.info("Found {} existing permission configurations, checking for missing entries...", existingCount);
+        } else {
+            log.info("Seeding default permission configurations...");
         }
-
-        log.info("Seeding default permission configurations...");
 
         // EMPLOYEE resource configurations
         createPermissionConfig("EMPLOYEE", "VIEW", Permission.VIEW_EMPLOYEES, "View employee list and details");
@@ -187,11 +198,11 @@ public class DataSeeder implements CommandLineRunner {
         createPermissionConfig("ROLE", "EDIT", Permission.EDIT_ROLE, "Edit existing roles");
         createPermissionConfig("ROLE", "DELETE", Permission.DELETE_ROLE, "Delete roles from system");
 
-        // UNIT_OF_MEASURE resource configurations
-        createPermissionConfig("UNIT_OF_MEASURE", "VIEW", Permission.MANAGE_UNITS_OF_MEASURE, "View units of measure");
-        createPermissionConfig("UNIT_OF_MEASURE", "CREATE", Permission.MANAGE_UNITS_OF_MEASURE, "Create new units of measure");
-        createPermissionConfig("UNIT_OF_MEASURE", "EDIT", Permission.MANAGE_UNITS_OF_MEASURE, "Edit existing units of measure");
-        createPermissionConfig("UNIT_OF_MEASURE", "DELETE", Permission.MANAGE_UNITS_OF_MEASURE, "Delete units of measure");
+        // UNITS_OF_MEASURE resource configurations
+        createPermissionConfig("UNITS_OF_MEASURE", "VIEW", Permission.VIEW_UNITS_OF_MEASURE, "View units of measure");
+        createPermissionConfig("UNITS_OF_MEASURE", "CREATE", Permission.MANAGE_UNITS_OF_MEASURE, "Create new units of measure");
+        createPermissionConfig("UNITS_OF_MEASURE", "EDIT", Permission.MANAGE_UNITS_OF_MEASURE, "Edit existing units of measure");
+        createPermissionConfig("UNITS_OF_MEASURE", "DELETE", Permission.MANAGE_UNITS_OF_MEASURE, "Delete units of measure");
 
         // AUDIT_LOG resource configurations
         createPermissionConfig("AUDIT_LOG", "VIEW", Permission.VIEW_AUDIT_LOGS, "View system audit logs");
@@ -201,6 +212,12 @@ public class DataSeeder implements CommandLineRunner {
 
     private void createPermissionConfig(String resourceType, String operationType, 
                                        Permission requiredPermission, String description) {
+        // Check if this permission config already exists
+        if (permissionConfigRepository.existsByResourceTypeAndOperationType(resourceType, operationType)) {
+            log.debug("Permission config already exists: {}:{} -> {}", resourceType, operationType, requiredPermission.name());
+            return;
+        }
+        
         PermissionConfig config = new PermissionConfig();
         config.setResourceType(resourceType);
         config.setOperationType(operationType);
@@ -208,7 +225,7 @@ public class DataSeeder implements CommandLineRunner {
         config.setDescription(description);
         config.setIsActive(true);
         permissionConfigRepository.save(config);
-        log.debug("Created permission config: {}:{} -> {}", resourceType, operationType, requiredPermission.name());
+        log.info("✅ Created permission config: {}:{} -> {}", resourceType, operationType, requiredPermission.name());
     }
 
     private void seedAdminUser() {
@@ -373,6 +390,102 @@ public class DataSeeder implements CommandLineRunner {
             "Number of rows", 8);
 
         log.info("Units of measure seeded successfully");
+    }
+
+    private void updateExistingRoles() {
+        // Update SUPER_ADMIN role to have all permissions
+        roleRepository.findByName("SUPER_ADMIN").ifPresent(role -> {
+            Set<Permission> allPermissions = new HashSet<>(Arrays.asList(Permission.values()));
+            if (!role.getPermissions().equals(allPermissions)) {
+                role.setPermissions(allPermissions);
+                roleRepository.save(role);
+                log.info("✅ Updated SUPER_ADMIN role with {} total permissions", allPermissions.size());
+            } else {
+                log.debug("SUPER_ADMIN role already has all permissions");
+            }
+        });
+
+        // Update ADMIN role with operational permissions
+        roleRepository.findByName("ADMIN").ifPresent(role -> {
+            Set<Permission> adminPermissions = new HashSet<>(Arrays.asList(
+                Permission.VIEW_DASHBOARD,
+                Permission.VIEW_EMPLOYEES,
+                Permission.CREATE_EMPLOYEE,
+                Permission.EDIT_EMPLOYEE,
+                Permission.DELETE_EMPLOYEE,
+                Permission.VIEW_WORK_ACTIVITIES,
+                Permission.CREATE_WORK_ACTIVITY,
+                Permission.EDIT_WORK_ACTIVITY,
+                Permission.DELETE_WORK_ACTIVITY,
+                Permission.MANAGE_COMPLETION_CRITERIA,
+                Permission.VIEW_ASSIGNMENTS,
+                Permission.CREATE_ASSIGNMENT,
+                Permission.EDIT_ASSIGNMENT,
+                Permission.DELETE_ASSIGNMENT,
+                Permission.EVALUATE_ASSIGNMENT,
+                Permission.VIEW_PAYMENTS,
+                Permission.CREATE_PAYMENT,
+                Permission.EDIT_PAYMENT,
+                Permission.DELETE_PAYMENT,
+                Permission.SUBMIT_PAYMENT,
+                Permission.APPROVE_PAYMENT,
+                Permission.RECORD_PAYMENT,
+                Permission.CANCEL_PAYMENT,
+                Permission.MANAGE_PAYMENT_DOCUMENTS,
+                Permission.VIEW_REPORTS,
+                Permission.GENERATE_PAYMENT_REPORT,
+                Permission.GENERATE_ASSIGNMENT_REPORT,
+                Permission.EXPORT_REPORTS,
+                Permission.VIEW_USERS,
+                Permission.CREATE_USER,
+                Permission.EDIT_USER,
+                Permission.VIEW_SETTINGS,
+                Permission.MANAGE_EMPLOYEE_TYPES,
+                Permission.MANAGE_EMPLOYEE_STATUSES,
+                Permission.VIEW_UNITS_OF_MEASURE,
+                Permission.MANAGE_UNITS_OF_MEASURE,
+                Permission.VIEW_AUDIT_LOGS
+            ));
+            
+            // Add any missing permissions
+            Set<Permission> missingPermissions = new HashSet<>(adminPermissions);
+            missingPermissions.removeAll(role.getPermissions());
+            
+            if (!missingPermissions.isEmpty()) {
+                role.getPermissions().addAll(missingPermissions);
+                roleRepository.save(role);
+                log.info("✅ Updated ADMIN role with {} missing permissions: {}", 
+                    missingPermissions.size(), missingPermissions);
+            } else {
+                log.debug("ADMIN role already has all required permissions");
+            }
+        });
+
+        // Update USER role with read-only permissions
+        roleRepository.findByName("USER").ifPresent(role -> {
+            Set<Permission> userPermissions = new HashSet<>(Arrays.asList(
+                Permission.VIEW_DASHBOARD,
+                Permission.VIEW_EMPLOYEES,
+                Permission.VIEW_WORK_ACTIVITIES,
+                Permission.VIEW_ASSIGNMENTS,
+                Permission.VIEW_PAYMENTS,
+                Permission.VIEW_REPORTS,
+                Permission.VIEW_UNITS_OF_MEASURE
+            ));
+            
+            // Add any missing permissions
+            Set<Permission> missingPermissions = new HashSet<>(userPermissions);
+            missingPermissions.removeAll(role.getPermissions());
+            
+            if (!missingPermissions.isEmpty()) {
+                role.getPermissions().addAll(missingPermissions);
+                roleRepository.save(role);
+                log.info("✅ Updated USER role with {} missing permissions: {}", 
+                    missingPermissions.size(), missingPermissions);
+            } else {
+                log.debug("USER role already has all required permissions");
+            }
+        });
     }
 
     private void createUnitOfMeasure(String code, String name, String description, int displayOrder) {
