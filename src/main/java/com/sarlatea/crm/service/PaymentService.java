@@ -13,7 +13,9 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -56,6 +58,45 @@ public class PaymentService {
         return convertToDTOWithDetails(payment);
     }
 
+    @Transactional
+    public PaymentDTO updatePayment(String id, PaymentDTO updates, String username) {
+        log.debug("Updating payment {} by {}", id, username);
+        
+        Payment payment = paymentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Payment not found with id: " + id));
+
+        // Only allow updates to draft payments
+        if (payment.getStatus() != Payment.PaymentStatus.DRAFT) {
+            throw new IllegalArgumentException("Only draft payments can be updated");
+        }
+
+        boolean hasChanges = false;
+
+        // Update payment title if provided
+        if (updates.getPaymentTitle() != null && !updates.getPaymentTitle().equals(payment.getPaymentTitle())) {
+            String oldTitle = payment.getPaymentTitle();
+            payment.setPaymentTitle(updates.getPaymentTitle());
+            hasChanges = true;
+            
+            createHistoryEntry(payment, PaymentHistory.ChangeType.LINE_ITEM_UPDATED,
+                    null, null, username,
+                    String.format("Payment title updated from '%s' to '%s'", oldTitle, updates.getPaymentTitle()));
+        }
+
+        // Update remarks if provided
+        if (updates.getRemarks() != null && !updates.getRemarks().equals(payment.getRemarks())) {
+            payment.setRemarks(updates.getRemarks());
+            hasChanges = true;
+        }
+
+        if (hasChanges) {
+            payment.setUpdatedBy(username);
+            paymentRepository.save(payment);
+        }
+
+        return convertToDTOWithDetails(payment);
+    }
+
     // ==================== Draft Management ====================
 
     @Transactional
@@ -87,6 +128,7 @@ public class PaymentService {
         payment.setStatus(Payment.PaymentStatus.DRAFT);
         payment.setTotalAmount(BigDecimal.ZERO);
         payment.setRemarks(request.getRemarks());
+        payment.setPaymentTitle(generateDefaultPaymentTitle(request.getPaymentMonth(), request.getPaymentYear()));
         payment.setCreatedBy(username);
 
         Payment savedPayment = paymentRepository.save(payment);
@@ -501,6 +543,7 @@ public class PaymentService {
         document.setDocumentType(documentType);
         document.setDescription(description);
         document.setUploadedBy(username);
+        document.setUploadedAt(LocalDateTime.now());
 
         payment.addDocument(document);
         paymentRepository.save(payment);
@@ -605,6 +648,7 @@ public class PaymentService {
         PaymentDTO dto = new PaymentDTO();
         dto.setId(payment.getId());
         dto.setPaymentDate(payment.getPaymentDate());
+        dto.setPaymentTitle(payment.getPaymentTitle());
         dto.setStatus(payment.getStatus());
         dto.setTotalAmount(payment.getTotalAmount());
         dto.setPaymentMonth(payment.getPaymentMonth());
@@ -724,6 +768,32 @@ public class PaymentService {
         dto.setChangedAt(history.getChangedAt());
         dto.setRemarks(history.getRemarks());
         return dto;
+    }
+
+    /**
+     * Generate a default payment title based on month and year
+     * Format: "Payments for Week ending DD-DD MMM YYYY"
+     */
+    private String generateDefaultPaymentTitle(Integer month, Integer year) {
+        LocalDate firstDayOfMonth = LocalDate.of(year, month, 1);
+        LocalDate lastDayOfMonth = firstDayOfMonth.withDayOfMonth(firstDayOfMonth.lengthOfMonth());
+        
+        // Find the last Sunday of the month
+        LocalDate lastSunday = lastDayOfMonth;
+        while (lastSunday.getDayOfWeek() != java.time.DayOfWeek.SUNDAY) {
+            lastSunday = lastSunday.minusDays(1);
+        }
+        
+        // Calculate the week range (Monday to Sunday)
+        LocalDate weekStart = lastSunday.minusDays(6);
+        
+        DateTimeFormatter dayFormatter = DateTimeFormatter.ofPattern("dd");
+        DateTimeFormatter monthYearFormatter = DateTimeFormatter.ofPattern("MMM yyyy");
+        
+        return String.format("Payments for Week ending %s-%s %s",
+                weekStart.format(dayFormatter),
+                lastSunday.format(dayFormatter),
+                lastSunday.format(monthYearFormatter));
     }
 }
 

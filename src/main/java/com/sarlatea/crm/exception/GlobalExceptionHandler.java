@@ -52,55 +52,72 @@ public class GlobalExceptionHandler {
             DataIntegrityViolationException ex, WebRequest request) {
         log.error("Database constraint violation: {}", ex.getMessage());
 
-        // Extract user-friendly message from the exception
-        String userMessage = "A database constraint was violated";
-
-        // Check for duplicate key/unique constraint violation
         String exceptionMessage = ex.getMessage();
+        String userMessage = "A database constraint was violated";
+        String errorType = "Data Integrity Violation";
+        
+        // Check if this is already a user-friendly message from our service layer
+        // (doesn't contain technical database keywords)
         if (exceptionMessage != null) {
-            if (exceptionMessage.contains("Duplicate entry")) {
-                // Extract the duplicate value and key name
-                if (exceptionMessage.contains("work_activities")) {
-                    if (exceptionMessage.contains("UK_cd6n3f86ifu2ga2f4rydajpbs") ||
-                            exceptionMessage.contains("'name'")) {
-                        // Extract the activity name from the error message
-                        int startIdx = exceptionMessage.indexOf("'") + 1;
-                        int endIdx = exceptionMessage.indexOf("'", startIdx);
-                        if (startIdx > 0 && endIdx > startIdx) {
-                            String duplicateName = exceptionMessage.substring(startIdx, endIdx);
-                            userMessage = "A work activity with the name '" + duplicateName
-                                    + "' already exists. Please use a different name.";
-                        } else {
-                            userMessage = "A work activity with this name already exists. Please use a different name.";
+            boolean isTechnicalError = exceptionMessage.contains("Duplicate entry") ||
+                                     exceptionMessage.contains("foreign key constraint") ||
+                                     exceptionMessage.contains("ConstraintViolationException") ||
+                                     exceptionMessage.contains("cannot be null") ||
+                                     exceptionMessage.contains("could not execute statement");
+            
+            if (!isTechnicalError) {
+                // Use the message as-is since it's already user-friendly
+                userMessage = exceptionMessage;
+                errorType = "Operation Not Allowed";
+            } else {
+                // Parse technical database errors to extract meaningful information
+                if (exceptionMessage.contains("Duplicate entry")) {
+                    errorType = "Duplicate Entry";
+                    // Extract the duplicate value and key name
+                    if (exceptionMessage.contains("work_activities")) {
+                        if (exceptionMessage.contains("UK_cd6n3f86ifu2ga2f4rydajpbs") ||
+                                exceptionMessage.contains("'name'")) {
+                            // Extract the activity name from the error message
+                            int startIdx = exceptionMessage.indexOf("'") + 1;
+                            int endIdx = exceptionMessage.indexOf("'", startIdx);
+                            if (startIdx > 0 && endIdx > startIdx) {
+                                String duplicateName = exceptionMessage.substring(startIdx, endIdx);
+                                userMessage = "A work activity with the name '" + duplicateName
+                                        + "' already exists. Please use a different name.";
+                            } else {
+                                userMessage = "A work activity with this name already exists. Please use a different name.";
+                            }
                         }
+                    } else if (exceptionMessage.contains("employees")) {
+                        userMessage = "An employee with this information already exists. Please check for duplicates.";
+                    } else if (exceptionMessage.contains("users")) {
+                        userMessage = "A user with this username or email already exists.";
+                    } else {
+                        userMessage = "This record already exists in the system. Please check for duplicates.";
                     }
-                } else if (exceptionMessage.contains("employees")) {
-                    userMessage = "An employee with this information already exists. Please check for duplicates.";
-                } else if (exceptionMessage.contains("users")) {
-                    userMessage = "A user with this username or email already exists.";
-                } else {
-                    userMessage = "This record already exists in the system. Please check for duplicates.";
+                } else if (exceptionMessage.contains("foreign key constraint")
+                        || exceptionMessage.contains("ConstraintViolationException")) {
+                    errorType = "Referenced Record";
+                    if (exceptionMessage.contains("assignments")) {
+                        userMessage = "Cannot delete this record because it has associated assignments. Please delete the assignments first.";
+                    } else if (exceptionMessage.contains("salaries")) {
+                        userMessage = "Cannot delete this employee because they have salary records. Please delete the salary history first.";
+                    } else if (exceptionMessage.contains("work_activities")) {
+                        userMessage = "Cannot delete this record because it is used in work activities.";
+                    } else {
+                        userMessage = "Cannot perform this operation because related records exist.";
+                    }
+                } else if (exceptionMessage.contains("cannot be null")) {
+                    errorType = "Missing Required Field";
+                    userMessage = "Required field is missing. Please fill in all required fields.";
                 }
-            } else if (exceptionMessage.contains("foreign key constraint")
-                    || exceptionMessage.contains("ConstraintViolationException")) {
-                if (exceptionMessage.contains("assignments")) {
-                    userMessage = "Cannot delete this record because it has associated assignments. Please delete the assignments first.";
-                } else if (exceptionMessage.contains("salaries")) {
-                    userMessage = "Cannot delete this employee because they have salary records. Please delete the salary history first.";
-                } else if (exceptionMessage.contains("work_activities")) {
-                    userMessage = "Cannot delete this record because it is used in work activities.";
-                } else {
-                    userMessage = "Cannot perform this operation because related records exist.";
-                }
-            } else if (exceptionMessage.contains("cannot be null")) {
-                userMessage = "Required field is missing. Please fill in all required fields.";
             }
         }
 
         ErrorResponse errorResponse = new ErrorResponse(
                 LocalDateTime.now(),
                 HttpStatus.CONFLICT.value(),
-                "Duplicate Entry",
+                errorType,
                 userMessage,
                 request.getDescription(false).replace("uri=", ""));
 

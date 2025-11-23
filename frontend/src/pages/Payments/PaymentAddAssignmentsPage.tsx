@@ -11,7 +11,6 @@ import {
   StepLabel,
   TextField,
   Alert,
-  CircularProgress,
   Table,
   TableBody,
   TableCell,
@@ -66,16 +65,16 @@ interface AssignmentForPayment {
   calculatedAmount?: number;
 }
 
-const steps = ['Select Date Range', 'Select Employees', 'Select Assignments', 'Review & Submit'];
+const steps = ['Select Date Range', 'Select Employees', 'Select Assignments'];
 
 const PaymentAddAssignmentsPage: React.FC = () => {
   const { paymentId } = useParams<{ paymentId: string }>();
   const navigate = useNavigate();
-  const { showError, showSuccess } = useError();
+  const { showError } = useError();
 
   const [activeStep, setActiveStep] = useState(0);
   const [payment, setPayment] = useState<Payment | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [searchLoading, setSearchLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
@@ -298,7 +297,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
     }
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (activeStep === 0) {
       handleSearchAssignments();
     } else if (activeStep === 1) {
@@ -320,12 +319,19 @@ const PaymentAddAssignmentsPage: React.FC = () => {
         });
         return;
       }
-      setActiveStep(3);
+      // Add assignments immediately instead of going to review page
+      await handleSubmit();
     }
   };
 
   const handleBack = () => {
-    setActiveStep(prev => prev - 1);
+    if (activeStep === 0) {
+      // On first step, go back to payment detail page
+      navigate(`/payments/${paymentId}`);
+    } else {
+      // Otherwise, go back through the stepper
+      setActiveStep(prev => prev - 1);
+    }
   };
 
   const handleSubmit = async () => {
@@ -358,29 +364,14 @@ const PaymentAddAssignmentsPage: React.FC = () => {
     });
   };
 
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-    }).format(amount);
-  };
-
   const getFilteredAssignments = () => {
     return allAssignments.filter(a => selectedEmployeeIds.has(a.employee.id));
-  };
-
-  const getSelectedAssignments = () => {
-    return allAssignments.filter(a => selectedAssignmentIds.has(a.id));
-  };
-
-  const calculateTotalAmount = () => {
-    return getSelectedAssignments().reduce((sum, a) => sum + (a.calculatedAmount || 0), 0);
   };
 
   if (initialLoading || !payment) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
-        <CircularProgress />
+        <Typography color="text.secondary">Loading payment details...</Typography>
       </Box>
     );
   }
@@ -455,7 +446,7 @@ const PaymentAddAssignmentsPage: React.FC = () => {
                   disabled={!dateRange.startDate || !dateRange.endDate || loading}
                   sx={{ height: '56px' }}
                 >
-                  {loading ? <CircularProgress size={24} /> : 'Search'}
+                  {loading ? 'Searching...' : 'Search'}
                 </Button>
               </Grid>
             </Grid>
@@ -612,104 +603,11 @@ const PaymentAddAssignmentsPage: React.FC = () => {
           </Box>
         )}
 
-        {/* Step 3: Review & Submit */}
-        {activeStep === 3 && (
-          <Box>
-            <Typography variant="h6" gutterBottom>
-              Review Selected Assignments
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              Please review the selected assignments before adding them to the payment.
-            </Typography>
-
-            <Grid container spacing={2} sx={{ mb: 3 }}>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Employees
-                  </Typography>
-                  <Typography variant="h4" color="primary">
-                    {selectedEmployeeIds.size}
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Assignments
-                  </Typography>
-                  <Typography variant="h4" color="primary">
-                    {selectedAssignmentIds.size}
-                  </Typography>
-                </Paper>
-              </Grid>
-              <Grid item xs={12} md={4}>
-                <Paper sx={{ p: 2, textAlign: 'center' }}>
-                  <Typography variant="caption" color="text.secondary">
-                    Estimated Total
-                  </Typography>
-                  <Typography variant="h4" color="success.main">
-                    {formatCurrency(calculateTotalAmount())}
-                  </Typography>
-                </Paper>
-              </Grid>
-            </Grid>
-
-            <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: 400 }}>
-              <Table stickyHeader size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Employee</TableCell>
-                    <TableCell>Activity</TableCell>
-                    <TableCell>Week</TableCell>
-                    <TableCell align="right">Quantity</TableCell>
-                    <TableCell>Evaluated By</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {getSelectedAssignments().map((assignment) => (
-                    <TableRow key={assignment.id}>
-                      <TableCell>
-                        <Typography variant="body2">
-                          {assignment.employee.fullName}
-                        </Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {assignment.employee.employeeCode}
-                        </Typography>
-                      </TableCell>
-                      <TableCell>{assignment.workActivity.name}</TableCell>
-                      <TableCell>
-                        <Typography variant="caption">
-                          {formatDate(assignment.startDate)} - {formatDate(assignment.endDate)}
-                        </Typography>
-                      </TableCell>
-                      <TableCell align="right">
-                        {assignment.evaluation.actualValue} {assignment.workActivity.completionCriteria?.unit}
-                      </TableCell>
-                      <TableCell>{assignment.evaluation.evaluatedBy}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-
-            <Alert severity="info" sx={{ mt: 3 }}>
-              <Typography variant="body2" fontWeight="bold">
-                Ready to add assignments
-              </Typography>
-              <Typography variant="caption">
-                These {selectedAssignmentIds.size} assignments will be added to the payment draft.
-                You can review the payment calculations on the payment details page.
-              </Typography>
-            </Alert>
-          </Box>
-        )}
-
         {/* Navigation Buttons */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
           <Button
             onClick={handleBack}
-            disabled={activeStep === 0 || searchLoading || submitLoading}
+            disabled={searchLoading || submitLoading}
             startIcon={<BackIcon />}
           >
             Back
@@ -722,25 +620,21 @@ const PaymentAddAssignmentsPage: React.FC = () => {
             >
               Cancel
             </Button>
-            {activeStep < steps.length - 1 ? (
-              <Button
-                variant="contained"
-                onClick={handleNext}
-                endIcon={searchLoading && activeStep === 0 ? <CircularProgress size={20} /> : <ForwardIcon />}
-                disabled={searchLoading || submitLoading}
-              >
-                {searchLoading && activeStep === 0 ? 'Searching...' : 'Next'}
-              </Button>
-            ) : (
-              <Button
-                variant="contained"
-                onClick={handleSubmit}
-                startIcon={submitLoading ? <CircularProgress size={20} /> : <SaveIcon />}
-                disabled={submitLoading || selectedAssignmentIds.size === 0}
-              >
-                {submitLoading ? 'Adding...' : `Add ${selectedAssignmentIds.size} Assignment(s)`}
-              </Button>
-            )}
+            <Button
+              variant="contained"
+              onClick={handleNext}
+              endIcon={activeStep === 2 ? <SaveIcon /> : <ForwardIcon />}
+              disabled={searchLoading || submitLoading || (activeStep === 2 && selectedAssignmentIds.size === 0)}
+            >
+              {activeStep === 0 && searchLoading 
+                ? 'Searching...' 
+                : activeStep === 2 && submitLoading
+                ? 'Adding...'
+                : activeStep === 2
+                ? `Add ${selectedAssignmentIds.size} Assignment(s)`
+                : 'Next'
+              }
+            </Button>
           </Box>
         </Box>
       </Card>

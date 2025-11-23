@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -23,6 +23,7 @@ import {
   CircularProgress,
   Tabs,
   Tab,
+  Link,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -37,6 +38,7 @@ import { useError } from '../../contexts/ErrorContext';
 const PaymentListPage: React.FC = () => {
   const navigate = useNavigate();
   const { showError, showSuccess } = useError();
+  const hasLoadedRef = useRef(false);
   
   const [payments, setPayments] = useState<Payment[]>([]);
   const [filteredPayments, setFilteredPayments] = useState<Payment[]>([]);
@@ -53,11 +55,16 @@ const PaymentListPage: React.FC = () => {
   const [cancellationReason, setCancellationReason] = useState('');
 
   useEffect(() => {
-    loadPayments();
+    if (!hasLoadedRef.current) {
+      hasLoadedRef.current = true;
+      loadPayments();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     filterPayments();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabValue, payments]);
 
   const loadPayments = async () => {
@@ -82,6 +89,15 @@ const PaymentListPage: React.FC = () => {
   };
 
   const handleCreatePayment = async () => {
+    // Check if there's already a draft payment
+    const existingDraft = payments.find(p => p.status === PaymentStatus.DRAFT);
+    
+    if (existingDraft) {
+      // Navigate to existing draft instead of creating a new one
+      navigate(`/payments/${existingDraft.id}`);
+      return;
+    }
+
     setCreateLoading(true);
     try {
       // Get current month and year
@@ -210,6 +226,8 @@ const PaymentListPage: React.FC = () => {
     payment.status === PaymentStatus.PENDING_APPROVAL || 
     payment.status === PaymentStatus.APPROVED;
 
+  const hasDraftPayment = payments.some(p => p.status === PaymentStatus.DRAFT);
+
   return (
     <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
@@ -220,7 +238,7 @@ const PaymentListPage: React.FC = () => {
           onClick={handleCreatePayment}
           disabled={createLoading}
         >
-          {createLoading ? 'Creating...' : 'Create Payment Draft'}
+          {createLoading ? 'Loading...' : (hasDraftPayment ? 'Continue with Draft' : 'Create Payment Draft')}
         </Button>
       </Box>
 
@@ -265,9 +283,20 @@ const PaymentListPage: React.FC = () => {
                 filteredPayments.map((payment) => (
                   <TableRow key={payment.id} hover>
                     <TableCell>
-                      <Typography variant="body2" fontWeight="medium">
-                        {formatMonthYear(payment.paymentMonth, payment.paymentYear)}
-                      </Typography>
+                      <Link
+                        component="button"
+                        variant="body2"
+                        fontWeight="medium"
+                        onClick={() => navigate(`/payments/${payment.id}`)}
+                        sx={{ 
+                          textDecoration: 'none',
+                          '&:hover': { textDecoration: 'underline' },
+                          cursor: 'pointer',
+                          textAlign: 'left'
+                        }}
+                      >
+                        {payment.paymentTitle || formatMonthYear(payment.paymentMonth, payment.paymentYear)}
+                      </Link>
                     </TableCell>
                     <TableCell>
                       <Chip
@@ -289,12 +318,16 @@ const PaymentListPage: React.FC = () => {
                       </Typography>
                     </TableCell>
                     <TableCell align="center">
-                      <IconButton
-                        size="small"
-                        onClick={(e) => handleMenuOpen(e, payment)}
-                      >
-                        <MoreVertIcon />
-                      </IconButton>
+                      {canEdit(payment) || canCancel(payment) ? (
+                        <IconButton
+                          size="small"
+                          onClick={(e) => handleMenuOpen(e, payment)}
+                        >
+                          <MoreVertIcon />
+                        </IconButton>
+                      ) : (
+                        <Typography variant="caption" color="text.secondary">-</Typography>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

@@ -82,9 +82,7 @@ public class PaymentController {
         String username = auth.getName();
         log.info("PUT request to update payment {} by: {}", id, username);
 
-        // For now, we'll just return the current payment
-        // Full update logic can be added as needed
-        PaymentDTO payment = paymentService.getPaymentById(id);
+        PaymentDTO payment = paymentService.updatePayment(id, updates, username);
         return ResponseEntity.ok(payment);
     }
 
@@ -133,7 +131,7 @@ public class PaymentController {
     // ==================== Workflow Endpoints ====================
 
     @PostMapping("/{id}/submit")
-    @PreAuthorize("hasPermission('PAYMENT', 'EDIT')")
+    @PreAuthorize("hasPermission('PAYMENT', 'SUBMIT')")
     public ResponseEntity<PaymentDTO> submitForApproval(
             @PathVariable String id,
             @RequestBody SubmitPaymentRequest request) {
@@ -159,7 +157,7 @@ public class PaymentController {
     }
 
     @PostMapping("/{id}/record-payment")
-    @PreAuthorize("hasPermission('PAYMENT', 'EDIT')")
+    @PreAuthorize("hasPermission('PAYMENT', 'MARK_PAID')")
     public ResponseEntity<PaymentDTO> recordPayment(
             @PathVariable String id,
             @RequestBody RecordPaymentRequest request) {
@@ -172,7 +170,7 @@ public class PaymentController {
     }
 
     @PostMapping("/{id}/cancel")
-    @PreAuthorize("hasPermission('PAYMENT', 'EDIT')")
+    @PreAuthorize("hasPermission('PAYMENT', 'CANCEL')")
     public ResponseEntity<PaymentDTO> cancelPayment(
             @PathVariable String id,
             @RequestBody CancelPaymentRequest request) {
@@ -198,7 +196,7 @@ public class PaymentController {
     // ==================== Document Management ====================
 
     @PostMapping("/{id}/documents")
-    @PreAuthorize("hasPermission('PAYMENT', 'EDIT')")
+    @PreAuthorize("hasPermission('PAYMENT', 'MARK_PAID')")
     public ResponseEntity<PaymentDTO> uploadDocument(
             @PathVariable String id,
             @RequestParam("file") MultipartFile file,

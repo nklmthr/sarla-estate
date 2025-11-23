@@ -5,6 +5,7 @@ import apiClient from './apiClient';
 export interface Payment {
   id: string;
   paymentDate?: string;
+  paymentTitle?: string;
   status: PaymentStatus;
   totalAmount: number;
   paymentMonth?: number;

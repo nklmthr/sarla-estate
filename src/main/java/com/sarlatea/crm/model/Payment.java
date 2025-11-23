@@ -27,6 +27,9 @@ public class Payment {
     @Column(name = "payment_date")
     private LocalDate paymentDate;
 
+    @Column(name = "payment_title")
+    private String paymentTitle; // User-defined payment name/title
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PaymentStatus status = PaymentStatus.DRAFT;

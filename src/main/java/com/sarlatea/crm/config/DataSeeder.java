@@ -100,9 +100,8 @@ public class DataSeeder implements CommandLineRunner {
                 Permission.DELETE_PAYMENT,
                 Permission.SUBMIT_PAYMENT,
                 Permission.APPROVE_PAYMENT,
-                Permission.RECORD_PAYMENT,
+                Permission.MARK_PAID,
                 Permission.CANCEL_PAYMENT,
-                Permission.MANAGE_PAYMENT_DOCUMENTS,
                 Permission.VIEW_REPORTS,
                 Permission.GENERATE_PAYMENT_REPORT,
                 Permission.GENERATE_ASSIGNMENT_REPORT,
@@ -177,9 +176,8 @@ public class DataSeeder implements CommandLineRunner {
         createPermissionConfig("PAYMENT", "DELETE", Permission.DELETE_PAYMENT, "Delete payment drafts");
         createPermissionConfig("PAYMENT", "SUBMIT", Permission.SUBMIT_PAYMENT, "Submit payment for approval");
         createPermissionConfig("PAYMENT", "APPROVE", Permission.APPROVE_PAYMENT, "Approve pending payments");
-        createPermissionConfig("PAYMENT", "RECORD", Permission.RECORD_PAYMENT, "Record actual payment transactions");
+        createPermissionConfig("PAYMENT", "MARK_PAID", Permission.MARK_PAID, "Mark payment as paid and upload documents");
         createPermissionConfig("PAYMENT", "CANCEL", Permission.CANCEL_PAYMENT, "Cancel payment requests");
-        createPermissionConfig("PAYMENT", "MANAGE_DOCUMENTS", Permission.MANAGE_PAYMENT_DOCUMENTS, "Manage payment documents");
 
         // REPORT resource configurations
         createPermissionConfig("REPORT", "VIEW", Permission.VIEW_REPORTS, "Access to reports section");
@@ -429,9 +427,8 @@ public class DataSeeder implements CommandLineRunner {
                 Permission.DELETE_PAYMENT,
                 Permission.SUBMIT_PAYMENT,
                 Permission.APPROVE_PAYMENT,
-                Permission.RECORD_PAYMENT,
+                Permission.MARK_PAID,
                 Permission.CANCEL_PAYMENT,
-                Permission.MANAGE_PAYMENT_DOCUMENTS,
                 Permission.VIEW_REPORTS,
                 Permission.GENERATE_PAYMENT_REPORT,
                 Permission.GENERATE_ASSIGNMENT_REPORT,

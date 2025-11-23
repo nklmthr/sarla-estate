@@ -35,9 +35,8 @@ public enum Permission {
     DELETE_PAYMENT("Delete Payment", "Delete payment drafts"),
     SUBMIT_PAYMENT("Submit Payment", "Submit payment for approval"),
     APPROVE_PAYMENT("Approve Payment", "Approve pending payments"),
-    RECORD_PAYMENT("Record Payment", "Record actual payment transactions"),
+    MARK_PAID("Mark as Paid", "Mark payment as paid and upload documents"),
     CANCEL_PAYMENT("Cancel Payment", "Cancel payment requests"),
-    MANAGE_PAYMENT_DOCUMENTS("Manage Payment Documents", "Upload and manage payment documents"),
     
     // Reports
     VIEW_REPORTS("View Reports", "Access to reports section"),

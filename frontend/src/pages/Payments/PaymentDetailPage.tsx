@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -21,7 +21,6 @@ import {
   TextField,
   Alert,
   Divider,
-  CircularProgress,
   Tabs,
   Tab,
   List,
@@ -46,6 +45,7 @@ import {
   AttachFile as FileIcon,
   Close as CloseIcon,
   History as HistoryIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { paymentApi, Payment, PaymentStatus, PaymentLineItem, PaymentHistory } from '../../api/paymentApi';
 import { useError } from '../../contexts/ErrorContext';
@@ -69,6 +69,7 @@ const PaymentDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { showError, showSuccess } = useError();
+  const referenceNumberInputRef = useRef<HTMLInputElement>(null);
 
   const [payment, setPayment] = useState<Payment | null>(null);
   const [paymentHistory, setPaymentHistory] = useState<PaymentHistory[]>([]);
@@ -86,6 +87,7 @@ const PaymentDetailPage: React.FC = () => {
   const [lineItemToDelete, setLineItemToDelete] = useState<string | null>(null);
   const [deleteDocumentDialogOpen, setDeleteDocumentDialogOpen] = useState(false);
   const [documentToDelete, setDocumentToDelete] = useState<string | null>(null);
+  const [editTitleDialogOpen, setEditTitleDialogOpen] = useState(false);
 
   // Form states
   const [remarks, setRemarks] = useState('');
@@ -94,6 +96,7 @@ const PaymentDetailPage: React.FC = () => {
   const [referenceNumber, setReferenceNumber] = useState('');
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([]);
   const [uploadProgress, setUploadProgress] = useState(false);
+  const [paymentTitle, setPaymentTitle] = useState('');
 
   useEffect(() => {
     if (id) {
@@ -141,7 +144,6 @@ const PaymentDetailPage: React.FC = () => {
     try {
       const updatedPayment = await paymentApi.submitForApproval(payment.id, { remarks });
       setPayment(updatedPayment);
-      showSuccess('Payment submitted for approval. Assignments are now locked.');
       setSubmitDialogOpen(false);
       setRemarks('');
       loadPaymentHistory();
@@ -162,7 +164,6 @@ const PaymentDetailPage: React.FC = () => {
     try {
       const updatedPayment = await paymentApi.approvePayment(payment.id, { remarks });
       setPayment(updatedPayment);
-      showSuccess('Payment approved successfully');
       setApproveDialogOpen(false);
       setRemarks('');
       loadPaymentHistory();
@@ -285,7 +286,6 @@ const PaymentDetailPage: React.FC = () => {
     try {
       const updatedPayment = await paymentApi.cancelPayment(payment.id, { cancellationReason });
       setPayment(updatedPayment);
-      showSuccess('Payment cancelled. Assignments have been unlocked.');
       setCancelDialogOpen(false);
       setCancellationReason('');
       loadPaymentHistory();
@@ -312,6 +312,26 @@ const PaymentDetailPage: React.FC = () => {
         message: error.message || 'Could not delete payment',
         severity: 'error',
       });
+    }
+  };
+
+  const handleUpdateTitle = async () => {
+    if (!payment || !paymentTitle.trim()) return;
+    setActionLoading(true);
+    try {
+      const updatedPayment = await paymentApi.updateDraft(payment.id, { paymentTitle: paymentTitle.trim() });
+      setPayment(updatedPayment);
+      setEditTitleDialogOpen(false);
+      setPaymentTitle('');
+      loadPaymentHistory();
+    } catch (error: any) {
+      showError({
+        title: 'Failed to update payment name',
+        message: error.message || 'Could not update payment name',
+        severity: 'error',
+      });
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -419,7 +439,8 @@ const PaymentDetailPage: React.FC = () => {
         </IconButton>
         <Box sx={{ flexGrow: 1 }}>
           <Typography variant="h4">
-            {initialLoading ? 'Loading...' : 'Payment Details'}
+            Payment Details
+            {initialLoading && <Typography component="span" color="text.secondary" sx={{ ml: 2, fontSize: '0.875rem' }}>Loading...</Typography>}
           </Typography>
           {payment && (
             <Typography variant="body2" color="text.secondary">
@@ -435,12 +456,6 @@ const PaymentDetailPage: React.FC = () => {
           />
         )}
       </Box>
-
-      {initialLoading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-          <CircularProgress />
-        </Box>
-      )}
 
       {!initialLoading && !payment && (
         <Alert severity="error">Payment not found</Alert>
@@ -475,24 +490,40 @@ const PaymentDetailPage: React.FC = () => {
       <Card sx={{ mb: 3 }}>
         <Box sx={{ p: 3 }}>
           <Grid container spacing={3}>
-            <Grid item xs={12} md={3}>
-              <Typography variant="caption" color="text.secondary">Period</Typography>
-              <Typography variant="h6">
-                {new Date(payment.paymentYear || 0, (payment.paymentMonth || 1) - 1).toLocaleDateString('en-IN', {
-                  year: 'numeric',
-                  month: 'long',
-                })}
-              </Typography>
+            <Grid item xs={12} md={6}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box sx={{ flex: 1 }}>
+                  <Typography variant="caption" color="text.secondary">Payment Name</Typography>
+                  <Typography variant="h6">
+                    {payment.paymentTitle || `Payment for ${new Date(payment.paymentYear || 0, (payment.paymentMonth || 1) - 1).toLocaleDateString('en-IN', {
+                      year: 'numeric',
+                      month: 'long',
+                    })}`}
+                  </Typography>
+                </Box>
+                {!isLocked && (
+                  <IconButton 
+                    size="small" 
+                    onClick={() => {
+                      setPaymentTitle(payment.paymentTitle || '');
+                      setEditTitleDialogOpen(true);
+                    }}
+                    title="Edit Payment Name"
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                )}
+              </Box>
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2}>
               <Typography variant="caption" color="text.secondary">Total Amount</Typography>
               <Typography variant="h6">{formatCurrency(payment.totalAmount)}</Typography>
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2}>
               <Typography variant="caption" color="text.secondary">Line Items</Typography>
               <Typography variant="h6">{payment.lineItems?.length || 0}</Typography>
             </Grid>
-            <Grid item xs={12} md={3}>
+            <Grid item xs={12} md={2}>
               <Typography variant="caption" color="text.secondary">Documents</Typography>
               <Typography variant="h6">{payment.documents?.length || 0}</Typography>
             </Grid>
@@ -518,7 +549,7 @@ const PaymentDetailPage: React.FC = () => {
                 zIndex: 1,
               }}
             >
-              <CircularProgress size={24} />
+              <Typography color="primary">Processing...</Typography>
             </Box>
           )}
           {canSubmit && (
@@ -547,7 +578,12 @@ const PaymentDetailPage: React.FC = () => {
               variant="contained"
               color="primary"
               startIcon={<PaymentIcon />}
-              onClick={() => setRecordPaymentDialogOpen(true)}
+              onClick={() => {
+                // Set today's date in YYYY-MM-DD format
+                const today = new Date().toISOString().split('T')[0];
+                setPaymentDate(today);
+                setRecordPaymentDialogOpen(true);
+              }}
               disabled={actionLoading}
             >
               Record Payment
@@ -930,7 +966,17 @@ const PaymentDetailPage: React.FC = () => {
       </Dialog>
 
       {/* Record Payment Dialog */}
-      <Dialog open={recordPaymentDialogOpen} onClose={() => setRecordPaymentDialogOpen(false)} maxWidth="md" fullWidth>
+      <Dialog 
+        open={recordPaymentDialogOpen} 
+        onClose={() => setRecordPaymentDialogOpen(false)} 
+        maxWidth="md" 
+        fullWidth
+        TransitionProps={{
+          onEntered: () => {
+            referenceNumberInputRef.current?.focus();
+          }
+        }}
+      >
         <DialogTitle>Record Payment Transaction</DialogTitle>
         <DialogContent>
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
@@ -946,6 +992,7 @@ const PaymentDetailPage: React.FC = () => {
               />
               <TextField
                 fullWidth
+                inputRef={referenceNumberInputRef}
                 label="Transaction/Challan Reference *"
                 value={referenceNumber}
                 onChange={(e) => setReferenceNumber(e.target.value)}
@@ -1044,7 +1091,7 @@ const PaymentDetailPage: React.FC = () => {
             onClick={handleRecordPayment}
             variant="contained"
             disabled={!paymentDate || !referenceNumber || actionLoading || uploadProgress}
-            startIcon={actionLoading || uploadProgress ? <CircularProgress size={20} /> : <PaymentIcon />}
+            startIcon={<PaymentIcon />}
           >
             {uploadProgress ? 'Uploading...' : actionLoading ? 'Recording...' : 'Record Payment'}
           </Button>
@@ -1077,6 +1124,46 @@ const PaymentDetailPage: React.FC = () => {
             disabled={!cancellationReason.trim() || actionLoading}
           >
             {actionLoading ? 'Cancelling...' : 'Confirm Cancellation'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Payment Title Dialog */}
+      <Dialog 
+        open={editTitleDialogOpen} 
+        onClose={() => {
+          setEditTitleDialogOpen(false);
+          setPaymentTitle('');
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Payment Name</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            label="Payment Name"
+            value={paymentTitle}
+            onChange={(e) => setPaymentTitle(e.target.value)}
+            placeholder={payment?.paymentTitle || "e.g., Payments for Week ending 10-16 Nov"}
+            sx={{ mt: 2 }}
+            helperText="Give this payment a descriptive name"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => {
+            setEditTitleDialogOpen(false);
+            setPaymentTitle('');
+          }}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleUpdateTitle}
+            variant="contained"
+            disabled={!paymentTitle.trim() || actionLoading}
+          >
+            {actionLoading ? 'Updating...' : 'Update'}
           </Button>
         </DialogActions>
       </Dialog>

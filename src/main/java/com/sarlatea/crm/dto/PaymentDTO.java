@@ -16,6 +16,7 @@ import java.util.List;
 public class PaymentDTO {
     private String id;
     private LocalDate paymentDate;
+    private String paymentTitle;
     private Payment.PaymentStatus status;
     private BigDecimal totalAmount;
     private Integer paymentMonth;
