@@ -104,17 +104,43 @@ public class WorkAssignment extends BaseEntity {
     }
 
     /**
-     * Check if assignment can be edited
+     * Check if assignment can be edited (change activity, delete)
      * Assignments are editable only when:
+     * - Has NOT been evaluated (evaluationCount is 0 or null) - prevents changing activity after evaluation
      * - Status is UNPAID, DRAFT, or CANCELLED
      * - NOT in PENDING_PAYMENT, APPROVED, or PAID status
+     * 
+     * Once ANY evaluation is done, the assignment becomes locked for editing/deletion
+     * to maintain data integrity and audit trail.
      */
     public boolean isEditable() {
-        // Assignments are only editable if:
-        // 1. Not in any payment (UNPAID or null)
-        // 2. In a cancelled payment (CANCELLED)
-        // Assignments in DRAFT payments are NOT editable to prevent data changes after adding to payment
+        // Rule 1: Cannot edit if already evaluated (evaluation count > 0)
+        if (evaluationCount != null && evaluationCount > 0) {
+            return false;
+        }
+        
+        // Rule 2: Assignments are only editable if:
+        // - Not in any payment (UNPAID or null)
+        // - In a draft payment (DRAFT) - allows re-evaluation before submission
+        // - In a cancelled payment (CANCELLED)
+        // Assignments become locked when payment is submitted (PENDING_PAYMENT, APPROVED, PAID)
         return paymentStatus == PaymentStatus.UNPAID 
+            || paymentStatus == PaymentStatus.DRAFT
+            || paymentStatus == PaymentStatus.CANCELLED
+            || paymentStatus == null; // Default state
+    }
+
+    /**
+     * Check if assignment can be re-evaluated (update completion percentage)
+     * Re-evaluation is allowed even after first evaluation, as long as:
+     * - Assignment is not in a locked payment status (PENDING_PAYMENT, APPROVED, PAID)
+     * - Assignment is UNPAID, DRAFT, or CANCELLED
+     */
+    public boolean isReEvaluatable() {
+        // Can re-evaluate as long as payment status allows it
+        // Unlike isEditable(), evaluation count doesn't matter
+        return paymentStatus == PaymentStatus.UNPAID 
+            || paymentStatus == PaymentStatus.DRAFT
             || paymentStatus == PaymentStatus.CANCELLED
             || paymentStatus == null; // Default state
     }

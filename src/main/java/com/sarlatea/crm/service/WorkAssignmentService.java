@@ -134,8 +134,35 @@ public class WorkAssignmentService {
         WorkAssignment assignment = workAssignmentRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkAssignment not found with id: " + id));
         
+        log.debug("Current assignment - Activity: {}, WorkActivityId: {}, EvaluationCount: {}, PaymentStatus: {}", 
+                assignment.getActivityName(), 
+                assignment.getWorkActivity() != null ? assignment.getWorkActivity().getId() : null,
+                assignment.getEvaluationCount(),
+                assignment.getPaymentStatus());
+        
+        log.debug("Update DTO - WorkActivityId: {}", dto.getWorkActivityId());
+        
+        // Check if assignment can be edited
+        if (!assignment.isEditable()) {
+            String reason = "";
+            if (assignment.getEvaluationCount() != null && assignment.getEvaluationCount() > 0) {
+                reason = String.format("This assignment has already been evaluated %d time(s) and cannot be edited. " +
+                        "Evaluated assignments are locked to maintain data integrity.", 
+                        assignment.getEvaluationCount());
+            } else if (assignment.getPaymentStatus() != null) {
+                reason = String.format("This assignment is in payment status '%s' and cannot be edited.", 
+                        assignment.getPaymentStatus());
+            }
+            log.warn("Cannot edit assignment {}: {}", id, reason);
+            throw new IllegalStateException("Cannot edit assignment: " + reason);
+        }
+        
         updateAssignmentFields(assignment, dto);
         WorkAssignment updatedAssignment = workAssignmentRepository.save(assignment);
+        log.info("Updated assignment {} - New Activity: {}, WorkActivityId: {}", 
+                id, 
+                updatedAssignment.getActivityName(),
+                updatedAssignment.getWorkActivity() != null ? updatedAssignment.getWorkActivity().getId() : null);
         return convertToDTO(updatedAssignment);
     }
 
@@ -145,6 +172,20 @@ public class WorkAssignmentService {
         
         WorkAssignment assignment = workAssignmentRepository.findById(assignmentId)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkAssignment not found with id: " + assignmentId));
+        
+        // Check if assignment can be edited (re-assigned)
+        if (!assignment.isEditable()) {
+            String reason = "";
+            if (assignment.getEvaluationCount() != null && assignment.getEvaluationCount() > 0) {
+                reason = String.format("This assignment has already been evaluated %d time(s) and cannot be re-assigned. " +
+                        "Evaluated assignments are locked to maintain data integrity.", 
+                        assignment.getEvaluationCount());
+            } else if (assignment.getPaymentStatus() != null) {
+                reason = String.format("This assignment is in payment status '%s' and cannot be re-assigned.", 
+                        assignment.getPaymentStatus());
+            }
+            throw new IllegalStateException("Cannot re-assign assignment: " + reason);
+        }
         
         Employee employee = employeeRepository.findById(employeeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + employeeId));
@@ -277,10 +318,25 @@ public class WorkAssignmentService {
         dto.setPaidInPaymentId(assignment.getPaidInPaymentId());
         dto.setPaymentLockedAt(assignment.getPaymentLockedAt());
         dto.setIsEditable(assignment.isEditable());
+        dto.setIsReEvaluatable(assignment.isReEvaluatable());
         return dto;
     }
 
     private void updateAssignmentFields(WorkAssignment assignment, WorkAssignmentDTO dto) {
+        // Update work activity if provided
+        if (dto.getWorkActivityId() != null && !dto.getWorkActivityId().equals(assignment.getWorkActivity().getId())) {
+            log.info("Updating work activity from {} to {}", 
+                    assignment.getWorkActivity().getId(), 
+                    dto.getWorkActivityId());
+            WorkActivity newActivity = workActivityRepository.findById(dto.getWorkActivityId())
+                    .orElseThrow(() -> new ResourceNotFoundException("WorkActivity not found with id: " + dto.getWorkActivityId()));
+            assignment.setWorkActivity(newActivity);
+            // Update the copied activity details
+            assignment.setActivityName(newActivity.getName());
+            assignment.setActivityDescription(newActivity.getDescription());
+            log.info("Updated to activity: {} - {}", newActivity.getName(), newActivity.getDescription());
+        }
+        
         if (dto.getAssignmentDate() != null) {
             assignment.setAssignmentDate(dto.getAssignmentDate());
         }

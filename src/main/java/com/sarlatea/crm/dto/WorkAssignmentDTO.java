@@ -45,6 +45,7 @@ public class WorkAssignmentDTO {
     private String includedInPaymentId;
     private String paidInPaymentId;
     private LocalDateTime paymentLockedAt;
-    private Boolean isEditable; // Computed field
+    private Boolean isEditable; // Computed field - can edit activity or delete
+    private Boolean isReEvaluatable; // Computed field - can update completion percentage
 }
 

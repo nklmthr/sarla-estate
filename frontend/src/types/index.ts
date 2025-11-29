@@ -84,7 +84,8 @@ export interface WorkAssignment {
   includedInPaymentId?: string;
   paidInPaymentId?: string;
   paymentLockedAt?: string;
-  isEditable?: boolean; // Computed field from backend
+  isEditable?: boolean; // Computed field from backend - can edit activity or delete
+  isReEvaluatable?: boolean; // Computed field from backend - can update completion percentage
 }
 
 export interface EmployeeSalary {

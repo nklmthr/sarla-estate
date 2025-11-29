@@ -38,6 +38,7 @@ import {
   Search as SearchIcon,
   Clear as ClearIcon,
   Lock as LockIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
@@ -59,7 +60,7 @@ interface AssignmentCell {
 }
 
 const AssignmentList: React.FC = () => {
-  const { showError, showSuccess, showWarning } = useError();
+  const { showSuccess, showWarning } = useError();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [activities, setActivities] = useState<ActivityWithCriteria[]>([]);
   const [assignments, setAssignments] = useState<WorkAssignment[]>([]);
@@ -103,6 +104,15 @@ const AssignmentList: React.FC = () => {
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [assignmentToDelete, setAssignmentToDelete] = useState<WorkAssignment | null>(null);
+
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [assignmentToEdit, setAssignmentToEdit] = useState<WorkAssignment | null>(null);
+  const [editActivityId, setEditActivityId] = useState<string>('');
+  const [editDialogActivities, setEditDialogActivities] = useState<ActivityWithCriteria[]>([]);
+  const [loadingEditActivities, setLoadingEditActivities] = useState(false);
+  
+  // Force re-render key for assignments
+  const [renderKey, setRenderKey] = useState(0);
 
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(currentWeekStart, i));
 
@@ -405,6 +415,124 @@ const AssignmentList: React.FC = () => {
     }
   };
 
+  const handleOpenEditDialog = async (assignment: WorkAssignment) => {
+    setAssignmentToEdit(assignment);
+    setEditActivityId(assignment.workActivityId || '');
+    setEditDialogOpen(true);
+    
+    // Fetch active work activities
+    setLoadingEditActivities(true);
+    try {
+      const activitiesData = await workActivityApi.getActiveWorkActivities();
+      const activitiesArray = Array.isArray(activitiesData) ? activitiesData : [];
+
+      // Load active completion criteria for all activities
+      const activitiesWithCriteria: ActivityWithCriteria[] = await Promise.all(
+        activitiesArray.map(async (activity) => {
+          try {
+            const criteria = await completionCriteriaApi.getActive(activity.id!);
+            return {
+              ...activity,
+              activeCriteria: criteria || null,
+            };
+          } catch (error) {
+            console.error(`Error loading criteria for activity ${activity.id}:`, error);
+            return { ...activity, activeCriteria: null };
+          }
+        })
+      );
+
+      setEditDialogActivities(activitiesWithCriteria);
+    } catch (error) {
+      console.error('Error loading activities for edit:', error);
+      setEditDialogActivities([]);
+    } finally {
+      setLoadingEditActivities(false);
+    }
+  };
+
+  const handleCloseEditDialog = () => {
+    setEditDialogOpen(false);
+    setAssignmentToEdit(null);
+    setEditActivityId('');
+    setEditDialogActivities([]);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!assignmentToEdit?.id || !editActivityId) return;
+
+    try {
+      const activity = editDialogActivities.find(a => a.id === editActivityId);
+      if (!activity) return;
+
+      // Validate that activity has active completion criteria
+      if (!activity.activeCriteria) {
+        showWarning(
+          `Cannot update assignment: "${activity.name}" does not have active completion criteria. ` +
+          'Please select an activity with active completion criteria.'
+        );
+        return;
+      }
+
+      const updatedAssignment: WorkAssignment = {
+        ...assignmentToEdit,
+        workActivityId: activity.id,
+        activityName: activity.name,
+        activityDescription: activity.description,
+      };
+
+      await assignmentApi.updateAssignment(assignmentToEdit.id, updatedAssignment);
+      
+      // Small delay to ensure database transaction commits
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      // Refresh assignments for this specific employee in the current week
+      const weekStart = format(currentWeekStart, 'yyyy-MM-dd');
+      const weekEnd = format(addDays(currentWeekStart, 6), 'yyyy-MM-dd');
+      const employeeId = assignmentToEdit.assignedEmployeeId!;
+      
+      const refreshedAssignments = await assignmentApi.getAssignmentsByDateRange(
+        weekStart,
+        weekEnd,
+        [employeeId]
+      );
+      
+      // Force re-render by updating the render key FIRST
+      setRenderKey(prev => prev + 1);
+      
+      // Update assignments state: replace assignments for this employee in this week
+      setAssignments(prevAssignments => {
+        // Remove assignments for this employee that are within the current week date range
+        const weekStartDate = parseISO(weekStart);
+        const weekEndDate = parseISO(weekEnd);
+        
+        const otherAssignments = prevAssignments.filter(a => {
+          if (a.assignedEmployeeId !== employeeId) {
+            return true; // Keep assignments for other employees
+          }
+          // For this employee, only remove assignments in the current week
+          const aDate = parseISO(a.assignmentDate);
+          const isInWeek = aDate >= weekStartDate && aDate <= weekEndDate;
+          return !isInWeek; // Keep if NOT in the week
+        });
+        
+        // Deep clone the refreshed assignments to ensure new object references
+        const clonedRefreshed = refreshedAssignments.map(a => ({...a}));
+        
+        // Add the refreshed assignments from the server
+        return [...otherAssignments, ...clonedRefreshed];
+      });
+
+      showSuccess('Assignment updated successfully');
+      handleCloseEditDialog();
+    } catch (error: any) {
+      // Error will be caught by interceptor, but we can show additional context
+      if (error?.response?.data?.message?.includes('evaluated')) {
+        showWarning('Cannot edit this assignment because it has already been evaluated. Evaluated assignments are locked.');
+      }
+    }
+  };
+
   const handlePreviousWeek = () => {
     setCurrentWeekStart(addDays(currentWeekStart, -7));
   };
@@ -464,13 +592,14 @@ const AssignmentList: React.FC = () => {
 
   const renderCell = (employee: Employee, date: Date) => {
     const key = getCellKey(employee.id!, date);
+    const uniqueKey = `${key}-${renderKey}`; // Include renderKey to force re-render
     const editingCell = editingCells.get(key);
     const assignment = getAssignment(employee.id!, date);
 
     // If editing
     if (editingCell?.isEditing) {
       return (
-        <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
+        <TableCell key={uniqueKey} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
           <Box>
             <FormControl fullWidth size="small">
               <Select
@@ -545,22 +674,23 @@ const AssignmentList: React.FC = () => {
       const activity = activities.find((a) => a.id === assignment.workActivityId);
       const hasActiveCriteria = !!activity?.activeCriteria;
       const isCompleted = assignment.assignmentStatus === 'COMPLETED';
-      const isLocked = assignment.isEditable === false; // Assignment is locked if isEditable is explicitly false
+      const isLocked = assignment.isEditable === false; // Edit/Delete locked if isEditable is false
+      const isEvaluationLocked = assignment.isReEvaluatable === false; // Evaluation locked if isReEvaluatable is false
 
       return (
-        <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
+        <TableCell key={uniqueKey} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
           <Paper
             elevation={1}
             sx={{
               p: 0.75,
-              bgcolor: isLocked ? 'grey.200' : (!hasActiveCriteria && !isCompleted ? 'error.light' : 'action.hover'),
+              bgcolor: isEvaluationLocked ? 'grey.200' : (!hasActiveCriteria && !isCompleted ? 'error.light' : 'action.hover'),
               position: 'relative',
-              border: isLocked ? '2px solid' : (!hasActiveCriteria && !isCompleted ? '1px solid' : 'none'),
-              borderColor: isLocked ? 'warning.main' : 'error.main',
-              opacity: isLocked ? 0.7 : 1,
+              border: isEvaluationLocked ? '2px solid' : (!hasActiveCriteria && !isCompleted ? '1px solid' : 'none'),
+              borderColor: isEvaluationLocked ? 'warning.main' : 'error.main',
+              opacity: isEvaluationLocked ? 0.7 : 1,
             }}
           >
-            {isLocked && (
+            {isEvaluationLocked && (
               <Box
                 sx={{
                   position: 'absolute',
@@ -604,7 +734,30 @@ const AssignmentList: React.FC = () => {
                 <Tooltip
                   title={
                     isLocked 
-                      ? "Assignment is locked (included in payment)" 
+                      ? "Cannot edit: Assignment has been evaluated" 
+                      : "Edit Assignment"
+                  }
+                  arrow
+                  disableInteractive
+                  enterDelay={500}
+                  leaveDelay={0}
+                >
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleOpenEditDialog(assignment)}
+                      color="info"
+                      sx={{ p: 0.5 }}
+                      disabled={isLocked}
+                    >
+                      <EditIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+                <Tooltip
+                  title={
+                    isEvaluationLocked 
+                      ? "Assignment is locked (in payment cycle)" 
                       : (!hasActiveCriteria && !isCompleted 
                           ? "Cannot evaluate: No active criteria" 
                           : "Evaluate")
@@ -620,14 +773,14 @@ const AssignmentList: React.FC = () => {
                       onClick={() => handleOpenCompletionDialog(assignment)}
                       color="primary"
                       sx={{ p: 0.5 }}
-                      disabled={isLocked || (!hasActiveCriteria && !isCompleted)}
+                      disabled={isEvaluationLocked || (!hasActiveCriteria && !isCompleted)}
                     >
                       <AssessmentIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                   </span>
                 </Tooltip>
                 <Tooltip 
-                  title={isLocked ? "Cannot delete: Assignment is locked (included in payment)" : "Delete Assignment"} 
+                  title={isLocked ? "Cannot delete: Assignment has been evaluated" : "Delete Assignment"} 
                   arrow
                   disableInteractive
                   enterDelay={500}
@@ -686,7 +839,7 @@ const AssignmentList: React.FC = () => {
 
     // Empty cell - fixed width for consistency
     return (
-      <TableCell key={key} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
+      <TableCell key={uniqueKey} sx={{ width: 140, minWidth: 140, maxWidth: 140, p: 0.5 }}>
         <Button
           variant="outlined"
           size="small"
@@ -785,7 +938,7 @@ const AssignmentList: React.FC = () => {
                 </TableRow>
               ) : (
                 paginatedEmployees.map((employee) => (
-                  <TableRow key={employee.id} hover>
+                  <TableRow key={`${employee.id}-${renderKey}`} hover>
                     <TableCell sx={{
                       fontWeight: 'bold',
                       position: 'sticky',
@@ -977,6 +1130,120 @@ const AssignmentList: React.FC = () => {
             startIcon={<DeleteIcon />}
           >
             Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Edit Assignment Dialog */}
+      <Dialog
+        open={editDialogOpen}
+        onClose={handleCloseEditDialog}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>
+          Edit Assignment
+          {assignmentToEdit && (
+            <Typography variant="body2" color="text.secondary">
+              Date: {format(parseISO(assignmentToEdit.assignmentDate), 'MMM dd, yyyy')}
+            </Typography>
+          )}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2 }}>
+            {assignmentToEdit && (assignmentToEdit.evaluationCount ?? 0) > 0 && (
+              <Box sx={{ mb: 2, p: 2, bgcolor: 'error.light', borderRadius: 1, border: '1px solid', borderColor: 'error.main' }}>
+                <Typography variant="body2" color="error.dark" fontWeight="bold">
+                  ⚠️ Warning: This assignment has been evaluated {assignmentToEdit.evaluationCount} time(s) and is locked. 
+                  Editing is not allowed for evaluated assignments.
+                </Typography>
+              </Box>
+            )}
+            
+            {assignmentToEdit && assignmentToEdit.isEditable !== false && (
+              <>
+                {loadingEditActivities ? (
+                  <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                    <CircularProgress />
+                  </Box>
+                ) : (
+                  <>
+                    <FormControl fullWidth sx={{ mt: 2 }}>
+                      <Typography variant="body2" fontWeight="medium" gutterBottom>
+                        Select Activity:
+                      </Typography>
+                      <Select
+                        value={editActivityId}
+                        onChange={(e) => setEditActivityId(e.target.value)}
+                        displayEmpty
+                      >
+                        <MenuItem value="">Select Activity</MenuItem>
+                        {editDialogActivities.map((activity) => (
+                          <MenuItem
+                            key={activity.id}
+                            value={activity.id}
+                            sx={{
+                              color: activity.activeCriteria ? 'inherit' : 'error.main',
+                            }}
+                          >
+                            {activity.name}
+                            {!activity.activeCriteria && ' ⚠️ (No criteria)'}
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+
+                    {editActivityId && (
+                      <Box sx={{ mt: 2 }}>
+                        {(() => {
+                          const selectedActivity = editDialogActivities.find(a => a.id === editActivityId);
+                          if (selectedActivity?.activeCriteria) {
+                            return (
+                              <Box sx={{ p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                  Completion Criteria:
+                                </Typography>
+                                <Typography variant="body1" fontWeight="medium">
+                                  {selectedActivity.activeCriteria.value} {getUnitName(selectedActivity.activeCriteria.unit)}
+                                </Typography>
+                              </Box>
+                            );
+                          }
+                          return (
+                            <Box sx={{ p: 2, bgcolor: 'error.light', borderRadius: 1, border: '1px solid', borderColor: 'error.main' }}>
+                              <Typography variant="body2" color="error.dark">
+                                ⚠️ This activity does not have active completion criteria. 
+                                Please select an activity with active criteria.
+                              </Typography>
+                            </Box>
+                          );
+                        })()}
+                      </Box>
+                    )}
+                  </>
+                )}
+              </>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseEditDialog} color="inherit">
+            Cancel
+          </Button>
+          <Button
+            onClick={handleSaveEdit}
+            variant="contained"
+            color="primary"
+            startIcon={<SaveIcon />}
+            disabled={
+              !editActivityId || 
+              editActivityId === assignmentToEdit?.workActivityId ||
+              !editDialogActivities.find(a => a.id === editActivityId)?.activeCriteria ||
+              assignmentToEdit?.isEditable === false ||
+              loadingEditActivities
+            }
+          >
+            Save Changes
           </Button>
         </DialogActions>
       </Dialog>

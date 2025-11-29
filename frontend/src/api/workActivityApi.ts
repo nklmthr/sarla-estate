@@ -4,6 +4,8 @@ import { WorkActivity } from '../types';
 export const workActivityApi = {
   getAllWorkActivities: () => apiClient.get<WorkActivity[]>('/work-activities'),
   
+  getActiveWorkActivities: () => apiClient.get<WorkActivity[]>('/work-activities/by-status/ACTIVE'),
+  
   getWorkActivityById: (id: string) => apiClient.get<WorkActivity>(`/work-activities/${id}`),
   
   createWorkActivity: (activity: WorkActivity) => apiClient.post<WorkActivity>('/work-activities', activity),
