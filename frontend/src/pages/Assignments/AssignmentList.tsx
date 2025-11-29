@@ -43,15 +43,10 @@ import {
 import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
 import { workActivityApi } from '../../api/workActivityApi';
-import { completionCriteriaApi } from '../../api/completionCriteriaApi';
 import { unitOfMeasureApi, UnitOfMeasure } from '../../api/unitOfMeasureApi';
-import { WorkAssignment, Employee, WorkActivity, WorkActivityCompletionCriteria } from '../../types';
+import { WorkAssignment, Employee, WorkActivity } from '../../types';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { useError } from '../../contexts/ErrorContext';
-
-interface ActivityWithCriteria extends WorkActivity {
-  activeCriteria?: WorkActivityCompletionCriteria | null;
-}
 
 interface AssignmentCell {
   assignment?: WorkAssignment;
@@ -62,7 +57,7 @@ interface AssignmentCell {
 const AssignmentList: React.FC = () => {
   const { showSuccess, showWarning } = useError();
   const [employees, setEmployees] = useState<Employee[]>([]);
-  const [activities, setActivities] = useState<ActivityWithCriteria[]>([]);
+  const [activities, setActivities] = useState<WorkActivity[]>([]);
   const [assignments, setAssignments] = useState<WorkAssignment[]>([]);
   const [loading, setLoading] = useState(true);
   const [unitsOfMeasure, setUnitsOfMeasure] = useState<UnitOfMeasure[]>([]);
@@ -108,7 +103,7 @@ const AssignmentList: React.FC = () => {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [assignmentToEdit, setAssignmentToEdit] = useState<WorkAssignment | null>(null);
   const [editActivityId, setEditActivityId] = useState<string>('');
-  const [editDialogActivities, setEditDialogActivities] = useState<ActivityWithCriteria[]>([]);
+  const [editDialogActivities, setEditDialogActivities] = useState<WorkActivity[]>([]);
   const [loadingEditActivities, setLoadingEditActivities] = useState(false);
   
   // Force re-render key for assignments
@@ -132,24 +127,9 @@ const AssignmentList: React.FC = () => {
     try {
       const activitiesData = await workActivityApi.getAllWorkActivities();
       const activitiesArray = Array.isArray(activitiesData) ? activitiesData : [];
-
-      // Load active completion criteria for ALL activities (including inactive)
-      const activitiesWithCriteria: ActivityWithCriteria[] = await Promise.all(
-        activitiesArray.map(async (activity) => {
-          try {
-            const criteria = await completionCriteriaApi.getActive(activity.id!);
-            return {
-              ...activity,
-              activeCriteria: criteria || null,
-            };
-          } catch (error) {
-            console.error(`Error loading criteria for activity ${activity.id}:`, error);
-            return { ...activity, activeCriteria: null };
-          }
-        })
-      );
-
-      setActivities(activitiesWithCriteria);
+      
+      // No need to load criteria separately - they come with the activity now!
+      setActivities(activitiesArray);
     } catch (error) {
       console.error('Error loading activities:', error);
       setActivities([]);
@@ -426,23 +406,8 @@ const AssignmentList: React.FC = () => {
       const activitiesData = await workActivityApi.getActiveWorkActivities();
       const activitiesArray = Array.isArray(activitiesData) ? activitiesData : [];
 
-      // Load active completion criteria for all activities
-      const activitiesWithCriteria: ActivityWithCriteria[] = await Promise.all(
-        activitiesArray.map(async (activity) => {
-          try {
-            const criteria = await completionCriteriaApi.getActive(activity.id!);
-            return {
-              ...activity,
-              activeCriteria: criteria || null,
-            };
-          } catch (error) {
-            console.error(`Error loading criteria for activity ${activity.id}:`, error);
-            return { ...activity, activeCriteria: null };
-          }
-        })
-      );
-
-      setEditDialogActivities(activitiesWithCriteria);
+      // No need to load criteria separately - they come with the activity now!
+      setEditDialogActivities(activitiesArray);
     } catch (error) {
       console.error('Error loading activities for edit:', error);
       setEditDialogActivities([]);

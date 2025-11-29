@@ -48,6 +48,7 @@ export interface WorkActivity {
   status?: 'ACTIVE' | 'INACTIVE';
   notes?: string;
   completionCriteria?: WorkActivityCompletionCriteria[];
+  activeCriteria?: WorkActivityCompletionCriteria | null; // The currently active completion criteria
 }
 
 export interface WorkActivityCompletionCriteria {

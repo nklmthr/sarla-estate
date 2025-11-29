@@ -21,5 +21,6 @@ public class WorkActivityDTO {
     private WorkActivity.Status status;
     private String notes;
     private List<WorkActivityCompletionCriteriaDTO> completionCriteria = new ArrayList<>();
+    private WorkActivityCompletionCriteriaDTO activeCriteria; // The currently active completion criteria
 }
 

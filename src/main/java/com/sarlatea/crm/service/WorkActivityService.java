@@ -136,13 +136,23 @@ public class WorkActivityService {
             
             // Convert non-deleted completion criteria only (handle null list)
             List<WorkActivityCompletionCriteriaDTO> criteriaList = new ArrayList<>();
+            WorkActivityCompletionCriteriaDTO activeCriteria = null;
+            
             if (workActivity.getCompletionCriteria() != null) {
                 criteriaList = workActivity.getCompletionCriteria().stream()
                         .filter(c -> c != null && !c.getDeleted()) // Also check for null criteria
                         .map(this::convertCriteriaToDTO)
                         .collect(Collectors.toList());
+                
+                // Find the active criteria (isActive = true)
+                activeCriteria = criteriaList.stream()
+                        .filter(c -> Boolean.TRUE.equals(c.getIsActive()))
+                        .findFirst()
+                        .orElse(null);
             }
+            
             dto.setCompletionCriteria(criteriaList);
+            dto.setActiveCriteria(activeCriteria);
             
             return dto;
         } catch (Exception e) {
