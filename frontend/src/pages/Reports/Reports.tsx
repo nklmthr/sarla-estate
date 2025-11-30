@@ -42,6 +42,7 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import HistoryIcon from '@mui/icons-material/History';
+import './Reports.css';
 
 const Reports: React.FC = () => {
   const [selectedReport, setSelectedReport] = useState<'assignments' | 'payments' | 'evaluation' | 'pf'>('payments');
@@ -1315,13 +1316,47 @@ const Reports: React.FC = () => {
 
               {!loading && pfReport && pfReport.employees.length > 0 && (
                 <>
-                  {/* Summary Cards */}
-                  <Grid item xs={12}>
+                  {/* Printable Report Wrapper */}
+                  <div className="printable-report">
+                    {/* Print Header - visible only when printing */}
+                    <div className="print-header" style={{ display: 'none' }}>
+                      <h1>Sarla Tea Estates CRM</h1>
+                      <h2>Monthly PF Report</h2>
+                      <p>Provident Fund report for paid payments</p>
+                      <p><strong>{pfReport.monthName} {pfReport.year}</strong></p>
+                    </div>
+
+                    {/* Print Summary - visible only when printing */}
+                    <div className="print-summary" style={{ display: 'none' }}>
+                      <div className="print-summary-item">
+                        <div className="print-summary-label">Total Employees</div>
+                        <div className="print-summary-value">{pfReport.totals.totalEmployees}</div>
+                      </div>
+                      <div className="print-summary-item">
+                        <div className="print-summary-label">Employee PF (12%)</div>
+                        <div className="print-summary-value">₹{pfReport.totals.totalEmployeePf.toLocaleString()}</div>
+                      </div>
+                      <div className="print-summary-item">
+                        <div className="print-summary-label">Voluntary PF</div>
+                        <div className="print-summary-value">₹{pfReport.totals.totalVoluntaryPf.toLocaleString()}</div>
+                      </div>
+                      <div className="print-summary-item">
+                        <div className="print-summary-label">Employer PF (12%)</div>
+                        <div className="print-summary-value">₹{pfReport.totals.totalEmployerPf.toLocaleString()}</div>
+                      </div>
+                      <div className="print-summary-item">
+                        <div className="print-summary-label">Total PF to Govt</div>
+                        <div className="print-summary-value">₹{(pfReport.totals.totalEmployeePf + pfReport.totals.totalVoluntaryPf + pfReport.totals.totalEmployerPf).toLocaleString()}</div>
+                      </div>
+                    </div>
+
+                  {/* Summary Cards - hide in print */}
+                  <Grid item xs={12} className="no-print">
                     <Typography variant="h6" gutterBottom sx={{ px: 1, mt: 1 }}>
                       Summary - {pfReport.monthName} {pfReport.year}
                     </Typography>
                   </Grid>
-                  <Grid item xs={12} md={2.4}>
+                  <Grid item xs={12} md={2.4} className="no-print">
                     <Card elevation={3} sx={{ 
                       background: 'linear-gradient(135deg, #64B5F6 0%, #42A5F5 100%)', 
                       color: 'white' 
@@ -1336,7 +1371,7 @@ const Reports: React.FC = () => {
                       </CardContent>
                     </Card>
                   </Grid>
-                  <Grid item xs={12} md={2.4}>
+                  <Grid item xs={12} md={2.4} className="no-print">
                     <Card elevation={3} sx={{ 
                       background: 'linear-gradient(135deg, #EF5350 0%, #E53935 100%)', 
                       color: 'white' 
@@ -1351,7 +1386,7 @@ const Reports: React.FC = () => {
                       </CardContent>
                     </Card>
                   </Grid>
-                  <Grid item xs={12} md={2.4}>
+                  <Grid item xs={12} md={2.4} className="no-print">
                     <Card elevation={3} sx={{ 
                       background: 'linear-gradient(135deg, #FFA726 0%, #FF9800 100%)', 
                       color: 'white' 
@@ -1366,7 +1401,7 @@ const Reports: React.FC = () => {
                       </CardContent>
                     </Card>
                   </Grid>
-                  <Grid item xs={12} md={2.4}>
+                  <Grid item xs={12} md={2.4} className="no-print">
                     <Card elevation={3} sx={{ 
                       background: 'linear-gradient(135deg, #66BB6A 0%, #4CAF50 100%)', 
                       color: 'white' 
@@ -1381,7 +1416,7 @@ const Reports: React.FC = () => {
                       </CardContent>
                     </Card>
                   </Grid>
-                  <Grid item xs={12} md={2.4}>
+                  <Grid item xs={12} md={2.4} className="no-print">
                     <Card elevation={3} sx={{ 
                       background: 'linear-gradient(135deg, #7E57C2 0%, #673AB7 100%)', 
                       color: 'white',
@@ -1398,8 +1433,8 @@ const Reports: React.FC = () => {
                     </Card>
                   </Grid>
 
-                  {/* Export Buttons */}
-                  <Grid item xs={12}>
+                  {/* Export Buttons - hide in print */}
+                  <Grid item xs={12} className="no-print">
                     <Card elevation={3}>
                       <CardContent>
                         <Box display="flex" justifyContent="space-between" alignItems="center">
@@ -1433,7 +1468,7 @@ const Reports: React.FC = () => {
                     <Card elevation={3}>
                       <CardContent>
                         <TableContainer sx={{ overflowX: 'auto' }}>
-                          <Table size="small" sx={{ minWidth: 1000 }}>
+                          <Table size="small" sx={{ minWidth: 1000 }} className="printable-table">
                             <TableHead>
                               <TableRow>
                                 <TableCell sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Employee</TableCell>
@@ -1443,7 +1478,7 @@ const Reports: React.FC = () => {
                                 <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Emp PF</TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>VPF</TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Empr PF</TableCell>
-                                <TableCell align="right" sx={{ backgroundColor: '#FFF3E0', fontWeight: 'bold', fontSize: '0.875rem' }}>
+                                <TableCell align="right" sx={{ backgroundColor: '#FFF3E0', fontWeight: 'bold', fontSize: '0.875rem' }} className="print-highlight">
                                   Total PF
                                 </TableCell>
                                 <TableCell align="right" sx={{ fontWeight: 'bold', fontSize: '0.875rem' }}>Net Amt</TableCell>
@@ -1473,7 +1508,7 @@ const Reports: React.FC = () => {
                                   <TableCell align="right" sx={{ color: 'success.main', fontSize: '0.813rem' }}>
                                     ₹{emp.totals.totalEmployerPf.toLocaleString()}
                                   </TableCell>
-                                  <TableCell align="right" sx={{ backgroundColor: '#FFF3E0', fontWeight: 'bold', fontSize: '0.875rem' }}>
+                                  <TableCell align="right" sx={{ backgroundColor: '#FFF3E0', fontWeight: 'bold', fontSize: '0.875rem' }} className="print-highlight">
                                     <Typography variant="body2" fontWeight="bold" color="primary">
                                       ₹{(emp.totals.totalEmployeePf + emp.totals.totalVoluntaryPf + emp.totals.totalEmployerPf).toLocaleString()}
                                     </Typography>
@@ -1486,7 +1521,7 @@ const Reports: React.FC = () => {
                                 </TableRow>
                               ))}
                               {/* Grand Total Row */}
-                              <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }}>
+                              <TableRow sx={{ backgroundColor: '#f5f5f5', fontWeight: 'bold' }} className="print-total-row">
                                 <TableCell colSpan={3} sx={{ fontSize: '0.938rem' }}>
                                   <Typography variant="subtitle1" fontWeight="bold">TOTAL</Typography>
                                 </TableCell>
@@ -1502,7 +1537,7 @@ const Reports: React.FC = () => {
                                 <TableCell align="right" sx={{ fontWeight: 'bold', color: 'success.main', fontSize: '0.875rem' }}>
                                   ₹{pfReport.totals.totalEmployerPf.toLocaleString()}
                                 </TableCell>
-                                <TableCell align="right" sx={{ backgroundColor: '#FFE082', fontWeight: 'bold' }}>
+                                <TableCell align="right" sx={{ backgroundColor: '#FFE082', fontWeight: 'bold' }} className="print-highlight">
                                   <Typography variant="subtitle1" color="primary" fontWeight="bold">
                                     ₹{(pfReport.totals.totalEmployeePf + pfReport.totals.totalVoluntaryPf + pfReport.totals.totalEmployerPf).toLocaleString()}
                                   </Typography>
@@ -1519,6 +1554,13 @@ const Reports: React.FC = () => {
                       </CardContent>
                     </Card>
                   </Grid>
+
+                  {/* Print Footer - visible only when printing */}
+                  <div className="print-footer" style={{ display: 'none' }}>
+                    <p>Generated on: {new Date().toLocaleDateString()} at {new Date().toLocaleTimeString()}</p>
+                    <p>Sarla Tea Estates CRM - Confidential Document</p>
+                  </div>
+                  </div>
                 </>
               )}
             </Grid>

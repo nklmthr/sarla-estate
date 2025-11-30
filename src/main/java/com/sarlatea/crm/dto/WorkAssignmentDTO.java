@@ -43,7 +43,9 @@ public class WorkAssignmentDTO {
     // Payment tracking
     private WorkAssignment.PaymentStatus paymentStatus;
     private String includedInPaymentId;
+    private String includedInPaymentReferenceNumber; // Payment reference for display
     private String paidInPaymentId;
+    private String paidInPaymentReferenceNumber; // Payment reference for display
     private LocalDateTime paymentLockedAt;
     private Boolean isEditable; // Computed field - can edit activity or delete
     private Boolean isReEvaluatable; // Computed field - can update completion percentage

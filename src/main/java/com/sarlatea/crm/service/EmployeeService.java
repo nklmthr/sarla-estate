@@ -2,6 +2,7 @@ package com.sarlatea.crm.service;
 
 import com.sarlatea.crm.dto.EmployeeDTO;
 import com.sarlatea.crm.exception.ResourceNotFoundException;
+import com.sarlatea.crm.model.AuditLog;
 import com.sarlatea.crm.model.Employee;
 import com.sarlatea.crm.model.EmployeeType;
 import com.sarlatea.crm.model.EmployeeStatus;
@@ -37,6 +38,7 @@ public class EmployeeService {
     private final EmployeeSalaryRepository employeeSalaryRepository;
     private final WorkAssignmentRepository workAssignmentRepository;
     private final PaymentLineItemRepository paymentLineItemRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<EmployeeDTO> getAllEmployees() {
@@ -67,6 +69,15 @@ public class EmployeeService {
         log.debug("Creating new employee: {}", employeeDTO.getName());
         Employee employee = convertToEntity(employeeDTO);
         Employee savedEmployee = employeeRepository.save(employee);
+        
+        // Audit log for creation
+        auditLogService.logAudit(
+            AuditLog.OperationType.CREATE,
+            "Employee",
+            savedEmployee.getId(),
+            savedEmployee.getName()
+        );
+        
         return convertToDTO(savedEmployee);
     }
 
@@ -76,9 +87,24 @@ public class EmployeeService {
         Employee employee = employeeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
         
+        // Capture old state for audit
+        EmployeeDTO oldState = convertToDTO(employee);
+        
         updateEmployeeFields(employee, employeeDTO);
         Employee updatedEmployee = employeeRepository.save(employee);
-        return convertToDTO(updatedEmployee);
+        
+        // Audit log for update with old and new values
+        EmployeeDTO newState = convertToDTO(updatedEmployee);
+        auditLogService.logAuditWithChanges(
+            AuditLog.OperationType.EDIT,
+            "Employee",
+            updatedEmployee.getId(),
+            updatedEmployee.getName(),
+            oldState,
+            newState
+        );
+        
+        return newState;
     }
 
     @Transactional
@@ -117,8 +143,21 @@ public class EmployeeService {
             throw new DataIntegrityViolationException(message);
         }
         
+        // Get employee name before deletion for audit log
+        Employee employee = employeeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Employee not found with id: " + id));
+        String employeeName = employee.getName();
+        
         employeeRepository.deleteById(id);
         log.info("Successfully deleted employee with id: {}", id);
+        
+        // Audit log for deletion
+        auditLogService.logAudit(
+            AuditLog.OperationType.DELETE,
+            "Employee",
+            id,
+            employeeName
+        );
     }
 
     @Transactional(readOnly = true)

@@ -402,7 +402,11 @@ public class AuditLogService {
         dto.setOperation(auditLog.getOperation());
         dto.setEntityType(auditLog.getEntityType());
         dto.setEntityId(auditLog.getEntityId());
-        dto.setEntityName(auditLog.getEntityName());
+        
+        // Generate meaningful entity name/description
+        String entityName = generateMeaningfulDescription(auditLog);
+        dto.setEntityName(entityName);
+        
         dto.setRequestMethod(auditLog.getRequestMethod());
         dto.setRequestUrl(auditLog.getRequestUrl());
         dto.setOldValue(auditLog.getOldValue());
@@ -425,6 +429,273 @@ public class AuditLogService {
         dto.setOrganization(auditLog.getOrganization());
         
         return dto;
+    }
+    
+    /**
+     * Generate meaningful description from audit log based on entity type and changes
+     */
+    private String generateMeaningfulDescription(AuditLog log) {
+        String operation = log.getOperation() != null ? log.getOperation().toString() : "UNKNOWN";
+        String entityType = log.getEntityType() != null ? log.getEntityType() : "";
+        String entityName = log.getEntityName() != null ? log.getEntityName() : "";
+        String userName = log.getUserFullName() != null ? log.getUserFullName() : log.getUsername();
+        
+        // For creation and deletion, use simple messages
+        if ("CREATE".equals(operation)) {
+            return userName + " created " + formatEntityType(entityType) + 
+                   (entityName.isEmpty() ? "" : ": " + entityName);
+        }
+        
+        if ("DELETE".equals(operation)) {
+            return userName + " deleted " + formatEntityType(entityType) + 
+                   (entityName.isEmpty() ? "" : ": " + entityName);
+        }
+        
+        // For EDIT operations, try to extract meaningful changes
+        if ("EDIT".equals(operation)) {
+            String changes = extractChanges(log, entityType, entityName);
+            if (changes != null && !changes.isEmpty()) {
+                return userName + " " + changes;
+            }
+            
+            // Fallback to generic message with entity name
+            return userName + " updated " + formatEntityType(entityType) + 
+                   (entityName.isEmpty() ? "" : ": " + entityName);
+        }
+        
+        // For other operations
+        return userName + " performed " + operation.toLowerCase() + " on " + formatEntityType(entityType);
+    }
+    
+    /**
+     * Extract specific changes from old and new values
+     */
+    private String extractChanges(AuditLog auditLog, String entityType, String entityName) {
+        try {
+            String oldValue = auditLog.getOldValue();
+            String newValue = auditLog.getNewValue();
+            
+            if (oldValue == null || newValue == null) {
+                return null;
+            }
+            
+            // For WorkAssignment, check for specific changes
+            if ("WorkAssignment".equals(entityType)) {
+                return extractWorkAssignmentChanges(auditLog, entityName, oldValue, newValue);
+            }
+            
+            // For Employee, check for specific changes
+            if ("Employee".equals(entityType)) {
+                return extractEmployeeChanges(auditLog, entityName, oldValue, newValue);
+            }
+            
+            // For WorkActivity, check for specific changes
+            if ("WorkActivity".equals(entityType)) {
+                return extractWorkActivityChanges(auditLog, entityName, oldValue, newValue);
+            }
+            
+            return null;
+        } catch (Exception e) {
+            log.warn("Error extracting changes: {}", e.getMessage());
+            return null;
+        }
+    }
+    
+    /**
+     * Extract meaningful changes for WorkAssignment
+     */
+    private String extractWorkAssignmentChanges(AuditLog log, String entityName, String oldValue, String newValue) {
+        // Check if this is an evaluation
+        if (entityName.contains("% complete") || entityName.contains("Evaluation #")) {
+            String[] parts = entityName.split(" - ");
+            if (parts.length >= 2) {
+                String details = parts[1];
+                String percentage = details.contains("%") ? details.substring(0, details.indexOf("%") + 1) : "";
+                
+                // Try to extract actual value (KGs)
+                String actualValueInfo = "";
+                if (newValue.contains("\"actualValue\"")) {
+                    String value = extractJsonValue(newValue, "actualValue");
+                    if (value != null && !value.equals("null")) {
+                        actualValueInfo = " with " + value + " KGs";
+                    }
+                }
+                
+                return "evaluated the assignment: " + percentage + " complete" + actualValueInfo;
+            }
+        }
+        
+        // Check for activity change
+        String oldActivity = extractJsonValue(oldValue, "activityName");
+        String newActivity = extractJsonValue(newValue, "activityName");
+        if (oldActivity != null && newActivity != null && !oldActivity.equals(newActivity)) {
+            return "changed activity from " + oldActivity + " to " + newActivity;
+        }
+        
+        // Check for employee reassignment
+        String oldEmployee = extractJsonNestedValue(oldValue, "assignedEmployee", "name");
+        String newEmployee = extractJsonNestedValue(newValue, "assignedEmployee", "name");
+        if (oldEmployee != null && newEmployee != null && !oldEmployee.equals(newEmployee)) {
+            return "reassigned from " + oldEmployee + " to " + newEmployee;
+        }
+        
+        // Check for payment status change
+        String oldPaymentStatus = extractJsonValue(oldValue, "paymentStatus");
+        String newPaymentStatus = extractJsonValue(newValue, "paymentStatus");
+        if ((oldPaymentStatus == null || "null".equals(oldPaymentStatus) || "UNPAID".equals(oldPaymentStatus)) && 
+            newPaymentStatus != null && !"null".equals(newPaymentStatus) && !"UNPAID".equals(newPaymentStatus)) {
+            return "updated payment status to " + newPaymentStatus;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Extract meaningful changes for Employee
+     */
+    private String extractEmployeeChanges(AuditLog log, String entityName, String oldValue, String newValue) {
+        // Check for name change
+        String oldName = extractJsonValue(oldValue, "name");
+        String newName = extractJsonValue(newValue, "name");
+        if (oldName != null && newName != null && !oldName.equals(newName)) {
+            return "changed employee name from " + oldName + " to " + newName;
+        }
+        
+        // Check for phone change
+        String oldPhone = extractJsonValue(oldValue, "phone");
+        String newPhone = extractJsonValue(newValue, "phone");
+        if (oldPhone != null && newPhone != null && !oldPhone.equals(newPhone)) {
+            return "updated phone number for " + entityName + " (from " + oldPhone + " to " + newPhone + ")";
+        }
+        
+        // Check for employee type change
+        String oldType = extractJsonNestedValue(oldValue, "employeeType", "name");
+        String newType = extractJsonNestedValue(newValue, "employeeType", "name");
+        if (oldType != null && newType != null && !oldType.equals(newType)) {
+            return "changed employee type from " + oldType + " to " + newType + " for " + entityName;
+        }
+        
+        // Check for employee status change
+        String oldStatus = extractJsonNestedValue(oldValue, "employeeStatus", "name");
+        String newStatus = extractJsonNestedValue(newValue, "employeeStatus", "name");
+        if (oldStatus != null && newStatus != null && !oldStatus.equals(newStatus)) {
+            return "changed employee status from " + oldStatus + " to " + newStatus + " for " + entityName;
+        }
+        
+        // Check for PF account change
+        String oldPf = extractJsonValue(oldValue, "pfAccountId");
+        String newPf = extractJsonValue(newValue, "pfAccountId");
+        if (oldPf != null && newPf != null && !oldPf.equals(newPf)) {
+            return "updated PF Account ID for " + entityName;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Extract meaningful changes for WorkActivity
+     */
+    private String extractWorkActivityChanges(AuditLog log, String entityName, String oldValue, String newValue) {
+        // Check for name change
+        String oldName = extractJsonValue(oldValue, "name");
+        String newName = extractJsonValue(newValue, "name");
+        if (oldName != null && newName != null && !oldName.equals(newName)) {
+            return "changed activity name from " + oldName + " to " + newName;
+        }
+        
+        // Check for description change
+        String oldDesc = extractJsonValue(oldValue, "description");
+        String newDesc = extractJsonValue(newValue, "description");
+        if (oldDesc != null && newDesc != null && !oldDesc.equals(newDesc)) {
+            return "updated description for " + entityName;
+        }
+        
+        return null;
+    }
+    
+    /**
+     * Extract a JSON value from a JSON string
+     */
+    private String extractJsonValue(String json, String key) {
+        try {
+            if (json == null || json.isEmpty()) return null;
+            
+            String keyPattern = "\"" + key + "\":";
+            int keyIndex = json.indexOf(keyPattern);
+            if (keyIndex == -1) return null;
+            
+            int valueStart = keyIndex + keyPattern.length();
+            char firstChar = json.charAt(valueStart);
+            
+            // Skip whitespace
+            while (Character.isWhitespace(firstChar) && valueStart < json.length() - 1) {
+                valueStart++;
+                firstChar = json.charAt(valueStart);
+            }
+            
+            // Handle string values
+            if (firstChar == '"') {
+                valueStart++; // Skip opening quote
+                int valueEnd = json.indexOf("\"", valueStart);
+                if (valueEnd == -1) return null;
+                return json.substring(valueStart, valueEnd);
+            }
+            
+            // Handle other values (numbers, booleans, null)
+            int valueEnd = valueStart;
+            while (valueEnd < json.length()) {
+                char c = json.charAt(valueEnd);
+                if (c == ',' || c == '}' || c == ']') break;
+                valueEnd++;
+            }
+            return json.substring(valueStart, valueEnd).trim();
+            
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    /**
+     * Extract a nested JSON value (e.g., employee.name)
+     */
+    private String extractJsonNestedValue(String json, String parentKey, String key) {
+        try {
+            if (json == null || json.isEmpty()) return null;
+            
+            // Find the parent object
+            String parentKeyPattern = "\"" + parentKey + "\":";
+            int parentStart = json.indexOf(parentKeyPattern);
+            if (parentStart == -1) return null;
+            
+            int braceStart = json.indexOf("{", parentStart);
+            if (braceStart == -1) return null;
+            
+            int braceCount = 1;
+            int braceEnd = braceStart + 1;
+            while (braceCount > 0 && braceEnd < json.length()) {
+                char c = json.charAt(braceEnd);
+                if (c == '{') braceCount++;
+                else if (c == '}') braceCount--;
+                braceEnd++;
+            }
+            
+            String parentSection = json.substring(braceStart, braceEnd);
+            return extractJsonValue(parentSection, key);
+            
+        } catch (Exception e) {
+            return null;
+        }
+    }
+    
+    /**
+     * Format entity type for display
+     */
+    private String formatEntityType(String entityType) {
+        if (entityType == null || entityType.isEmpty()) {
+            return "entity";
+        }
+        // Convert WORK_ASSIGNMENT to "work assignment"
+        return entityType.replace("_", " ").toLowerCase();
     }
 }
 

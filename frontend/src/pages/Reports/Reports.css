@@ -1,0 +1,195 @@
+/* Print Media Queries for Reports */
+@media print {
+  /* Hide everything by default */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only the printable content */
+  .printable-report,
+  .printable-report * {
+    visibility: visible;
+  }
+
+  /* Position the printable content at the top-left of the page */
+  .printable-report {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px;
+  }
+
+  /* Hide non-report elements */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show print-only elements */
+  .print-header,
+  .print-summary,
+  .print-footer {
+    display: block !important;
+  }
+
+  /* Print styling for report header */
+  .print-header {
+    text-align: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #333;
+    padding-bottom: 15px;
+  }
+
+  .print-header h1 {
+    font-size: 24px;
+    margin: 0;
+    color: #333;
+  }
+
+  .print-header h2 {
+    font-size: 18px;
+    margin: 5px 0 0 0;
+    color: #666;
+  }
+
+  .print-header p {
+    margin: 5px 0;
+    color: #666;
+    font-size: 12px;
+  }
+
+  /* Summary cards in print */
+  .print-summary {
+    display: flex !important;
+    justify-content: space-around;
+    margin-bottom: 20px;
+    border: 1px solid #ddd;
+    padding: 15px;
+    background-color: #f9f9f9;
+  }
+
+  .print-summary-item {
+    text-align: center;
+  }
+
+  .print-summary-label {
+    font-size: 10px;
+    color: #666;
+    margin-bottom: 5px;
+  }
+
+  .print-summary-value {
+    font-size: 16px;
+    font-weight: bold;
+    color: #333;
+  }
+
+  /* Table styling for print */
+  .printable-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    margin-top: 20px;
+  }
+
+  .printable-table th {
+    background-color: #f0f0f0;
+    border: 1px solid #333;
+    padding: 8px;
+    text-align: left;
+    font-weight: bold;
+    font-size: 11px;
+  }
+
+  .printable-table td {
+    border: 1px solid #ddd;
+    padding: 6px 8px;
+    font-size: 10px;
+  }
+
+  .printable-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+  }
+
+  /* Total row styling */
+  .print-total-row td {
+    background-color: #e0e0e0 !important;
+    font-weight: bold;
+    border-top: 2px solid #333;
+    font-size: 11px;
+  }
+
+  /* Highlight columns */
+  .print-highlight {
+    background-color: #fff3e0 !important;
+    font-weight: bold;
+  }
+
+  /* Remove box shadows and rounded corners for print */
+  * {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Page breaks */
+  .page-break {
+    page-break-after: always;
+  }
+
+  /* Prevent table rows from breaking across pages */
+  .printable-table tr {
+    page-break-inside: avoid;
+  }
+
+  /* Footer */
+  .print-footer {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    text-align: center;
+    font-size: 9px;
+    color: #666;
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+    margin-top: 20px;
+  }
+
+  .print-footer p {
+    margin: 2px 0;
+  }
+
+  /* Remove MUI Card styles in print */
+  .MuiCard-root {
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .MuiCardContent-root {
+    padding: 0 !important;
+  }
+
+  /* Override MUI Table styles for better print */
+  .MuiTableContainer-root {
+    overflow: visible !important;
+  }
+
+  /* Hide Chip component, show text instead */
+  .MuiChip-root {
+    border: none !important;
+    background-color: transparent !important;
+  }
+}
+
+/* Screen-only styles */
+@media screen {
+  .printable-report {
+    /* Normal screen styling */
+  }
+
+  .print-header,
+  .print-summary,
+  .print-footer {
+    display: none;
+  }
+}
+

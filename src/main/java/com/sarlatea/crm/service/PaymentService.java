@@ -31,6 +31,7 @@ public class PaymentService {
     private final WorkAssignmentRepository workAssignmentRepository;
     private final EmployeeSalaryRepository employeeSalaryRepository;
     private final WorkActivityCompletionCriteriaRepository completionCriteriaRepository;
+    private final AuditLogService auditLogService;
 
     // ==================== Query Methods ====================
 
@@ -285,6 +286,14 @@ public class PaymentService {
         // Update assignment status
         assignment.includeInPaymentDraft(payment.getId());
         workAssignmentRepository.save(assignment);
+        
+        // Audit log for adding to payment
+        auditLogService.logAudit(
+            AuditLog.OperationType.EDIT,
+            "WorkAssignment",
+            assignment.getId(),
+            assignment.getActivityName() + " - Added to payment draft " + payment.getReferenceNumber()
+        );
     }
 
     @Transactional
@@ -310,6 +319,14 @@ public class PaymentService {
         assignment.setPaymentStatus(WorkAssignment.PaymentStatus.UNPAID);
         assignment.setIncludedInPaymentId(null);
         workAssignmentRepository.save(assignment);
+        
+        // Audit log for removing from payment
+        auditLogService.logAudit(
+            AuditLog.OperationType.EDIT,
+            "WorkAssignment",
+            assignment.getId(),
+            assignment.getActivityName() + " - Removed from payment draft " + payment.getReferenceNumber()
+        );
 
         // Remove line item
         payment.removeLineItem(lineItem);
@@ -352,6 +369,14 @@ public class PaymentService {
             // Capture snapshot
             captureLineItemSnapshot(lineItem);
             paymentLineItemRepository.save(lineItem);
+            
+            // Audit log for assignment payment status change
+            auditLogService.logAudit(
+                AuditLog.OperationType.EDIT,
+                "WorkAssignment",
+                assignment.getId(),
+                assignment.getActivityName() + " - Payment submitted for approval (Reference: " + payment.getReferenceNumber() + ")"
+            );
         }
 
         // Update payment status
@@ -396,6 +421,14 @@ public class PaymentService {
             WorkAssignment assignment = lineItem.getAssignment();
             assignment.setPaymentStatus(WorkAssignment.PaymentStatus.APPROVED);
             workAssignmentRepository.save(assignment);
+            
+            // Audit log for assignment payment approval
+            auditLogService.logAudit(
+                AuditLog.OperationType.EDIT,
+                "WorkAssignment",
+                assignment.getId(),
+                assignment.getActivityName() + " - Payment approved (Reference: " + payment.getReferenceNumber() + ")"
+            );
         }
 
         Payment savedPayment = paymentRepository.save(payment);
@@ -435,6 +468,14 @@ public class PaymentService {
             WorkAssignment assignment = lineItem.getAssignment();
             assignment.lockForPayment(payment.getId());
             workAssignmentRepository.save(assignment);
+            
+            // Audit log for assignment payment completion
+            auditLogService.logAudit(
+                AuditLog.OperationType.EDIT,
+                "WorkAssignment",
+                assignment.getId(),
+                assignment.getActivityName() + " - Payment completed (Reference: " + request.getReferenceNumber() + ")"
+            );
         }
 
         Payment savedPayment = paymentRepository.save(payment);

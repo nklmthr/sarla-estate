@@ -39,6 +39,7 @@ import {
   Clear as ClearIcon,
   Lock as LockIcon,
   Edit as EditIcon,
+  History as HistoryIcon,
 } from '@mui/icons-material';
 import { assignmentApi } from '../../api/assignmentApi';
 import { employeeApi } from '../../api/employeeApi';
@@ -47,6 +48,7 @@ import { unitOfMeasureApi, UnitOfMeasure } from '../../api/unitOfMeasureApi';
 import { WorkAssignment, Employee, WorkActivity } from '../../types';
 import { format, startOfWeek, addDays, isSameDay, parseISO } from 'date-fns';
 import { useError } from '../../contexts/ErrorContext';
+import AssignmentHistoryDialog from '../../components/AssignmentHistoryDialog';
 
 interface AssignmentCell {
   assignment?: WorkAssignment;
@@ -95,6 +97,10 @@ const AssignmentList: React.FC = () => {
   const [selectedAssignment, setSelectedAssignment] = useState<WorkAssignment | null>(null);
   const [actualValue, setActualValue] = useState<number>(0);
   const completionInputRef = useRef<HTMLInputElement>(null);
+
+  // History dialog
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [historyAssignmentId, setHistoryAssignmentId] = useState<string>('');
 
   // Delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -763,11 +769,29 @@ const AssignmentList: React.FC = () => {
                     </IconButton>
                   </span>
                 </Tooltip>
+                <Tooltip 
+                  title="View History" 
+                  arrow
+                  disableInteractive
+                  enterDelay={500}
+                  leaveDelay={0}
+                >
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setHistoryAssignmentId(assignment.id || '');
+                      setHistoryDialogOpen(true);
+                    }}
+                    sx={{ p: 0.5 }}
+                  >
+                    <HistoryIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
               </Box>
             </Box>
             {isLocked && assignment.includedInPaymentId && (
               <Typography variant="caption" color="warning.dark" display="block" sx={{ fontSize: '0.65rem', fontWeight: 600, mt: 0.5 }}>
-                 In Payment: {assignment.includedInPaymentId.substring(0, 8)}...
+                 In Payment: {assignment.includedInPaymentReferenceNumber || assignment.includedInPaymentId.substring(0, 8) + '...'}
               </Typography>
             )}
             {!hasActiveCriteria && !isCompleted && (
@@ -1212,6 +1236,13 @@ const AssignmentList: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* History Dialog */}
+      <AssignmentHistoryDialog
+        open={historyDialogOpen}
+        onClose={() => setHistoryDialogOpen(false)}
+        assignmentId={historyAssignmentId}
+      />
 
     </Box>
   );

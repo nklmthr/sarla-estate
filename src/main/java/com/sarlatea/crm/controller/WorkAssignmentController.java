@@ -1,5 +1,6 @@
 package com.sarlatea.crm.controller;
 
+import com.sarlatea.crm.dto.AssignmentHistoryDTO;
 import com.sarlatea.crm.dto.WorkAssignmentDTO;
 import com.sarlatea.crm.service.WorkAssignmentService;
 import lombok.RequiredArgsConstructor;
@@ -130,6 +131,14 @@ public class WorkAssignmentController {
         log.info("DELETE request to delete work assignment with id: {}", id);
         workAssignmentService.deleteAssignment(id);
         return ResponseEntity.noContent().build();
+    }
+    
+    @GetMapping("/{id}/history")
+    @PreAuthorize("hasPermission('ASSIGNMENT', 'VIEW')")
+    public ResponseEntity<AssignmentHistoryDTO> getAssignmentHistory(@PathVariable String id) {
+        log.info("GET request to fetch history for assignment with id: {}", id);
+        AssignmentHistoryDTO history = workAssignmentService.getAssignmentHistory(id);
+        return ResponseEntity.ok(history);
     }
 }
 

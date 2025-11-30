@@ -83,7 +83,9 @@ export interface WorkAssignment {
   // Payment tracking
   paymentStatus?: 'UNPAID' | 'DRAFT' | 'PENDING_PAYMENT' | 'APPROVED' | 'PAID' | 'CANCELLED';
   includedInPaymentId?: string;
+  includedInPaymentReferenceNumber?: string; // Payment reference for display
   paidInPaymentId?: string;
+  paidInPaymentReferenceNumber?: string; // Payment reference for display
   paymentLockedAt?: string;
   isEditable?: boolean; // Computed field from backend - can edit activity or delete
   isReEvaluatable?: boolean; // Computed field from backend - can update completion percentage

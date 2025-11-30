@@ -1,6 +1,38 @@
 import apiClient from './apiClient';
 import { WorkAssignment } from '../types';
 
+export interface AssignmentHistory {
+  assignmentId: string;
+  assignmentDate: string;
+  activityName: string;
+  employeeName: string;
+  assignedAt?: string;
+  firstEvaluatedAt?: string;
+  lastEvaluatedAt?: string;
+  evaluationCount?: number;
+  paymentLockedAt?: string;
+  assignmentStatus?: string;
+  paymentStatus?: string;
+  completionPercentage?: number;
+  includedInPaymentId?: string;
+  includedInPaymentReferenceNumber?: string;
+  paidInPaymentId?: string;
+  paidInPaymentReferenceNumber?: string;
+  auditLogs: AuditLogEntry[];
+}
+
+export interface AuditLogEntry {
+  timestamp: string;
+  operation: string;
+  username: string;
+  userFullName?: string;
+  ipAddress?: string;
+  description: string;
+  oldValue?: string;
+  newValue?: string;
+  status?: string;
+}
+
 export const assignmentApi = {
   getAllAssignments: async (): Promise<WorkAssignment[]> => {
     return apiClient.get<WorkAssignment[]>('/work-assignments');
@@ -59,5 +91,9 @@ export const assignmentApi = {
   
   deleteAssignment: async (id: string): Promise<void> => {
     return apiClient.delete(`/work-assignments/${id}`);
+  },
+  
+  getAssignmentHistory: async (id: string): Promise<AssignmentHistory> => {
+    return apiClient.get<AssignmentHistory>(`/work-assignments/${id}/history`);
   },
 };

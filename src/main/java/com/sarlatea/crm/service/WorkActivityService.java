@@ -4,6 +4,7 @@ import com.sarlatea.crm.dto.WorkActivityCompletionCriteriaDTO;
 import com.sarlatea.crm.dto.WorkActivityDTO;
 import com.sarlatea.crm.exception.DataIntegrityException;
 import com.sarlatea.crm.exception.ResourceNotFoundException;
+import com.sarlatea.crm.model.AuditLog;
 import com.sarlatea.crm.model.WorkActivity;
 import com.sarlatea.crm.model.WorkActivityCompletionCriteria;
 import com.sarlatea.crm.repository.WorkActivityCompletionCriteriaRepository;
@@ -30,6 +31,7 @@ public class WorkActivityService {
     private final WorkActivityRepository workActivityRepository;
     private final WorkAssignmentRepository workAssignmentRepository;
     private final WorkActivityCompletionCriteriaRepository completionCriteriaRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<WorkActivityDTO> getAllWorkActivities() {
@@ -58,6 +60,15 @@ public class WorkActivityService {
         log.debug("Creating new work activity: {}", workActivityDTO.getName());
         WorkActivity workActivity = convertToEntity(workActivityDTO);
         WorkActivity savedWorkActivity = workActivityRepository.save(workActivity);
+        
+        // Audit log for creation
+        auditLogService.logAudit(
+            AuditLog.OperationType.CREATE,
+            "WorkActivity",
+            savedWorkActivity.getId(),
+            savedWorkActivity.getName()
+        );
+        
         return convertToDTO(savedWorkActivity);
     }
 
@@ -67,9 +78,24 @@ public class WorkActivityService {
         WorkActivity workActivity = workActivityRepository.findByIdAndDeletedFalse(id)
                 .orElseThrow(() -> new ResourceNotFoundException("WorkActivity not found with id: " + id));
         
+        // Capture old state for audit
+        WorkActivityDTO oldState = convertToDTO(workActivity);
+        
         updateWorkActivityFields(workActivity, workActivityDTO);
         WorkActivity updatedWorkActivity = workActivityRepository.save(workActivity);
-        return convertToDTO(updatedWorkActivity);
+        
+        // Audit log for update with old and new values
+        WorkActivityDTO newState = convertToDTO(updatedWorkActivity);
+        auditLogService.logAuditWithChanges(
+            AuditLog.OperationType.EDIT,
+            "WorkActivity",
+            updatedWorkActivity.getId(),
+            updatedWorkActivity.getName(),
+            oldState,
+            newState
+        );
+        
+        return newState;
     }
 
     @Transactional
@@ -96,6 +122,14 @@ public class WorkActivityService {
         workActivityRepository.save(workActivity);
         log.info("Work activity '{}' and its {} completion criteria marked as deleted for audit purposes", 
                 originalName, criteria.size());
+        
+        // Audit log for deletion
+        auditLogService.logAudit(
+            AuditLog.OperationType.DELETE,
+            "WorkActivity",
+            workActivity.getId(),
+            originalName
+        );
     }
 
     @Transactional(readOnly = true)
